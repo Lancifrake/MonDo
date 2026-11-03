@@ -21,7 +21,7 @@ MonDo est en conception, sans code en production. Aucune version n'est « suppor
 6. **Le registre blockchain ne reçoit que des empreintes**, jamais de donnée personnelle, même chiffrée.
 7. **Pièces d'identité** : stockage chiffré séparé de la base, accès limité et journalisé, durée de conservation définie. Jamais dans les journaux ni dans les messages d'erreur.
 8. **Dépendances** : peu nombreuses, à jour, choisies avec soin. Toute dépendance nouvelle est justifiée dans la pull request.
-9. **Contrats Solidity** : bibliothèques éprouvées (OpenZeppelin), tests, relecture à deux. **Aucun contrat n'est déployé avec de vrais fonds ou sur un réseau réel sans audit.** Les clés de déploiement ne sont jamais dans le code.
+9. **Contrats Solidity** : bibliothèques éprouvées (OpenZeppelin), tests, relecture à deux. **Aucun contrat n'est déployé avec de vrais fonds ou sur un réseau réel sans audit.** Les clés de déploiement ne sont jamais dans le code : variables d'environnement seulement. Le contrat `src/contrat/contracts/RegistreMonDo.sol` n'est pas audité.
 10. **Décisions de l'Administrateur** : il ne déplace jamais d'argent et ne modifie jamais un score à la main ; ses décisions sont inscrites au registre.
 
 ## À mettre en place avec le code

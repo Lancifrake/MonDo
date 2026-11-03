@@ -1,0 +1,6 @@
+packages:
+  - "src/*"
+
+# Seuls ces paquets peuvent exécuter un script à l'installation.
+allowBuilds:
+  esbuild: true

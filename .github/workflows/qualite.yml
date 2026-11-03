@@ -1,0 +1,46 @@
+name: Qualité
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  serveur:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: mondo
+          POSTGRES_PASSWORD: test-uniquement
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-retries 10
+    env:
+      # Serveur jetable de l'intégration continue, aucune donnée réelle.
+      MONDO_TEST_POSTGRES_URL: postgres://mondo:test-uniquement@localhost:5432/postgres
+    defaults:
+      run:
+        working-directory: src/serveur
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm qualite
+
+  contrat:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/contrat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm qualite
