@@ -41,6 +41,18 @@ Un assistant aide l'organisateur d'un cercle à suivre les cotisations, relancer
 - **Indéterminisme** : relancer 100 fois le même scénario (10 membres, un défaut) et vérifier que les actions proposées sont identiques.
 - **Mémoire** : état de chaque agent borné, pas de fuite sur plusieurs cycles.
 
+## Mise en œuvre (03/11/2026)
+Branché sur les événements internes du serveur (`src/serveur/src/modules/assistant`) :
+- le Planificateur examine les cotisations dues et publie « échéance proche » et « échéance dépassée », une fois par jour et par cotisation ; le constat de défaut publie « défaut constaté » ;
+- pour chaque événement, les agents tournent avec les limites lues dans le règlement signé du cercle, et chaque action est enregistrée dans un journal (`executee`, `en_attente`, `acceptee`, `refusee`, `hors_reglement`) ;
+- la mise en demeure est **préparée** par le module Preuve et **envoyée** par l'assistant : tout de suite en mode autonome, après accord de l'organisateur en mode manuel ;
+- envois simulés : la file d'envoi SMS n'existe pas encore.
+
+Choix faits faute de règle écrite, à valider :
+1. **Mode par défaut : manuel** tant que l'organisateur n'a pas choisi (aucune action sans accord).
+2. **Jours de rappel avant échéance : champ facultatif du règlement signé** (`rappelsAvantEcheanceJours`), vide par défaut : sans ce champ, aucun rappel avant la date limite.
+3. **Mise en demeure toujours autorisée** pour les agents : le flow 7 la fait suivre tout défaut constaté.
+
 ## Points ouverts
 - Confirmer avec l'enseignant que ce système satisfait la grille multi-agents.
 - Dans quelle mesure l'organisateur peut changer de mode en cours de cycle.

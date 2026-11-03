@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { GardeAuthentification } from "./authentification/garde.js";
 import { BaseModule } from "./base/base.module.js";
 import { EvenementsModule } from "./evenements/evenements.module.js";
+import { AssistantModule } from "./modules/assistant/assistant.module.js";
 import { CerclesModule } from "./modules/cercles/cercles.module.js";
 import { ComptesModule } from "./modules/comptes/comptes.module.js";
 import { CotisationsModule } from "./modules/cotisations/cotisations.module.js";
@@ -22,6 +23,7 @@ import { RegistreModule } from "./registre/registre.module.js";
     CotisationsModule,
     PlanificateurModule,
     PreuveModule,
+    AssistantModule,
   ],
   // Toute route exige une requête signée, sauf celles marquées @Public().
   providers: [{ provide: APP_GUARD, useClass: GardeAuthentification }],

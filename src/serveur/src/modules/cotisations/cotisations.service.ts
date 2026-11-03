@@ -84,6 +84,14 @@ export class CotisationsService {
     return confirmee;
   }
 
+  /** Cotisations ni payées ni déclarées, pour l'examen des échéances. */
+  async listerDues(): Promise<Cotisation[]> {
+    const lignes = await this.base.requete<LigneCotisation>(
+      "SELECT * FROM cotisations.cotisations WHERE statut = 'due' ORDER BY date_limite, id",
+    );
+    return lignes.map(versCotisation);
+  }
+
   /** Relevé d'un payeur dans un cercle, du plus ancien au plus récent. */
   async listerPour(cercleId: string, payeurId: string): Promise<Cotisation[]> {
     const lignes = await this.base.requete<LigneCotisation>(

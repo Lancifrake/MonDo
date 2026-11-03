@@ -23,6 +23,8 @@ export const schemaReglement = z.strictObject({
   penaliteRetard: z.number().int().min(0),
   delaiGraceJours: z.number().int().min(0).max(30),
   ouvert: z.boolean(),
+  /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
+  rappelsAvantEcheanceJours: z.array(z.number().int().min(1).max(30)).max(5).optional(),
 });
 
 export const schemaCreationCercle = z.strictObject({ reglement: schemaReglement, signature: z.string().min(1) });
@@ -36,3 +38,5 @@ export const schemaCreationCotisation = z.strictObject({
 });
 
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
+
+export const schemaModeAssistant = z.strictObject({ mode: z.enum(["autonome", "manuel"]) });

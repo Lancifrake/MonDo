@@ -17,6 +17,8 @@ export interface Reglement {
   delaiGraceJours: number;
   /** Ouvert à des inconnus : exige l'identité vérifiée (niveau 2). */
   ouvert: boolean;
+  /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
+  rappelsAvantEcheanceJours?: number[];
 }
 
 export interface PlaceOrdre {

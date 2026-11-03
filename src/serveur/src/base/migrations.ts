@@ -116,6 +116,28 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         UNIQUE (cercle_id, membre_id, tour)
       );`,
   },
+  {
+    nom: "008_envoi_mises_en_demeure_et_assistant",
+    sql: `
+      ALTER TABLE preuve.mises_en_demeure ADD COLUMN envoyee_le timestamptz;
+      UPDATE preuve.mises_en_demeure SET envoi = 'a_envoyer' WHERE envoi = 'simule';
+      ALTER TABLE preuve.mises_en_demeure ADD CONSTRAINT envoi_valide CHECK (envoi IN ('a_envoyer', 'envoyee'));
+      CREATE SCHEMA IF NOT EXISTS assistant;
+      CREATE TABLE assistant.reglages (
+        cercle_id uuid PRIMARY KEY,
+        mode text NOT NULL CHECK (mode IN ('autonome', 'manuel'))
+      );
+      CREATE TABLE assistant.actions (
+        id uuid PRIMARY KEY,
+        cercle_id uuid NOT NULL,
+        type text NOT NULL,
+        membre_id uuid NOT NULL,
+        issue text NOT NULL CHECK (issue IN ('executee', 'en_attente', 'acceptee', 'refusee', 'hors_reglement')),
+        creee_le timestamptz NOT NULL DEFAULT now(),
+        tranchee_le timestamptz
+      );
+      CREATE INDEX actions_cercle ON assistant.actions (cercle_id, creee_le)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

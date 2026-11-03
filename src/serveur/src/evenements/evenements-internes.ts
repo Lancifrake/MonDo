@@ -5,7 +5,9 @@ export type EvenementInterne =
   | { type: "cotisation_confirmee"; cercleId: string; membreId: string; aTemps: boolean }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number }
   | { type: "cycle_termine"; cercleId: string; membreId: string }
-  | { type: "cercle_complet"; cercleId: string };
+  | { type: "cercle_complet"; cercleId: string }
+  | { type: "echeance_proche"; cercleId: string; membreId: string; cotisationId: string; joursRestants: number }
+  | { type: "echeance_depassee"; cercleId: string; membreId: string; cotisationId: string; joursDeRetard: number };
 
 export type TypeEvenementInterne = EvenementInterne["type"];
 

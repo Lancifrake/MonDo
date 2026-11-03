@@ -18,8 +18,9 @@ export interface MiseEnDemeure {
   emiseLe: string;
   montantDu: MontantDu;
   cotisationsDues: string[];
-  /** Canal d'envoi. Simulé au prototype : la file d'envoi SMS n'existe pas encore. */
-  envoi: "simule";
+  /** Préparée par le module Preuve, envoyée par l'assistant (décision 04). Canal simulé au prototype. */
+  envoi: "a_envoyer" | "envoyee";
+  envoyeeLe: string | null;
   empreinte: string;
 }
 
@@ -83,18 +84,27 @@ export class PreuveService implements OnModuleInit {
         cercle.reglement.penaliteRetard,
       ),
       cotisationsDues: dues.map((c) => c.id),
-      envoi: "simule" as const,
     };
     const empreinte = hacher(canonique(contenu));
     const inseree = await this.base.requete(
       `INSERT INTO preuve.mises_en_demeure (id, cercle_id, membre_id, tour, contenu, empreinte, envoi, emise_le)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (cercle_id, membre_id, tour) DO NOTHING RETURNING id`,
-      [contenu.id, cercleId, membreId, tour, JSON.stringify(contenu), empreinte, contenu.envoi, contenu.emiseLe],
+      [contenu.id, cercleId, membreId, tour, JSON.stringify(contenu), empreinte, "a_envoyer", contenu.emiseLe],
     );
     if (inseree.length === 0) return undefined;
     await this.registre.enregistrer(canonique(contenu));
     const { objet: _objet, ...miseEnDemeure } = contenu;
-    return { ...miseEnDemeure, empreinte };
+    return { ...miseEnDemeure, envoi: "a_envoyer", envoyeeLe: null, empreinte };
+  }
+
+  /** Marque comme envoyées les mises en demeure préparées pour ce membre. Le contenu daté, lui, ne change pas. */
+  async marquerEnvoyees(cercleId: string, membreId: string): Promise<number> {
+    const lignes = await this.base.requete(
+      `UPDATE preuve.mises_en_demeure SET envoi = 'envoyee', envoyee_le = now()
+       WHERE cercle_id = $1 AND membre_id = $2 AND envoi = 'a_envoyer' RETURNING id`,
+      [cercleId, membreId],
+    );
+    return lignes.length;
   }
 
   /** Réservé aux membres lésés : membres du cercle autres que le débiteur (flow 7). */
@@ -157,12 +167,20 @@ export class PreuveService implements OnModuleInit {
 
   private async misesEnDemeure(cercleId: string, membreId: string): Promise<MiseEnDemeure[]> {
     const lignes = await this.base.requete<{
-      contenu: Omit<MiseEnDemeure, "empreinte"> & { objet?: string };
+      contenu: Omit<MiseEnDemeure, "empreinte" | "envoi" | "envoyeeLe"> & { objet?: string };
       empreinte: string;
-    }>("SELECT contenu, empreinte FROM preuve.mises_en_demeure WHERE cercle_id = $1 AND membre_id = $2 ORDER BY tour", [
-      cercleId,
-      membreId,
-    ]);
-    return lignes.map(({ contenu: { objet: _objet, ...c }, empreinte }) => ({ ...c, empreinte }));
+      envoi: MiseEnDemeure["envoi"];
+      envoyee_le: Date | string | null;
+    }>(
+      `SELECT contenu, empreinte, envoi, envoyee_le FROM preuve.mises_en_demeure
+       WHERE cercle_id = $1 AND membre_id = $2 ORDER BY tour`,
+      [cercleId, membreId],
+    );
+    return lignes.map(({ contenu: { objet: _objet, ...c }, empreinte, envoi, envoyee_le }) => ({
+      ...c,
+      envoi,
+      envoyeeLe: envoyee_le ? new Date(envoyee_le).toISOString() : null,
+      empreinte,
+    }));
   }
 }
