@@ -45,10 +45,7 @@ export class CerclesService {
   ) {}
 
   creer(d: { organisateurId: string; reglement: Reglement; signature: string }): Cercle {
-    const r = d.reglement;
-    if (!(r.montant > 0) || r.nombreMembres < 3 || r.penaliteRetard < 0 || r.delaiGraceJours < 0) {
-      throw new BadRequestException("Règlement invalide");
-    }
+    const r = d.reglement; // forme validée en amont (schemaReglement)
     const organisateur = this.comptes.trouver(d.organisateurId);
     const message = messageReglement(d.organisateurId, r);
     if (!verifierSignature(organisateur.clePublique, message, d.signature)) {

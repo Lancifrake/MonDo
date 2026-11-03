@@ -1,5 +1,7 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { messageInscription } from "../../authentification/messages.js";
+import { verifierSignature } from "../../signature/signature.js";
 
 export interface Compte {
   id: string;
@@ -15,15 +17,16 @@ export interface Compte {
 export class ComptesService {
   private readonly comptes = new Map<string, Compte>();
 
-  inscrire(d: { numero: string; nom: string; clePublique: JsonWebKey }): Compte {
-    if (!/^\+?\d{8,15}$/.test(d.numero)) throw new BadRequestException("Numéro de téléphone invalide");
-    if (!d.nom.trim()) throw new BadRequestException("Le nom est obligatoire");
-    if (d.clePublique?.kty !== "EC" || d.clePublique.crv !== "P-256" || d.clePublique.d) {
-      throw new BadRequestException("Clé publique ECDSA P-256 attendue, sans partie privée");
+  /** La forme des données est validée en amont (schemaInscription) ; ici, les règles métier. */
+  inscrire(d: { numero: string; nom: string; clePublique: JsonWebKey; preuve: string }): Compte {
+    const { preuve, ...donnees } = d;
+    if (!verifierSignature(donnees.clePublique, messageInscription(donnees), preuve)) {
+      throw new ForbiddenException("Preuve de détention de la clé invalide");
     }
-    if ([...this.comptes.values()].some((c) => c.numero === d.numero))
+    if ([...this.comptes.values()].some((c) => c.numero === donnees.numero)) {
       throw new ConflictException("Numéro déjà inscrit");
-    const compte: Compte = { id: randomUUID(), niveau: 1, ...d };
+    }
+    const compte: Compte = { id: randomUUID(), niveau: 1, ...donnees };
     this.comptes.set(compte.id, compte);
     return compte;
   }
@@ -33,6 +36,10 @@ export class ComptesService {
     const c = this.trouver(id);
     c.niveau = 2;
     return c;
+  }
+
+  chercher(id: string): Compte | undefined {
+    return this.comptes.get(id);
   }
 
   trouver(id: string): Compte {

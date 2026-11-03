@@ -6,61 +6,82 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AppModule } from "./app.module.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
+import { creerClient, type Identite } from "./testing/client.js";
 
 let app: INestApplication;
-let base: string;
+let client: ReturnType<typeof creerClient>;
 
 beforeAll(async () => {
-  const module = await Test.createTestingModule({ imports: [AppModule] }).compile();
-  app = module.createNestApplication();
+  app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
   await app.listen(0);
-  base = await app.getUrl();
+  client = creerClient(await app.getUrl());
 });
 afterAll(async () => app.close());
 
-const post = (url: string, corps: unknown) =>
-  fetch(base + url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corps) });
-
-async function cotisation(dateLimite: string) {
-  const r = await post("/cotisations", {
-    cercleId: "c1",
-    payeurId: "paul",
-    beneficiaireId: "awa",
-    montant: 10000,
-    dateLimite,
-  });
-  return (await r.json()) as { id: string };
+async function cotisationDeclaree(payeur: Identite, beneficiaire: Identite) {
+  const r = await client.requete(
+    "POST",
+    "/cotisations",
+    { cercleId: "c1", beneficiaireId: beneficiaire.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
+    payeur,
+  );
+  const { id } = (await r.json()) as { id: string };
+  await client.requete("POST", `/cotisations/${id}/paiement`, { referenceTransaction: "OM123" }, payeur);
+  return id;
 }
+
+const score = async (qui: Identite) =>
+  (await (await client.requete("GET", `/score/${qui.id}`, undefined, qui)).json()) as {
+    score: number;
+    defauts: number;
+  };
 
 describe("Cotisations -> Score, par événements seulement", () => {
   it("une cotisation confirmée à temps donne +4 au payeur", async () => {
-    const c = await cotisation("2999-01-01T00:00:00Z");
-    await post(`/cotisations/${c.id}/paiement`, { referenceTransaction: "OM123" });
-    const r = await post(`/cotisations/${c.id}/confirmation`, { membreId: "awa" });
-    expect(r.status).toBe(201);
-    const score = (await (await fetch(`${base}/score/paul`)).json()) as { score: number };
-    expect(score.score).toBe(4);
+    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
+    const id = await cotisationDeclaree(paul, awa);
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, awa)).status).toBe(201);
+    expect((await score(paul)).score).toBe(4);
   });
 
-  it("le payeur ne peut pas se confirmer lui-même", async () => {
-    const c = await cotisation("2999-01-01T00:00:00Z");
-    await post(`/cotisations/${c.id}/paiement`, { referenceTransaction: "OM124" });
-    const r = await post(`/cotisations/${c.id}/confirmation`, { membreId: "paul" });
-    expect(r.status).toBe(400);
+  it("le payeur ne peut pas confirmer à la place du bénéficiaire", async () => {
+    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
+    const id = await cotisationDeclaree(paul, awa);
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, paul)).status).toBe(403);
+  });
+
+  it("seul le payeur déclare son paiement", async () => {
+    const [paul, awa, intrus] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];
+    const r = await client.requete(
+      "POST",
+      "/cotisations",
+      { cercleId: "c1", beneficiaireId: awa.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
+      paul,
+    );
+    const { id } = (await r.json()) as { id: string };
+    expect(
+      (await client.requete("POST", `/cotisations/${id}/paiement`, { referenceTransaction: "X" }, intrus)).status,
+    ).toBe(403);
   });
 
   it("sans paiement déclaré, la confirmation est refusée (le silence ne vaut pas confirmation)", async () => {
-    const c = await cotisation("2999-01-01T00:00:00Z");
-    const r = await post(`/cotisations/${c.id}/confirmation`, { membreId: "awa" });
-    expect(r.status).toBe(400);
+    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
+    const r = await client.requete(
+      "POST",
+      "/cotisations",
+      { cercleId: "c1", beneficiaireId: awa.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
+      paul,
+    );
+    const { id } = (await r.json()) as { id: string };
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, awa)).status).toBe(400);
   });
 
   it("un défaut constaté fait baisser le score, une seule fois même si le planificateur est rejoué", async () => {
+    const luc = await client.inscrire();
     const planificateur = app.get(PlanificateurService);
-    expect(planificateur.constaterDefaut("c2", "luc", 1)).toBe(true);
-    expect(planificateur.constaterDefaut("c2", "luc", 1)).toBe(false);
-    const score = (await (await fetch(`${base}/score/luc`)).json()) as { score: number; defauts: number };
-    expect(score).toMatchObject({ score: 0, defauts: 1 });
+    expect(planificateur.constaterDefaut("c2", luc.id, 1)).toBe(true);
+    expect(planificateur.constaterDefaut("c2", luc.id, 1)).toBe(false);
+    expect(await score(luc)).toMatchObject({ score: 0, defauts: 1 });
   });
 });
 

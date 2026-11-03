@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 
@@ -26,9 +26,9 @@ export class CotisationsService {
     return c;
   }
 
-  declarerPaiement(id: string, referenceTransaction: string): Cotisation {
+  declarerPaiement(id: string, referenceTransaction: string, parMembreId: string): Cotisation {
     const c = this.trouver(id);
-    if (!referenceTransaction.trim()) throw new BadRequestException("La référence de la transaction est obligatoire");
+    if (parMembreId !== c.payeurId) throw new ForbiddenException("Seul le payeur déclare son paiement");
     if (c.statut === "confirmee") throw new BadRequestException("Cotisation déjà confirmée");
     c.referenceTransaction = referenceTransaction;
     c.statut = "declaree";
@@ -37,7 +37,7 @@ export class CotisationsService {
 
   confirmer(id: string, parMembreId: string, maintenant: Date = new Date()): Cotisation {
     const c = this.trouver(id);
-    if (parMembreId !== c.beneficiaireId) throw new BadRequestException("Seul le bénéficiaire peut confirmer");
+    if (parMembreId !== c.beneficiaireId) throw new ForbiddenException("Seul le bénéficiaire peut confirmer");
     if (c.statut !== "declaree") throw new BadRequestException("Aucun paiement déclaré à confirmer");
     c.statut = "confirmee";
     this.evenements.publier({

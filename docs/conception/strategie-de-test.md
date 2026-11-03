@@ -40,12 +40,14 @@ Une pull request n'est fusionnée que si `pnpm qualite` passe, en local et dans 
 | Maintenabilité | modules indépendants (décision 02) | lint, test qui interdit les imports entre modules, couverture |
 | Portabilité | changement d'hébergeur ou de réseau EVM | connecteurs derrière des interfaces |
 
+## Corrigé le 03/11
+- **Authentification** : chaque requête est signée par la clé du téléphone (en-têtes `x-mondo-membre`, `x-mondo-horodatage`, `x-mondo-signature`), valable 5 minutes et une seule fois. L'identité n'est plus jamais lue dans le corps. Seule l'inscription est publique, avec preuve de détention de la clé.
+- **Validation des entrées** : schémas Zod stricts sur chaque corps de requête (champs inconnus refusés).
+
 ## Défauts connus, non corrigés
-1. **Aucune authentification des requêtes** : l'identité du membre (`membreId`) vient du corps de la requête. N'importe qui peut se faire passer pour le bénéficiaire et confirmer une cotisation. À corriger avant toute démo publique : requêtes signées avec la clé du téléphone ou jeton de session après OTP.
-2. **Aucune validation des entrées à l'exécution** : les types TypeScript ne protègent pas contre un JSON mal formé (ex. `nombreMembres` non entier). À corriger avec une validation de schéma.
-3. **Pas d'OTP SMS** : l'inscription ne prouve pas la possession du numéro.
-4. **Données en mémoire** : perdues au redémarrage, pas encore de PostgreSQL.
-5. **Les tests d'intégration partagent une application** : l'ordre des tests peut influer. À isoler quand la base arrivera.
+1. **Pas d'OTP SMS** : l'inscription ne prouve pas la possession du numéro.
+2. **Données en mémoire** : perdues au redémarrage, pas encore de PostgreSQL.
+3. **Les tests d'intégration partagent une application** : l'ordre des tests peut influer. À isoler quand la base arrivera.
 
 ## Documentation de test (29119-3), version allégée
 Ce document tient lieu de plan de test. Les cas de test sont les fichiers `*.test.ts`, nommés par comportement attendu. Les rapports sont la sortie de `pnpm qualite` et de l'intégration continue.
