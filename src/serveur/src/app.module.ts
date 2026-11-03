@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { APP_GUARD } from "@nestjs/core";
 import { GardeAuthentification } from "./authentification/garde.js";
+import { BaseModule } from "./base/base.module.js";
 import { EvenementsModule } from "./evenements/evenements.module.js";
 import { CerclesModule } from "./modules/cercles/cercles.module.js";
 import { ComptesModule } from "./modules/comptes/comptes.module.js";
@@ -12,6 +13,7 @@ import { RegistreModule } from "./registre/registre.module.js";
 
 @Module({
   imports: [
+    BaseModule,
     EvenementsModule,
     RegistreModule,
     ComptesModule,

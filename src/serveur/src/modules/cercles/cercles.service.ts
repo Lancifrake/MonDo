@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { BASE_DE_DONNEES, type BaseDeDonnees, type Executeur } from "../../base/base-de-donnees.js";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { RegistreService } from "../../registre/registre.service.js";
-import { calculerOrdreDePassage, type PlaceAttribuee } from "../../score/ordre-de-passage.js";
+import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
 import { ComptesService } from "../comptes/comptes.service.js";
@@ -18,6 +19,12 @@ export interface Reglement {
   ouvert: boolean;
 }
 
+export interface PlaceOrdre {
+  position: number;
+  zone: string;
+  membreId: string;
+}
+
 export interface Cercle {
   id: string;
   organisateurId: string;
@@ -25,7 +32,16 @@ export interface Cercle {
   empreinteReglement: string;
   membres: string[];
   statut: "en_attente" | "complet";
-  ordre?: { position: number; zone: string; membreId: string }[];
+  ordre?: PlaceOrdre[];
+}
+
+interface LigneCercle extends Record<string, unknown> {
+  id: string;
+  organisateur_id: string;
+  reglement: Reglement;
+  empreinte_reglement: string;
+  statut: Cercle["statut"];
+  ordre: PlaceOrdre[] | null;
 }
 
 export const messageReglement = (organisateurId: string, r: Reglement) =>
@@ -33,41 +49,44 @@ export const messageReglement = (organisateurId: string, r: Reglement) =>
 export const messageEngagement = (cercleId: string, empreinteReglement: string, membreId: string) =>
   canonique({ objet: "engagement", cercleId, empreinteReglement, membreId });
 
+const UUID = /^[0-9a-f-]{36}$/i;
+
 @Injectable()
 export class CerclesService {
-  private readonly cercles = new Map<string, Cercle>();
-
   constructor(
     @Inject(ComptesService) private readonly comptes: ComptesService,
     @Inject(ScoreService) private readonly score: ScoreService,
     @Inject(RegistreService) private readonly registre: RegistreService,
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
+    @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
   ) {}
 
-  creer(d: { organisateurId: string; reglement: Reglement; signature: string }): Cercle {
-    const r = d.reglement; // forme validée en amont (schemaReglement)
-    const organisateur = this.comptes.trouver(d.organisateurId);
-    const message = messageReglement(d.organisateurId, r);
+  async creer(d: { organisateurId: string; reglement: Reglement; signature: string }): Promise<Cercle> {
+    const organisateur = await this.comptes.trouver(d.organisateurId);
+    const message = messageReglement(d.organisateurId, d.reglement); // forme validée en amont (schemaReglement)
     if (!verifierSignature(organisateur.clePublique, message, d.signature)) {
       throw new ForbiddenException("Signature du règlement invalide");
     }
-    const cercle: Cercle = {
-      id: randomUUID(),
-      organisateurId: d.organisateurId,
-      reglement: r,
-      empreinteReglement: this.registre.enregistrer(message),
-      membres: [d.organisateurId],
-      statut: "en_attente",
-    };
-    this.cercles.set(cercle.id, cercle);
-    return cercle;
+    const empreinte = await this.registre.enregistrer(message);
+    const id = randomUUID();
+    await this.base.transaction(async (tx) => {
+      await tx.requete(
+        `INSERT INTO cercles.cercles (id, organisateur_id, reglement, empreinte_reglement, statut)
+         VALUES ($1, $2, $3, $4, 'en_attente')`,
+        [id, d.organisateurId, JSON.stringify(d.reglement), empreinte],
+      );
+      await tx.requete("INSERT INTO cercles.adhesions (cercle_id, membre_id, rang, signature) VALUES ($1, $2, 1, $3)", [
+        id,
+        d.organisateurId,
+        d.signature,
+      ]);
+    });
+    return this.trouver(id);
   }
 
-  rejoindre(cercleId: string, d: { membreId: string; signature: string }): Cercle {
-    const cercle = this.trouver(cercleId);
-    if (cercle.statut === "complet") throw new BadRequestException("Cercle complet");
-    if (cercle.membres.includes(d.membreId)) throw new BadRequestException("Déjà membre");
-    const membre = this.comptes.trouver(d.membreId);
+  async rejoindre(cercleId: string, d: { membreId: string; signature: string }): Promise<Cercle> {
+    const cercle = await this.trouver(cercleId);
+    const membre = await this.comptes.trouver(d.membreId);
     if (cercle.reglement.ouvert && membre.niveau < 2) {
       throw new ForbiddenException("Identité vérifiée (niveau 2) requise pour un cercle ouvert");
     }
@@ -75,26 +94,67 @@ export class CerclesService {
     if (!verifierSignature(membre.clePublique, message, d.signature)) {
       throw new ForbiddenException("Signature de l'engagement invalide");
     }
-    this.registre.enregistrer(message);
-    cercle.membres.push(d.membreId);
-    if (cercle.membres.length === cercle.reglement.nombreMembres) this.completer(cercle);
-    return cercle;
+
+    // Verrou sur la ligne du cercle : deux adhésions simultanées ne dépassent jamais le nombre de places.
+    const complet = await this.base.transaction(async (tx) => {
+      const [verrou] = await tx.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1 FOR UPDATE", [
+        cercleId,
+      ]);
+      if (verrou!.statut === "complet") throw new BadRequestException("Cercle complet");
+      const membres = await this.membres(tx, cercleId);
+      if (membres.includes(d.membreId)) throw new BadRequestException("Déjà membre");
+      membres.push(d.membreId);
+      await tx.requete(
+        "INSERT INTO cercles.adhesions (cercle_id, membre_id, rang, signature) VALUES ($1, $2, $3, $4)",
+        [cercleId, d.membreId, membres.length, d.signature],
+      );
+      if (membres.length < cercle.reglement.nombreMembres) return undefined;
+      await tx.requete("UPDATE cercles.cercles SET statut = 'complet' WHERE id = $1", [cercleId]);
+      return membres;
+    });
+
+    await this.registre.enregistrer(message);
+    if (complet) {
+      const ordre = await this.figerOrdre(cercleId, complet);
+      await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
+      await this.evenements.publier({ type: "cercle_complet", cercleId });
+    }
+    return this.trouver(cercleId);
   }
 
-  trouver(id: string): Cercle {
-    const c = this.cercles.get(id);
-    if (!c) throw new NotFoundException("Cercle introuvable");
-    return c;
+  async trouver(id: string): Promise<Cercle> {
+    if (!UUID.test(id)) throw new NotFoundException("Cercle introuvable");
+    const [l] = await this.base.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1", [id]);
+    if (!l) throw new NotFoundException("Cercle introuvable");
+    return {
+      id: l.id,
+      organisateurId: l.organisateur_id,
+      reglement: l.reglement,
+      empreinteReglement: l.empreinte_reglement,
+      membres: await this.membres(this.base, id),
+      statut: l.statut,
+      ...(l.ordre ? { ordre: l.ordre } : {}),
+    };
   }
 
-  /** Ordre figé au moment où le cercle est complet, puis empreinte inscrite au registre. */
-  private completer(cercle: Cercle): void {
-    const places: PlaceAttribuee[] = calculerOrdreDePassage(
-      cercle.membres.map((id, i) => ({ id, score: this.score.consulter(id).score, rangInscription: i + 1 })),
+  private async membres(ex: Executeur, cercleId: string): Promise<string[]> {
+    const lignes = await ex.requete<{ membre_id: string }>(
+      "SELECT membre_id FROM cercles.adhesions WHERE cercle_id = $1 ORDER BY rang",
+      [cercleId],
     );
-    cercle.ordre = places.map((p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }));
-    cercle.statut = "complet";
-    this.registre.enregistrer(canonique({ objet: "ordre", cercleId: cercle.id, ordre: cercle.ordre }));
-    this.evenements.publier({ type: "cercle_complet", cercleId: cercle.id });
+    return lignes.map((l) => l.membre_id);
+  }
+
+  /**
+   * Ordre figé dès que le cercle est complet : zones, score, ordre d'inscription.
+   * Calculé hors de la transaction d'adhésion, qui ne doit pas attendre le module Score.
+   */
+  private async figerOrdre(cercleId: string, membres: string[]): Promise<PlaceOrdre[]> {
+    const scores = await Promise.all(membres.map((id) => this.score.consulter(id)));
+    const ordre = calculerOrdreDePassage(
+      membres.map((id, i) => ({ id, score: scores[i]!.score, rangInscription: i + 1 })),
+    ).map((p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }));
+    await this.base.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(ordre)]);
+    return ordre;
   }
 }

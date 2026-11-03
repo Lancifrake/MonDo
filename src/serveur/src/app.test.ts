@@ -79,8 +79,8 @@ describe("Cotisations -> Score, par événements seulement", () => {
   it("un défaut constaté fait baisser le score, une seule fois même si le planificateur est rejoué", async () => {
     const luc = await client.inscrire();
     const planificateur = app.get(PlanificateurService);
-    expect(planificateur.constaterDefaut("c2", luc.id, 1)).toBe(true);
-    expect(planificateur.constaterDefaut("c2", luc.id, 1)).toBe(false);
+    expect(await planificateur.constaterDefaut("c2", luc.id, 1)).toBe(true);
+    expect(await planificateur.constaterDefaut("c2", luc.id, 1)).toBe(false);
     expect(await score(luc)).toMatchObject({ score: 0, defauts: 1 });
   });
 });

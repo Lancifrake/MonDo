@@ -1,13 +1,13 @@
 import { Inject, Injectable, type OnModuleInit } from "@nestjs/common";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { calculerScore, resumerHistorique } from "../../score/score.js";
-import { DEPOT_EVENEMENTS_SCORE, type DepotEvenementsScore } from "./depot-evenements-score.js";
+import { DepotEvenementsScore } from "./depot-evenements-score.js";
 
 @Injectable()
 export class ScoreService implements OnModuleInit {
   constructor(
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
-    @Inject(DEPOT_EVENEMENTS_SCORE) private readonly depot: DepotEvenementsScore,
+    @Inject(DepotEvenementsScore) private readonly depot: DepotEvenementsScore,
   ) {}
 
   /** Le score ne se modifie que par les événements : jamais d'écriture directe. */
@@ -28,8 +28,8 @@ export class ScoreService implements OnModuleInit {
     );
   }
 
-  consulter(membreId: string) {
-    const historique = this.depot.lister(membreId);
+  async consulter(membreId: string) {
+    const historique = await this.depot.lister(membreId);
     return { membreId, score: calculerScore(historique), ...resumerHistorique(historique) };
   }
 }

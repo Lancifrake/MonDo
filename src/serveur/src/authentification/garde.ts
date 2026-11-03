@@ -34,14 +34,12 @@ export const MembreAuthentifie = createParamDecorator(
 
 @Injectable()
 export class GardeAuthentification implements CanActivate {
-  private readonly signaturesVues = new Map<string, number>();
-
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(ComptesService) private readonly comptes: ComptesService,
   ) {}
 
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     if (this.reflector.getAllAndOverride<boolean>(CLE_PUBLIC, [ctx.getHandler(), ctx.getClass()])) return true;
     const req = ctx.switchToHttp().getRequest<RequeteHttp>();
     const entete = (nom: string) => {
@@ -53,20 +51,19 @@ export class GardeAuthentification implements CanActivate {
     const signature = entete("x-mondo-signature");
     if (!membreId || !horodatage || !signature) throw new UnauthorizedException("Requête non signée");
 
-    const maintenant = Date.now();
     const instant = Date.parse(horodatage);
-    if (Number.isNaN(instant) || Math.abs(maintenant - instant) > FENETRE_MS) {
+    if (Number.isNaN(instant) || Math.abs(Date.now() - instant) > FENETRE_MS) {
       throw new UnauthorizedException("Horodatage hors délai");
     }
-    for (const [s, expiration] of this.signaturesVues) if (expiration < maintenant) this.signaturesVues.delete(s);
-    if (this.signaturesVues.has(signature)) throw new UnauthorizedException("Requête déjà utilisée");
-
-    const compte = this.comptes.chercher(membreId);
+    const compte = await this.comptes.chercher(membreId);
     const message = messageRequete(req.method, req.originalUrl, horodatage, req.body);
     if (!compte || !verifierSignature(compte.clePublique, message, signature)) {
       throw new UnauthorizedException("Signature invalide");
     }
-    this.signaturesVues.set(signature, instant + FENETRE_MS);
+    // Après la vérification : on ne laisse pas un inconnu remplir la table des signatures.
+    if (!(await this.comptes.marquerSignatureUtilisee(signature, new Date(instant + FENETRE_MS)))) {
+      throw new UnauthorizedException("Requête déjà utilisée");
+    }
     req.membreId = membreId;
     return true;
   }

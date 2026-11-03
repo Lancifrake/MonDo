@@ -9,7 +9,7 @@ export type EvenementInterne =
 
 export type TypeEvenementInterne = EvenementInterne["type"];
 
-type Ecouteur = (e: EvenementInterne) => void;
+type Ecouteur = (e: EvenementInterne) => void | Promise<void>;
 
 @Injectable()
 export class EvenementsInternes {
@@ -17,14 +17,15 @@ export class EvenementsInternes {
 
   ecouter<T extends TypeEvenementInterne>(
     type: T,
-    ecouteur: (e: Extract<EvenementInterne, { type: T }>) => void,
+    ecouteur: (e: Extract<EvenementInterne, { type: T }>) => void | Promise<void>,
   ): void {
     const liste = this.ecouteurs.get(type) ?? [];
     liste.push(ecouteur as Ecouteur);
     this.ecouteurs.set(type, liste);
   }
 
-  publier(e: EvenementInterne): void {
-    for (const ecouteur of this.ecouteurs.get(e.type) ?? []) ecouteur(e);
+  /** Attend chaque écouteur : quand publier() rend la main, les modules abonnés ont tous enregistré l'événement. */
+  async publier(e: EvenementInterne): Promise<void> {
+    for (const ecouteur of this.ecouteurs.get(e.type) ?? []) await ecouteur(e);
   }
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { construireArbre, hacher, preuve, racine, verifierPreuve } from "./merkle.js";
 import { ConnecteurRegistreSimule, RegistreService } from "./registre.service.js";
+import { baseDeTest } from "../testing/base.js";
 
 const feuilles = (n: number) => Array.from({ length: n }, (_, i) => hacher(`evenement-${i}`));
 
@@ -42,25 +43,51 @@ describe("arbre de hachage", () => {
 });
 
 describe("RegistreService", () => {
-  it("un million d'événements = une seule inscription par lot (ici 1000 pour 1)", async () => {
-    const connecteur = new ConnecteurRegistreSimule();
-    const registre = new RegistreService(connecteur);
-    for (let i = 0; i < 1000; i++) registre.enregistrer(`cotisation-${i}`);
-    const lot = await registre.fermerLot();
+  async function registre(connecteur = new ConnecteurRegistreSimule()) {
+    return { connecteur, service: new RegistreService(connecteur, await baseDeTest()) };
+  }
+
+  it("mille événements = une seule inscription sur la chaîne", async () => {
+    const { connecteur, service } = await registre();
+    for (let i = 0; i < 1000; i++) await service.enregistrer(`cotisation-${i}`);
+    const lot = await service.fermerLot();
     expect(lot?.empreintes).toHaveLength(1000);
     expect(connecteur.racinesInscrites).toHaveLength(1);
   });
 
   it("fournit une preuve vérifiable pour chaque empreinte", async () => {
-    const registre = new RegistreService(new ConnecteurRegistreSimule());
-    const empreinte = registre.enregistrer("cercle c1 créé");
-    for (let i = 0; i < 6; i++) registre.enregistrer(`autre-${i}`);
-    await registre.fermerLot();
-    const p = registre.preuvePour(empreinte)!;
+    const { service } = await registre();
+    const empreinte = await service.enregistrer("cercle c1 créé");
+    for (let i = 0; i < 6; i++) await service.enregistrer(`autre-${i}`);
+    await service.fermerLot();
+    const p = (await service.preuvePour(empreinte))!;
     expect(verifierPreuve(empreinte, p.etapes, p.racine)).toBe(true);
   });
 
-  it("ne ferme pas de lot vide", async () => {
-    expect(await new RegistreService(new ConnecteurRegistreSimule()).fermerLot()).toBeUndefined();
+  it("ne ferme pas de lot vide et ne prouve pas une empreinte pas encore inscrite", async () => {
+    const { service } = await registre();
+    expect(await service.fermerLot()).toBeUndefined();
+    const e = await service.enregistrer("en attente");
+    expect(await service.preuvePour(e)).toBeUndefined();
+  });
+
+  it("fiabilité : si la chaîne est en panne, le lot attend et part à la reprise", async () => {
+    let enPanne = true;
+    const connecteur = new ConnecteurRegistreSimule();
+    const fragile = {
+      racinesInscrites: connecteur.racinesInscrites,
+      inscrireRacine: async (r: string) => {
+        if (enPanne) throw new Error("réseau indisponible");
+        return connecteur.inscrireRacine(r);
+      },
+    };
+    const service = new RegistreService(fragile, await baseDeTest());
+    await service.enregistrer("a");
+    await expect(service.fermerLot()).rejects.toThrow("réseau indisponible");
+    expect(connecteur.racinesInscrites).toHaveLength(0);
+    enPanne = false;
+    expect(await service.reprendreInscriptions()).toBe(1);
+    expect(connecteur.racinesInscrites).toHaveLength(1);
+    expect(await service.reprendreInscriptions()).toBe(0);
   });
 });

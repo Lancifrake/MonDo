@@ -15,7 +15,7 @@ export class ComptesController {
   }
 
   @Post(":id/niveau2")
-  niveau2(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
+  async niveau2(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
     if (id !== membreId) throw new ForbiddenException("On ne vérifie que sa propre identité");
     return this.comptes.passerAuNiveau2(id);
   }

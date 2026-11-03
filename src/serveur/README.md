@@ -1,6 +1,13 @@
 # Serveur MonDo
 
-Monolithe modulaire en TypeScript avec NestJS (décisions 02 et 03). Le prototype garde tout en mémoire derrière des interfaces ; PostgreSQL vient ensuite.
+Monolithe modulaire en TypeScript avec NestJS (décisions 02 et 03), données dans PostgreSQL, un schéma par module.
+
+## Base de données
+
+- `DATABASE_URL` définie : vrai serveur PostgreSQL (Supabase ou autre). Les migrations (`src/base/migrations.ts`) s'appliquent au démarrage.
+- `DATABASE_URL` absente : PostgreSQL embarqué (PGlite) en mémoire, pour le développement. Données perdues à l'arrêt.
+- Les tests utilisent une base PGlite neuve par fichier. Le test `src/base/postgres.integration.test.ts` rejoue le parcours sur un vrai serveur si `MONDO_TEST_POSTGRES_URL` pointe vers un serveur **de test** : il y crée puis supprime une base jetable.
+- Une migration appliquée ne se modifie jamais : on en ajoute une nouvelle.
 
 ## Lancer
 

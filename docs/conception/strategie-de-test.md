@@ -44,10 +44,13 @@ Une pull request n'est fusionnée que si `pnpm qualite` passe, en local et dans 
 - **Authentification** : chaque requête est signée par la clé du téléphone (en-têtes `x-mondo-membre`, `x-mondo-horodatage`, `x-mondo-signature`), valable 5 minutes et une seule fois. L'identité n'est plus jamais lue dans le corps. Seule l'inscription est publique, avec preuve de détention de la clé.
 - **Validation des entrées** : schémas Zod stricts sur chaque corps de requête (champs inconnus refusés).
 
+- **PostgreSQL** : un schéma par module, sans clé étrangère entre schémas ; contraintes d'unicité ; verrou de ligne contre la course pour la dernière place d'un cercle ; mises à jour conditionnelles contre les doubles confirmations ; anti-rejeu stocké en base (serveur sans état). Vérifié sur PGlite et sur un vrai PostgreSQL.
+
 ## Défauts connus, non corrigés
 1. **Pas d'OTP SMS** : l'inscription ne prouve pas la possession du numéro.
-2. **Données en mémoire** : perdues au redémarrage, pas encore de PostgreSQL.
-3. **Les tests d'intégration partagent une application** : l'ordre des tests peut influer. À isoler quand la base arrivera.
+2. **Les tests d'un même fichier partagent une base** (une base neuve par fichier) : ils utilisent des identités distinctes pour rester indépendants.
+3. **Confirmation et score ne sont pas dans une même transaction** : l'événement est publié après la mise à jour de la cotisation. Une panne entre les deux perdrait le point de score. À traiter par une table d'événements à publier (outbox) avant le pilote.
+4. **Ordre de passage calculé juste après la transaction d'adhésion** : une panne à ce moment laisserait un cercle complet sans ordre, ce qui est détectable et recalculable.
 
 ## Documentation de test (29119-3), version allégée
 Ce document tient lieu de plan de test. Les cas de test sont les fichiers `*.test.ts`, nommés par comportement attendu. Les rapports sont la sortie de `pnpm qualite` et de l'intégration continue.
