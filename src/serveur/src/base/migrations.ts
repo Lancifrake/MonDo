@@ -100,6 +100,22 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE INDEX empreintes_en_attente ON registre.empreintes (id) WHERE lot_id IS NULL;
       CREATE INDEX empreintes_valeur ON registre.empreintes (empreinte);`,
   },
+  {
+    nom: "007_preuve",
+    sql: `
+      CREATE SCHEMA IF NOT EXISTS preuve;
+      CREATE TABLE preuve.mises_en_demeure (
+        id uuid PRIMARY KEY,
+        cercle_id uuid NOT NULL,
+        membre_id uuid NOT NULL,
+        tour integer NOT NULL,
+        contenu jsonb NOT NULL,
+        empreinte text NOT NULL,
+        envoi text NOT NULL,
+        emise_le timestamptz NOT NULL,
+        UNIQUE (cercle_id, membre_id, tour)
+      );`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

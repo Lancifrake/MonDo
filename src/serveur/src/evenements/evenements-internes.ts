@@ -3,7 +3,7 @@ import { Injectable } from "@nestjs/common";
 /** Événements que les modules s'échangent (décision 02, règle 2). Aucun module n'appelle les tables d'un autre. */
 export type EvenementInterne =
   | { type: "cotisation_confirmee"; cercleId: string; membreId: string; aTemps: boolean }
-  | { type: "defaut_constate"; cercleId: string; membreId: string }
+  | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number }
   | { type: "cycle_termine"; cercleId: string; membreId: string }
   | { type: "cercle_complet"; cercleId: string };
 

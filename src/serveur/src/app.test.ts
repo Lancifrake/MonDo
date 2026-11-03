@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { AppModule } from "./app.module.js";
+import { messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
 
@@ -78,10 +79,35 @@ describe("Cotisations -> Score, par événements seulement", () => {
 
   it("un défaut constaté fait baisser le score, une seule fois même si le planificateur est rejoué", async () => {
     const luc = await client.inscrire();
+    const r: Reglement = {
+      montant: 1000,
+      frequence: "mensuelle",
+      nombreMembres: 3,
+      penaliteRetard: 0,
+      delaiGraceJours: 2,
+      ouvert: false,
+    };
+    const cercle = (await (
+      await client.requete(
+        "POST",
+        "/cercles",
+        { reglement: r, signature: await luc.signer(messageReglement(luc.id, r)) },
+        luc,
+      )
+    ).json()) as Cercle;
     const planificateur = app.get(PlanificateurService);
-    expect(await planificateur.constaterDefaut("c2", luc.id, 1)).toBe(true);
-    expect(await planificateur.constaterDefaut("c2", luc.id, 1)).toBe(false);
+    expect(await planificateur.constaterDefaut(cercle.id, luc.id, 1)).toBe(true);
+    expect(await planificateur.constaterDefaut(cercle.id, luc.id, 1)).toBe(false);
     expect(await score(luc)).toMatchObject({ score: 0, defauts: 1 });
+  });
+});
+
+describe("fiabilité du planificateur", () => {
+  it("un constat qui échoue redevient rejouable", async () => {
+    const planificateur = app.get(PlanificateurService);
+    const inconnu = "00000000-0000-0000-0000-000000000000";
+    await expect(planificateur.constaterDefaut(inconnu, inconnu, 1)).rejects.toThrow();
+    await expect(planificateur.constaterDefaut(inconnu, inconnu, 1)).rejects.toThrow();
   });
 });
 

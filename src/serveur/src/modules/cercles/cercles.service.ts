@@ -137,6 +137,15 @@ export class CerclesService {
     };
   }
 
+  /** Rang et signature d'un membre : rang 1 = organisateur, qui a signé le règlement lui-même. */
+  async adhesion(cercleId: string, membreId: string): Promise<{ rang: number; signature: string } | undefined> {
+    const [l] = await this.base.requete<{ rang: number; signature: string }>(
+      "SELECT rang, signature FROM cercles.adhesions WHERE cercle_id = $1 AND membre_id = $2",
+      [cercleId, membreId],
+    );
+    return l;
+  }
+
   private async membres(ex: Executeur, cercleId: string): Promise<string[]> {
     const lignes = await ex.requete<{ membre_id: string }>(
       "SELECT membre_id FROM cercles.adhesions WHERE cercle_id = $1 ORDER BY rang",

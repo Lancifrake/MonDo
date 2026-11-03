@@ -84,6 +84,15 @@ export class CotisationsService {
     return confirmee;
   }
 
+  /** Relevé d'un payeur dans un cercle, du plus ancien au plus récent. */
+  async listerPour(cercleId: string, payeurId: string): Promise<Cotisation[]> {
+    const lignes = await this.base.requete<LigneCotisation>(
+      "SELECT * FROM cotisations.cotisations WHERE cercle_id = $1 AND payeur_id = $2 ORDER BY date_limite, id",
+      [cercleId, payeurId],
+    );
+    return lignes.map(versCotisation);
+  }
+
   private async trouver(id: string): Promise<Cotisation> {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new NotFoundException("Cotisation introuvable");
     const [l] = await this.base.requete<LigneCotisation>("SELECT * FROM cotisations.cotisations WHERE id = $1", [id]);

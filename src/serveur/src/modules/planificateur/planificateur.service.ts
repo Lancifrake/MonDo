@@ -18,7 +18,7 @@ export class PlanificateurService {
     );
     if (prise.length === 0) return false;
     try {
-      await this.evenements.publier({ type: "defaut_constate", cercleId, membreId });
+      await this.evenements.publier({ type: "defaut_constate", cercleId, membreId, tour });
     } catch (e) {
       // Échec de traitement : la tâche redevient rejouable.
       await this.base.requete("DELETE FROM planificateur.taches_traitees WHERE id = $1", [idTache]);
