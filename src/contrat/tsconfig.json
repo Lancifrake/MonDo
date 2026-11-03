@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "hardhat.config.ts",
+    "test",
+    "scripts",
+    "artifacts/**/*.d.ts"
+  ]
+}

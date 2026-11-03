@@ -1,0 +1,23 @@
+{
+  "name": "@mondo/contrat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compiler": "hardhat build",
+    "test": "hardhat test",
+    "verifier-types": "tsc --noEmit",
+    "qualite": "hardhat build && tsc --noEmit && hardhat test"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-node-test-runner": "^3.1.2",
+    "@nomicfoundation/hardhat-viem": "^3.1.0",
+    "@nomicfoundation/hardhat-viem-assertions": "^3.1.5",
+    "@types/node": "^26.6.6",
+    "hardhat": "3.21.2",
+    "typescript": "^6.0.3",
+    "viem": "^2.57.14"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "5.6.1"
+  }
+}

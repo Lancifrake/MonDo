@@ -16,7 +16,7 @@
 
 **MonDo ne détient jamais les fonds.** Les cotisations passent directement par Mobile Money (Orange Money, MTN MoMo) entre les membres. MonDo organise, note, rappelle et garde la preuve.
 
-Statut : conception, avant le premier code. Le prototype vise moins d'un mois, une équipe de 5, 50 tontines et 1000 utilisateurs, avec Mobile Money et SMS simulés. Rien ici n'est un avis juridique.
+Statut : prototype en construction (serveur et contrat, pas encore d'application mobile). Le prototype vise moins d'un mois, une équipe de 5, 50 tontines et 1000 utilisateurs, avec Mobile Money et SMS simulés. Rien ici n'est un avis juridique.
 
 ## Sommaire
 - [Les problèmes visés](#les-problèmes-visés)
@@ -93,7 +93,8 @@ Un avocat camerounais est requis avant tout pilote réel.
 | `docs/conception/cas-d-utilisation` | cas d'utilisation (Visual Paradigm) |
 | `docs/business` | positionnement |
 | `docs/juridique` | recours légaux, texte de la loi 2010/021 |
-| `src` | code, à venir |
+| `src/serveur` | serveur NestJS, PostgreSQL, assistant multi-agents |
+| `src/contrat` | contrat Solidity du registre (Hardhat) |
 
 ## Sources qui font foi
 - **User flows** : `docs/conception/userflows/mondo-userflows.drawio`. Le Mermaid `docs/conception/userflows.md` et les images PNG et SVG sont gelés depuis le 27/10/2026.

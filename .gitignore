@@ -18,3 +18,8 @@ coverage/
 !.env.example
 *.pem
 *.key
+
+# Hardhat (généré)
+artifacts/
+cache/
+types/

@@ -1,13 +1,11 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../base/base-de-donnees.js";
+import type { ConnecteurRegistre } from "./connecteur.js";
 import { hacher, preuve, racine, type EtapePreuve } from "./merkle.js";
 
 export const CONNECTEUR_REGISTRE = Symbol("CONNECTEUR_REGISTRE");
 
-/** Écrit une racine sur la chaîne. Simulé au prototype ; le contrat Solidity (Base Sepolia) viendra derrière cette interface. */
-export interface ConnecteurRegistre {
-  inscrireRacine(racine: string): Promise<{ referenceInscription: string }>;
-}
+export type { ConnecteurRegistre };
 
 export class ConnecteurRegistreSimule implements ConnecteurRegistre {
   readonly racinesInscrites: string[] = [];

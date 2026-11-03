@@ -46,5 +46,6 @@ Un module ne lit que ses propres données et passe par les services exportés ou
 Non fait, en attente de décision : reconnaissance de dette (créancier et montant à trancher avec un juriste), clôture du dossier après régularisation (MonDo ne suit pas le paiement des pénalités), envoi réel de la mise en demeure (simulé), export PDF.
 
 ## Inscription
+
 1. `POST /comptes/otp` avec le numéro : un code à 6 chiffres part par SMS (simulé : visible dans le journal du serveur).
 2. `POST /comptes` avec numéro, nom, clé publique, preuve de détention de la clé et code SMS.
