@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+
+# Visual Paradigm : verrous et sauvegardes automatiques
+*.lck
+*.vpp.bak_*
+
+# Dépendances et builds (futur code)
+node_modules/
+dist/
+build/
+.expo/
+coverage/
+
+# Secrets : ne jamais versionner
+.env
+.env.*
+!.env.example
+*.pem
+*.key
