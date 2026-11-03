@@ -10,7 +10,7 @@ Ce guide fixe les règles de travail de l'équipe. Il évoluera avec le code : t
 Le français est la langue de travail : documents, issues, pull requests, messages de commit. Le code (noms de variables, de fonctions et de types) suit le vocabulaire du domaine défini dans les documents (Cercle, Cotisation, Score…), pour que tout le monde parle des mêmes objets.
 
 ## Branches
-- `main` est toujours dans un état présentable. **Personne ne pousse directement dessus.**
+- `main` est toujours dans un état présentable. **On n'y pousse jamais directement : tout passe par une pull request.**
 - Une branche par sujet, nommée `type/sujet-court`, par exemple `feat/calcul-score` ou `docs/flow-litige`.
 - Une branche vit peu de temps : on la fusionne vite, on la supprime ensuite.
 
@@ -30,11 +30,12 @@ Règles :
 - Pas de fichier généré, de sauvegarde d'éditeur ni de secret (voir `.gitignore`).
 
 ## Pull requests
-1. Ouvrir la pull request contre `main` avec le modèle fourni.
-2. Elle explique **ce qui change et pourquoi**, et comment le vérifier.
-3. **Au moins une relecture** d'un autre membre avant la fusion. On ne relit pas sa propre pull request.
-4. Les commentaires sont résolus avant la fusion. On fusionne par « squash » pour garder un historique lisible.
+1. Une pull request par étape terminée, contre `main`, avec le modèle fourni : **ce qui change et pourquoi**, comment le vérifier, ce qui n'est pas fait.
+2. `pnpm qualite` passe en local avant d'ouvrir la pull request, et l'intégration continue passe avant la fusion.
+3. **L'auteur fusionne lui-même** dès que l'étape est terminée, sans attendre de relecture. On fusionne par commit de fusion (pas de « squash ») pour garder chaque commit dans l'historique.
+4. **Relecture après coup** : chacun relit les pull requests fusionnées des autres et commente sur GitHub. Un problème trouvé devient une nouvelle pull request de correction (`fix:`), jamais une réécriture de `main`.
 5. Une pull request reste petite. Au-delà d'environ 400 lignes de code, on la découpe.
+6. Exception : une décision de conception ou une règle métier nouvelle n'est pas fusionnée sans l'accord de l'équipe (voir ci-dessous).
 
 ## Décisions de conception
 Un choix qui engage le projet (technologie, règle métier, architecture) s'écrit dans `docs/conception/decision-NN-sujet.md` : question, options, décision, conséquences, statut. La numérotation continue. Une décision n'est « validée » qu'avec l'accord explicite de l'équipe.
