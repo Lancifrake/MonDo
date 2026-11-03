@@ -1,4 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "src"
+  ]
 }
