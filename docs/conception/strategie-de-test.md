@@ -46,11 +46,14 @@ Une pull request n'est fusionnée que si `pnpm qualite` passe, en local et dans 
 
 - **PostgreSQL** : un schéma par module, sans clé étrangère entre schémas ; contraintes d'unicité ; verrou de ligne contre la course pour la dernière place d'un cercle ; mises à jour conditionnelles contre les doubles confirmations ; anti-rejeu stocké en base (serveur sans état). Vérifié sur PGlite et sur un vrai PostgreSQL.
 
+- **Code SMS (simulé)** : inscription conditionnée à un code à 6 chiffres, valable 5 minutes, 5 essais, usage unique, jamais stocké en clair, renvoi limité à un par minute ; connecteur SMS simulé refusé en production.
+
 ## Défauts connus, non corrigés
-1. **Pas d'OTP SMS** : l'inscription ne prouve pas la possession du numéro.
-2. **Les tests d'un même fichier partagent une base** (une base neuve par fichier) : ils utilisent des identités distinctes pour rester indépendants.
-3. **Confirmation et score ne sont pas dans une même transaction** : l'événement est publié après la mise à jour de la cotisation. Une panne entre les deux perdrait le point de score. À traiter par une table d'événements à publier (outbox) avant le pilote.
-4. **Ordre de passage calculé juste après la transaction d'adhésion** : une panne à ce moment laisserait un cercle complet sans ordre, ce qui est détectable et recalculable.
+1. **Pas de limite d'envoi de codes par adresse IP** : quelqu'un peut demander des codes pour beaucoup de numéros (coût SMS). À ajouter avec le vrai fournisseur.
+2. **Empreinte du code SMS sur 6 chiffres** : si la base fuitait, un code encore valide se retrouverait par essais ; durée de vie de 5 minutes seulement.
+3. **Les tests d'un même fichier partagent une base** (une base neuve par fichier) : ils utilisent des identités distinctes pour rester indépendants.
+4. **Confirmation et score ne sont pas dans une même transaction** : l'événement est publié après la mise à jour de la cotisation. Une panne entre les deux perdrait le point de score. À traiter par une table d'événements à publier (outbox) avant le pilote.
+5. **Ordre de passage calculé juste après la transaction d'adhésion** : une panne à ce moment laisserait un cercle complet sans ordre, ce qui est détectable et recalculable.
 
 ## Documentation de test (29119-3), version allégée
 Ce document tient lieu de plan de test. Les cas de test sont les fichiers `*.test.ts`, nommés par comportement attendu. Les rapports sont la sortie de `pnpm qualite` et de l'intégration continue.

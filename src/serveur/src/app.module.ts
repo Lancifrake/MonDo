@@ -11,10 +11,12 @@ import { PlanificateurModule } from "./modules/planificateur/planificateur.modul
 import { PreuveModule } from "./modules/preuve/preuve.module.js";
 import { ScoreModule } from "./modules/score/score.module.js";
 import { RegistreModule } from "./registre/registre.module.js";
+import { SmsModule } from "./sms/sms.module.js";
 
 @Module({
   imports: [
     BaseModule,
+    SmsModule,
     EvenementsModule,
     RegistreModule,
     ComptesModule,

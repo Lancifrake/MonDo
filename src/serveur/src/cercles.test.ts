@@ -7,12 +7,12 @@ import { messageEngagement, messageReglement, type Cercle, type Reglement } from
 import { creerClient, type Identite } from "./testing/client.js";
 
 let app: INestApplication;
-let client: ReturnType<typeof creerClient>;
+let client: Awaited<ReturnType<typeof creerClient>>;
 
 beforeAll(async () => {
   app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
   await app.listen(0);
-  client = creerClient(await app.getUrl());
+  client = await creerClient(app);
 });
 afterAll(async () => app.close());
 

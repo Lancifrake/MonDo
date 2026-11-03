@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { messageInscription } from "../../authentification/messages.js";
 import { BASE_DE_DONNEES, estDoublon, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { verifierSignature } from "../../signature/signature.js";
+import { OtpService } from "./otp.service.js";
 
 export interface Compte {
   id: string;
@@ -32,13 +33,26 @@ const versCompte = (l: LigneCompte): Compte => ({
 /** Le serveur ne connaît que la clé publique : la clé privée reste dans le téléphone. */
 @Injectable()
 export class ComptesService {
-  constructor(@Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees) {}
+  constructor(
+    @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
+    @Inject(OtpService) private readonly otp: OtpService,
+  ) {}
 
   /** La forme des données est validée en amont (schemaInscription) ; ici, les règles métier. */
-  async inscrire(d: { numero: string; nom: string; clePublique: JsonWebKey; preuve: string }): Promise<Compte> {
-    const { preuve, ...donnees } = d;
+  async inscrire(d: {
+    numero: string;
+    nom: string;
+    clePublique: JsonWebKey;
+    preuve: string;
+    codeOtp: string;
+  }): Promise<Compte> {
+    const { preuve, codeOtp, ...donnees } = d;
     if (!verifierSignature(donnees.clePublique, messageInscription(donnees), preuve)) {
       throw new ForbiddenException("Preuve de détention de la clé invalide");
+    }
+    // Le code SMS d'abord : on ne dit pas si un numéro est inscrit à qui ne le possède pas.
+    if (!(await this.otp.verifier(donnees.numero, codeOtp))) {
+      throw new ForbiddenException("Code SMS invalide, expiré ou trop d'essais");
     }
     try {
       const [ligne] = await this.base.requete<LigneCompte>(

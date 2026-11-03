@@ -1,12 +1,22 @@
 import { Body, Controller, ForbiddenException, Inject, Param, Post } from "@nestjs/common";
 import { MembreAuthentifie, Public } from "../../authentification/garde.js";
-import { schemaInscription } from "../../validation/schemas.js";
+import { schemaDemandeOtp, schemaInscription } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
 import { ComptesService } from "./comptes.service.js";
+import { OtpService } from "./otp.service.js";
 
 @Controller("comptes")
 export class ComptesController {
-  constructor(@Inject(ComptesService) private readonly comptes: ComptesService) {}
+  constructor(
+    @Inject(ComptesService) private readonly comptes: ComptesService,
+    @Inject(OtpService) private readonly otp: OtpService,
+  ) {}
+
+  @Public()
+  @Post("otp")
+  demanderCode(@Body(new ValidationSchema(schemaDemandeOtp)) corps: (typeof schemaDemandeOtp)["_output"]) {
+    return this.otp.demander(corps.numero);
+  }
 
   @Public()
   @Post()

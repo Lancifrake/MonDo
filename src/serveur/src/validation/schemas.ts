@@ -9,11 +9,16 @@ export const schemaClePublique = z.strictObject({
   key_ops: z.array(z.string()).optional(),
 });
 
+const schemaNumero = z.string().regex(/^\+?\d{8,15}$/, "Numéro de téléphone invalide");
+
+export const schemaDemandeOtp = z.strictObject({ numero: schemaNumero });
+
 export const schemaInscription = z.strictObject({
-  numero: z.string().regex(/^\+?\d{8,15}$/, "Numéro de téléphone invalide"),
+  numero: schemaNumero,
   nom: z.string().trim().min(1).max(100),
   clePublique: schemaClePublique,
   preuve: z.string().min(1),
+  codeOtp: z.string().regex(/^\d{6}$/, "Code SMS à 6 chiffres"),
 });
 
 export const schemaReglement = z.strictObject({

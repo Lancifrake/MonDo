@@ -8,12 +8,12 @@ import { creerClient } from "./testing/client.js";
 import { nouveauTelephone } from "./testing/telephone.js";
 
 let app: INestApplication;
-let client: ReturnType<typeof creerClient>;
+let client: Awaited<ReturnType<typeof creerClient>>;
 
 beforeAll(async () => {
   app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
   await app.listen(0);
-  client = creerClient(await app.getUrl());
+  client = await creerClient(app);
 });
 afterAll(async () => app.close());
 
@@ -77,6 +77,7 @@ describe("inscription", () => {
     const mauvaisePreuve = await client.requete("POST", "/comptes", {
       ...donnees,
       preuve: await autre.signer(messageInscription(donnees)),
+      codeOtp: await client.codeOtp(donnees.numero),
     });
     expect(mauvaisePreuve.status).toBe(403);
   });
@@ -90,7 +91,7 @@ describe("validation des entrées", () => {
   ])("refuse une inscription avec %s", async (_, modif) => {
     const tel = await nouveauTelephone();
     const donnees = { numero: "+237690000002", nom: "Paul", clePublique: tel.clePublique, ...modif };
-    const r = await client.requete("POST", "/comptes", { ...donnees, preuve: "x" });
+    const r = await client.requete("POST", "/comptes", { ...donnees, preuve: "x", codeOtp: "123456" });
     expect(r.status).toBe(400);
   });
 

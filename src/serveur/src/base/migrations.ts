@@ -138,6 +138,19 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       );
       CREATE INDEX actions_cercle ON assistant.actions (cercle_id, creee_le)`,
   },
+  {
+    nom: "009_codes_otp",
+    sql: `
+      CREATE TABLE comptes.codes_otp (
+        numero text PRIMARY KEY,
+        empreinte_code text NOT NULL,
+        sel text NOT NULL,
+        expire_le timestamptz NOT NULL,
+        essais integer NOT NULL,
+        consomme boolean NOT NULL,
+        cree_le timestamptz NOT NULL
+      )`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

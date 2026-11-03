@@ -9,12 +9,12 @@ import { creerClient } from "./testing/client.js";
 import { nouveauTelephone } from "./testing/telephone.js";
 
 let app: INestApplication;
-let client: ReturnType<typeof creerClient>;
+let client: Awaited<ReturnType<typeof creerClient>>;
 
 beforeAll(async () => {
   app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
   await app.listen(0);
-  client = creerClient(await app.getUrl());
+  client = await creerClient(app);
 });
 afterAll(async () => app.close());
 
@@ -23,7 +23,11 @@ describe("contraintes garanties par la base", () => {
     const [t1, t2] = [await nouveauTelephone(), await nouveauTelephone()];
     const inscrire = async (t: typeof t1) => {
       const d = { numero: "+237680000001", nom: "Doublon", clePublique: t.clePublique };
-      return client.requete("POST", "/comptes", { ...d, preuve: await t.signer(messageInscription(d)) });
+      return client.requete("POST", "/comptes", {
+        ...d,
+        preuve: await t.signer(messageInscription(d)),
+        codeOtp: await client.codeOtp(d.numero),
+      });
     };
     expect((await inscrire(t1)).status).toBe(201);
     expect((await inscrire(t2)).status).toBe(409);

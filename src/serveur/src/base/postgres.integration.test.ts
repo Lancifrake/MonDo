@@ -22,7 +22,7 @@ const URL_SERVEUR = process.env.MONDO_TEST_POSTGRES_URL;
 describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
   const nomBase = `mondo_test_${Date.now()}`;
   let app: INestApplication;
-  let client: ReturnType<typeof creerClient>;
+  let client: Awaited<ReturnType<typeof creerClient>>;
   let urlAvant: string | undefined;
 
   beforeAll(async () => {
@@ -36,7 +36,7 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     process.env.DATABASE_URL = url.toString();
     app = (await Test.createTestingModule({ imports: [AppModule] }).compile()).createNestApplication();
     await app.listen(0);
-    client = creerClient(await app.getUrl());
+    client = await creerClient(app);
   }, 30000);
 
   afterAll(async () => {
