@@ -49,7 +49,10 @@ export class Coordinateur implements Agent {
   private readonly enAttente = new Map<number, Action>();
   private compteur = 0;
 
-  constructor(private mode: Mode, private readonly reglement: Reglement) {}
+  constructor(
+    private mode: Mode,
+    private readonly reglement: Reglement,
+  ) {}
 
   changerMode(mode: Mode): void {
     this.mode = mode;

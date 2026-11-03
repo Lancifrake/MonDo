@@ -43,7 +43,10 @@ describe("assistant, mode manuel", () => {
 
   it("accepter exécute, refuser écarte", () => {
     const a = new Assistant("manuel", reglement);
-    a.traiter([{ type: "defaut_constate", membreId: "m10" }, { type: "date_limite_proche", membreId: "m1", joursRestants: 1 }]);
+    a.traiter([
+      { type: "defaut_constate", membreId: "m10" },
+      { type: "date_limite_proche", membreId: "m1", joursRestants: 1 },
+    ]);
     const [p1, p2] = a.coordinateur.propositionsEnAttente();
     a.coordinateur.accepter(p1!.numero);
     a.coordinateur.refuser(p2!.numero);

@@ -1,9 +1,4 @@
-export type TypeEvenementScore =
-  | "cotisation_a_temps"
-  | "cotisation_en_retard"
-  | "defaut"
-  | "cycle_termine"
-  | "depart";
+export type TypeEvenementScore = "cotisation_a_temps" | "cotisation_en_retard" | "defaut" | "cycle_termine" | "depart";
 
 export interface EvenementScore {
   type: TypeEvenementScore;

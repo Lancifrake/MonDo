@@ -18,8 +18,22 @@ describe("arbre de hachage", () => {
 
   it("modifier une feuille change la racine", () => {
     const f = feuilles(6);
-    const g = [...f]; g[3] = hacher("falsifie");
+    const g = [...f];
+    g[3] = hacher("falsifie");
     expect(racine(g)).not.toBe(racine(f));
+  });
+
+  it("sécurité : un nœud interne ne peut pas se faire passer pour une feuille", () => {
+    const f = feuilles(4);
+    const niveaux = construireArbre(f);
+    const noeudInterne = niveaux[1]![0]!;
+    const frere = niveaux[1]![1]!;
+    expect(verifierPreuve(noeudInterne, [{ frere, cote: "droite" }], racine(f))).toBe(false);
+  });
+
+  it("sécurité : dupliquer la dernière feuille ne donne pas la même racine", () => {
+    const [a, b, c] = feuilles(3) as [string, string, string];
+    expect(racine([a, b, c])).not.toBe(racine([a, b, c, c]));
   });
 
   it("refuse un lot vide", () => {

@@ -15,7 +15,10 @@ type Ecouteur = (e: EvenementInterne) => void;
 export class EvenementsInternes {
   private readonly ecouteurs = new Map<TypeEvenementInterne, Ecouteur[]>();
 
-  ecouter<T extends TypeEvenementInterne>(type: T, ecouteur: (e: Extract<EvenementInterne, { type: T }>) => void): void {
+  ecouter<T extends TypeEvenementInterne>(
+    type: T,
+    ecouteur: (e: Extract<EvenementInterne, { type: T }>) => void,
+  ): void {
     const liste = this.ecouteurs.get(type) ?? [];
     liste.push(ecouteur as Ecouteur);
     this.ecouteurs.set(type, liste);

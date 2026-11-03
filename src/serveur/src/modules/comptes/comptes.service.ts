@@ -21,7 +21,8 @@ export class ComptesService {
     if (d.clePublique?.kty !== "EC" || d.clePublique.crv !== "P-256" || d.clePublique.d) {
       throw new BadRequestException("Clé publique ECDSA P-256 attendue, sans partie privée");
     }
-    if ([...this.comptes.values()].some((c) => c.numero === d.numero)) throw new ConflictException("Numéro déjà inscrit");
+    if ([...this.comptes.values()].some((c) => c.numero === d.numero))
+      throw new ConflictException("Numéro déjà inscrit");
     const compte: Compte = { id: randomUUID(), niveau: 1, ...d };
     this.comptes.set(compte.id, compte);
     return compte;

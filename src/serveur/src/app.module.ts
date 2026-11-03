@@ -9,6 +9,15 @@ import { ScoreModule } from "./modules/score/score.module.js";
 import { RegistreModule } from "./registre/registre.module.js";
 
 @Module({
-  imports: [EvenementsModule, RegistreModule, ComptesModule, CerclesModule, ScoreModule, CotisationsModule, PlanificateurModule, PreuveModule],
+  imports: [
+    EvenementsModule,
+    RegistreModule,
+    ComptesModule,
+    CerclesModule,
+    ScoreModule,
+    CotisationsModule,
+    PlanificateurModule,
+    PreuveModule,
+  ],
 })
 export class AppModule {}

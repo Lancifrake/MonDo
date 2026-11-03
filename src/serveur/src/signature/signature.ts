@@ -8,7 +8,12 @@ import { createPublicKey, verify } from "node:crypto";
 export function verifierSignature(clePubliqueJwk: JsonWebKey, message: string, signatureBase64: string): boolean {
   try {
     const cle = createPublicKey({ key: clePubliqueJwk, format: "jwk" });
-    return verify("sha256", Buffer.from(message), { key: cle, dsaEncoding: "ieee-p1363" }, Buffer.from(signatureBase64, "base64"));
+    return verify(
+      "sha256",
+      Buffer.from(message),
+      { key: cle, dsaEncoding: "ieee-p1363" },
+      Buffer.from(signatureBase64, "base64"),
+    );
   } catch {
     return false;
   }

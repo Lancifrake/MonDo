@@ -45,16 +45,15 @@ describe("resumerHistorique", () => {
 });
 
 const membre = (id: string, score: number, rang: number, extra: Partial<MembreCercle> = {}): MembreCercle => ({
-  id, score, rangInscription: rang, ...extra,
+  id,
+  score,
+  rangInscription: rang,
+  ...extra,
 });
 
 describe("calculerOrdreDePassage", () => {
   it("place les scores élevés au début, les nouveaux à la fin", () => {
-    const ordre = calculerOrdreDePassage([
-      membre("nouveau", 0, 1),
-      membre("sur", 90, 2),
-      membre("moyen", 40, 3),
-    ]);
+    const ordre = calculerOrdreDePassage([membre("nouveau", 0, 1), membre("sur", 90, 2), membre("moyen", 40, 3)]);
     expect(ordre.map((p) => p.membre.id)).toEqual(["sur", "moyen", "nouveau"]);
     expect(ordre.map((p) => p.zone)).toEqual(["debut", "milieu", "fin"]);
   });
@@ -77,9 +76,16 @@ describe("calculerOrdreDePassage", () => {
 
   it("démo : 10 membres, un défaut, exclu du début au cycle suivant", () => {
     const membres = [
-      membre("m1", 100, 1), membre("m2", 90, 2), membre("m3", 85, 3), membre("m4", 70, 4),
-      membre("m5", 55, 5), membre("m6", 40, 6), membre("m7", 30, 7), membre("m8", 10, 8),
-      membre("m9", 0, 9), membre("m10", 80, 10, { exclusDuDebut: true }),
+      membre("m1", 100, 1),
+      membre("m2", 90, 2),
+      membre("m3", 85, 3),
+      membre("m4", 70, 4),
+      membre("m5", 55, 5),
+      membre("m6", 40, 6),
+      membre("m7", 30, 7),
+      membre("m8", 10, 8),
+      membre("m9", 0, 9),
+      membre("m10", 80, 10, { exclusDuDebut: true }),
     ];
     const ordre = calculerOrdreDePassage(membres);
     const place = (id: string) => ordre.find((p) => p.membre.id === id)!;

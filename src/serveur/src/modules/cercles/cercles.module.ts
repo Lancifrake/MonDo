@@ -4,5 +4,10 @@ import { ScoreModule } from "../score/score.module.js";
 import { CerclesController } from "./cercles.controller.js";
 import { CerclesService } from "./cercles.service.js";
 
-@Module({ imports: [ComptesModule, ScoreModule], controllers: [CerclesController], providers: [CerclesService], exports: [CerclesService] })
+@Module({
+  imports: [ComptesModule, ScoreModule],
+  controllers: [CerclesController],
+  providers: [CerclesService],
+  exports: [CerclesService],
+})
 export class CerclesModule {}

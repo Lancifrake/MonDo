@@ -4,12 +4,21 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "verifier-types": "tsc --noEmit"
+    "verifier-types": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "verifier-format": "prettier --check .",
+    "couverture": "vitest run --coverage",
+    "qualite": "eslint . && tsc --noEmit && prettier --check . && vitest run --coverage"
   },
   "devDependencies": {
     "@nestjs/testing": "^12.3.2",
     "@types/node": "^26.6.6",
-    "typescript": "^7.0.2",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^10.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"
   },
   "dependencies": {

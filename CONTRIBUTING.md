@@ -50,7 +50,8 @@ Un choix qui engage le projet (technologie, règle métier, architecture) s'écr
 - Le serveur suit la [décision 02](docs/conception/decision-02-monolithe-modulaire.md) : **chaque module ne lit et n'écrit que ses propres tables** ; les modules communiquent par interfaces et par événements.
 - Les connecteurs externes (SMS, Mobile Money, vérification d'identité, registre) restent derrière des interfaces, simulés au prototype.
 - Toute règle métier (score, délais, pénalités) est couverte par des tests. Le score est la somme d'événements, jamais une valeur écrite à la main.
-- Les commandes de lancement, de test et de vérification du style seront ajoutées ici dès que l'outillage sera en place.
+- Outils : `corepack enable` une fois (ou préfixer par `corepack`), puis dans `src/serveur` : `pnpm install`, `pnpm test`, `pnpm qualite` (lint, types, format, couverture). `pnpm qualite` doit passer avant toute pull request. Voir [la stratégie de test](docs/conception/strategie-de-test.md).
+- Règles métier et sécurité : test d'abord (rouge, vert, refactorisation).
 
 ## Données de test
 Uniquement des données fictives : numéros inventés, noms inventés, aucun document d'identité réel. Voir [SECURITY.md](SECURITY.md).

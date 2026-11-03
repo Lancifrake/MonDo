@@ -22,7 +22,13 @@ const post = (url: string, corps: unknown) =>
   fetch(base + url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(corps) });
 
 async function cotisation(dateLimite: string) {
-  const r = await post("/cotisations", { cercleId: "c1", payeurId: "paul", beneficiaireId: "awa", montant: 10000, dateLimite });
+  const r = await post("/cotisations", {
+    cercleId: "c1",
+    payeurId: "paul",
+    beneficiaireId: "awa",
+    montant: 10000,
+    dateLimite,
+  });
   return (await r.json()) as { id: string };
 }
 

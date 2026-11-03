@@ -36,9 +36,7 @@ export function calculerOrdreDePassage(
   const capaciteDebut = Math.floor(n / 3);
   const capaciteMilieu = n - 2 * capaciteDebut;
 
-  const parMerite = [...membres].sort(
-    (a, b) => b.score - a.score || a.rangInscription - b.rangInscription,
-  );
+  const parMerite = [...membres].sort((a, b) => b.score - a.score || a.rangInscription - b.rangInscription);
 
   const zones: Record<Zone, MembreCercle[]> = { debut: [], milieu: [], fin: [] };
   for (const m of parMerite) {
