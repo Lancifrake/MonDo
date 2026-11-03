@@ -4,7 +4,8 @@ import { Injectable } from "@nestjs/common";
 export type EvenementInterne =
   | { type: "cotisation_confirmee"; cercleId: string; membreId: string; aTemps: boolean }
   | { type: "defaut_constate"; cercleId: string; membreId: string }
-  | { type: "cycle_termine"; cercleId: string; membreId: string };
+  | { type: "cycle_termine"; cercleId: string; membreId: string }
+  | { type: "cercle_complet"; cercleId: string };
 
 export type TypeEvenementInterne = EvenementInterne["type"];
 

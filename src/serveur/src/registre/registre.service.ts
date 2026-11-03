@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { hacher, preuve, racine, type EtapePreuve } from "./merkle.js";
 
 export const CONNECTEUR_REGISTRE = Symbol("CONNECTEUR_REGISTRE");
@@ -31,7 +31,7 @@ export class RegistreService {
   private enAttente: string[] = [];
   private readonly lots: LotFerme[] = [];
 
-  constructor(private readonly connecteur: ConnecteurRegistre) {}
+  constructor(@Inject(CONNECTEUR_REGISTRE) private readonly connecteur: ConnecteurRegistre) {}
 
   /** Empreinte d'un événement ou d'un document. Retourne l'empreinte inscrite. */
   enregistrer(contenu: string): string {

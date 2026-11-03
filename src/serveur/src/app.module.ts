@@ -6,8 +6,9 @@ import { CotisationsModule } from "./modules/cotisations/cotisations.module.js";
 import { PlanificateurModule } from "./modules/planificateur/planificateur.module.js";
 import { PreuveModule } from "./modules/preuve/preuve.module.js";
 import { ScoreModule } from "./modules/score/score.module.js";
+import { RegistreModule } from "./registre/registre.module.js";
 
 @Module({
-  imports: [EvenementsModule, ComptesModule, CerclesModule, ScoreModule, CotisationsModule, PlanificateurModule, PreuveModule],
+  imports: [EvenementsModule, RegistreModule, ComptesModule, CerclesModule, ScoreModule, CotisationsModule, PlanificateurModule, PreuveModule],
 })
 export class AppModule {}

@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
+import { ComptesController } from "./comptes.controller.js";
+import { ComptesService } from "./comptes.service.js";
 
-/** Module Comptes : coquille vide, à remplir (voir docs/conception/decision-02-monolithe-modulaire.md). */
-@Module({})
+@Module({ controllers: [ComptesController], providers: [ComptesService], exports: [ComptesService] })
 export class ComptesModule {}
