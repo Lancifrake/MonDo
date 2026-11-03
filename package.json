@@ -1,0 +1,9 @@
+{
+  "name": "mondo",
+  "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "scripts": {
+    "test": "pnpm -r test",
+    "verifier-types": "pnpm -r verifier-types"
+  }
+}
