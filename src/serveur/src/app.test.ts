@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { AppModule } from "./app.module.js";
 import { messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
+import { cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
 import { creerClient, type Identite } from "./testing/client.js";
 
 let app: INestApplication;
@@ -19,16 +20,21 @@ beforeAll(async () => {
 });
 afterAll(async () => app.close());
 
-async function cotisationDeclaree(payeur: Identite, beneficiaire: Identite) {
-  const r = await client.requete(
-    "POST",
-    "/cotisations",
-    { cercleId: "c1", beneficiaireId: beneficiaire.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
-    payeur,
-  );
-  const { id } = (await r.json()) as { id: string };
-  await client.requete("POST", `/cotisations/${id}/paiement`, { referenceTransaction: "OM123" }, payeur);
-  return id;
+/** Une cotisation du premier tour, avec son payeur et son bénéficiaire, dans un vrai cercle complet. */
+async function cotisationDuPremierTour() {
+  const { membres, cercle } = await cercleComplet(client);
+  const beneficiaire = membres.find((m) => m.id === cercle.ordre![0]!.membreId)!;
+  const payeur = membres.find((m) => m.id !== beneficiaire.id)!;
+  const { id } = (await cotisationsDe(client, cercle.id, payeur)).find(
+    (c) => c.payeurId === payeur.id && c.tour === 1,
+  )!;
+  return { payeur, beneficiaire, id };
+}
+
+async function cotisationDeclaree() {
+  const c = await cotisationDuPremierTour();
+  await client.requete("POST", `/cotisations/${c.id}/paiement`, { referenceTransaction: "OM123" }, c.payeur);
+  return c;
 }
 
 const score = async (qui: Identite) =>
@@ -39,42 +45,27 @@ const score = async (qui: Identite) =>
 
 describe("Cotisations -> Score, par événements seulement", () => {
   it("une cotisation confirmée à temps donne +4 au payeur", async () => {
-    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
-    const id = await cotisationDeclaree(paul, awa);
-    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, awa)).status).toBe(201);
-    expect((await score(paul)).score).toBe(4);
+    const { payeur, beneficiaire, id } = await cotisationDeclaree();
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, beneficiaire)).status).toBe(201);
+    expect((await score(payeur)).score).toBe(4);
   });
 
   it("le payeur ne peut pas confirmer à la place du bénéficiaire", async () => {
-    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
-    const id = await cotisationDeclaree(paul, awa);
-    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, paul)).status).toBe(403);
+    const { payeur, id } = await cotisationDeclaree();
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, payeur)).status).toBe(403);
   });
 
   it("seul le payeur déclare son paiement", async () => {
-    const [paul, awa, intrus] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];
-    const r = await client.requete(
-      "POST",
-      "/cotisations",
-      { cercleId: "c1", beneficiaireId: awa.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
-      paul,
-    );
-    const { id } = (await r.json()) as { id: string };
+    const { id } = await cotisationDuPremierTour();
+    const intrus = await client.inscrire();
     expect(
       (await client.requete("POST", `/cotisations/${id}/paiement`, { referenceTransaction: "X" }, intrus)).status,
     ).toBe(403);
   });
 
   it("sans paiement déclaré, la confirmation est refusée (le silence ne vaut pas confirmation)", async () => {
-    const [paul, awa] = [await client.inscrire(), await client.inscrire()];
-    const r = await client.requete(
-      "POST",
-      "/cotisations",
-      { cercleId: "c1", beneficiaireId: awa.id, montant: 10000, dateLimite: "2999-01-01T00:00:00Z" },
-      paul,
-    );
-    const { id } = (await r.json()) as { id: string };
-    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, awa)).status).toBe(400);
+    const { beneficiaire, id } = await cotisationDuPremierTour();
+    expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, beneficiaire)).status).toBe(400);
   });
 
   it("un défaut constaté fait baisser le score, une seule fois même si le planificateur est rejoué", async () => {
@@ -86,6 +77,7 @@ describe("Cotisations -> Score, par événements seulement", () => {
       penaliteRetard: 0,
       delaiGraceJours: 2,
       ouvert: false,
+      datePremierTour: dansJours(7),
     };
     const cercle = (await (
       await client.requete(

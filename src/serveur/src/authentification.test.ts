@@ -6,6 +6,7 @@ import { AppModule } from "./app.module.js";
 import { messageInscription } from "./authentification/messages.js";
 import { creerClient } from "./testing/client.js";
 import { nouveauTelephone } from "./testing/telephone.js";
+import { dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -110,6 +111,7 @@ describe("validation des entrées", () => {
       penaliteRetard: 500,
       delaiGraceJours: 2,
       ouvert: false,
+      datePremierTour: dansJours(7),
       ...modif,
     };
     const r = await client.requete("POST", "/cercles", { reglement, signature: "x" }, org);

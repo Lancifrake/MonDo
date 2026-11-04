@@ -30,17 +30,12 @@ export const schemaReglement = z.strictObject({
   ouvert: z.boolean(),
   /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
   rappelsAvantEcheanceJours: z.array(z.number().int().min(1).max(30)).max(5).optional(),
+  /** Date et heure limite des cotisations du premier tour (choix de David, 05/11). */
+  datePremierTour: z.iso.datetime(),
 });
 
 export const schemaCreationCercle = z.strictObject({ reglement: schemaReglement, signature: z.string().min(1) });
 export const schemaAdhesion = z.strictObject({ signature: z.string().min(1) });
-
-export const schemaCreationCotisation = z.strictObject({
-  cercleId: z.string().min(1),
-  beneficiaireId: z.string().min(1),
-  montant: z.number().int().positive(),
-  dateLimite: z.iso.datetime(),
-});
 
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 

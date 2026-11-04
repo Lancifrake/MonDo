@@ -34,7 +34,7 @@ Relations :
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **Cercle** | id : UUID ; statut : StatutCercle ; creeLe : DateTime | |
-| **Reglement** | montant : Integer ; frequence : Frequence ; nombreMembres : Integer {3..50} ; penaliteRetard : Integer ; delaiGraceJours : Integer {0..30} ; ouvert : Boolean ; rappelsAvantEcheanceJours : Integer [0..5] ; empreinte : String | signé par l'organisateur, figé |
+| **Reglement** | montant : Integer ; frequence : Frequence ; nombreMembres : Integer {3..50} ; penaliteRetard : Integer ; delaiGraceJours : Integer {0..30} ; ouvert : Boolean ; rappelsAvantEcheanceJours : Integer [0..5] ; datePremierTour : DateTime ; empreinte : String | signé par l'organisateur, figé |
 | **Adhesion** | rang : Integer ; adhereLe : DateTime | rang 1 = organisateur |
 | **DocumentSigne** | type : TypeDocument ; message : String ; signature : String ; empreinte : String | message canonique, vérifiable avec la clé publique |
 | **PlaceOrdre** | position : Integer ; zone : Zone | figée quand le cercle est complet |
@@ -52,8 +52,8 @@ Relations :
 ## 3. Cotisations
 | Classe | Attributs | Remarques |
 |---|---|---|
-| **Tour** | numero : Integer ; dateLimite : DateTime | **pas encore dans le code** |
-| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; referenceTransaction : String [0..1] ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation |
+| **Tour** | numero : Integer ; dateLimite : DateTime | généré quand le cercle est complet (05/11) |
+| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; finGrace : DateTime ; referenceTransaction : String [0..1] ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation |
 
 Relations :
 - Cercle 1 ◆── 1..* Tour ; Tour 0..* ── 1 Utilisateur rôle « bénéficiaire »
@@ -144,7 +144,6 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 |---|---|
 | CleSignature, classe à part | attribut `clePublique` du compte ; une seule clé, pas encore de rotation |
 | DocumentSigne | la signature est stockée sur l'adhésion |
-| Tour | absent : la cotisation porte directement bénéficiaire et date limite |
 | PieceIdentite, ContactConfiance, DemandeRecuperation, EchangePlace, Litige, Administrateur | pas encore codés |
 | Reconnaissance de dette | volontairement absente : créancier et montant non tranchés (recours-legaux.md, section 5) |
 

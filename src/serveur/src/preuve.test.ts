@@ -3,7 +3,7 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
-import { messageEngagement, messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
+import type { Reglement } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import type { DossierDePreuve } from "./modules/preuve/preuve.service.js";
 import { calculerMontantDu } from "./modules/preuve/montants.js";
@@ -11,6 +11,7 @@ import { RegistreService } from "./registre/registre.service.js";
 import { verifierPreuve } from "./registre/merkle.js";
 import { verifierSignature } from "./signature/signature.js";
 import { creerClient, type Identite } from "./testing/client.js";
+import { cercleComplet, dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -29,35 +30,13 @@ const reglement: Reglement = {
   penaliteRetard: 500,
   delaiGraceJours: 2,
   ouvert: false,
+  datePremierTour: dansJours(7),
 };
 
-/** Un cercle complet de trois, où « defaillant » doit deux cotisations à « beneficiaire ». */
+/** Un cercle complet de trois, où « defaillant » doit ses deux cotisations générées (une par autre membre). */
 async function scenarioDefaut() {
-  const [org, beneficiaire, defaillant] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];
-  const cercle = (await (
-    await client.requete(
-      "POST",
-      "/cercles",
-      { reglement, signature: await org.signer(messageReglement(org.id, reglement)) },
-      org,
-    )
-  ).json()) as Cercle;
-  for (const m of [beneficiaire, defaillant]) {
-    await client.requete(
-      "POST",
-      `/cercles/${cercle.id}/adhesions`,
-      { signature: await m.signer(messageEngagement(cercle.id, cercle.empreinteReglement, m.id)) },
-      m,
-    );
-  }
-  for (const dateLimite of ["2026-01-01T00:00:00Z", "2026-01-08T00:00:00Z"]) {
-    await client.requete(
-      "POST",
-      "/cotisations",
-      { cercleId: cercle.id, beneficiaireId: beneficiaire.id, montant: reglement.montant, dateLimite },
-      defaillant,
-    );
-  }
+  const { membres, cercle } = await cercleComplet(client, reglement);
+  const [org, beneficiaire, defaillant] = membres as unknown as [Identite, Identite, Identite];
   await app.get(PlanificateurService).constaterDefaut(cercle.id, defaillant.id, 1);
   return { org, beneficiaire, defaillant, cercle };
 }

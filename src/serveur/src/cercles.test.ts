@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { messageEngagement, messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
+import { dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -23,6 +24,7 @@ const reglement = (extra: Partial<Reglement> = {}): Reglement => ({
   penaliteRetard: 500,
   delaiGraceJours: 2,
   ouvert: false,
+  datePremierTour: dansJours(7),
   ...extra,
 });
 

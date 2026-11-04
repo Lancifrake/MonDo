@@ -19,6 +19,8 @@ export interface Reglement {
   ouvert: boolean;
   /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
   rappelsAvantEcheanceJours?: number[];
+  /** Date limite des cotisations du premier tour ; décalée d'une période si le cercle n'est pas complet à temps. */
+  datePremierTour: string;
 }
 
 export interface PlaceOrdre {
@@ -63,7 +65,13 @@ export class CerclesService {
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
   ) {}
 
-  async creer(d: { organisateurId: string; reglement: Reglement; signature: string }): Promise<Cercle> {
+  async creer(
+    d: { organisateurId: string; reglement: Reglement; signature: string },
+    maintenant: Date = new Date(),
+  ): Promise<Cercle> {
+    if (Date.parse(d.reglement.datePremierTour) <= maintenant.getTime()) {
+      throw new BadRequestException("La date du premier tour doit être dans le futur");
+    }
     const organisateur = await this.comptes.trouver(d.organisateurId);
     const message = messageReglement(d.organisateurId, d.reglement); // forme validée en amont (schemaReglement)
     if (!verifierSignature(organisateur.clePublique, message, d.signature)) {
@@ -117,9 +125,20 @@ export class CerclesService {
 
     await this.registre.enregistrer(message);
     if (complet) {
+      const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);
       await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
-      await this.evenements.publier({ type: "cercle_complet", cercleId });
+      const { montant, frequence, delaiGraceJours, datePremierTour } = cercle.reglement;
+      await this.evenements.publier({
+        type: "cercle_complet",
+        cercleId,
+        ordre: ordre.map((p) => p.membreId),
+        montant,
+        frequence,
+        delaiGraceJours,
+        datePremierTour,
+        completLe,
+      });
     }
     return this.trouver(cercleId);
   }

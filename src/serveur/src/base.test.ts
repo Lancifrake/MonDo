@@ -7,6 +7,7 @@ import { messageInscription } from "./authentification/messages.js";
 import { messageEngagement, messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { creerClient } from "./testing/client.js";
 import { nouveauTelephone } from "./testing/telephone.js";
+import { dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -48,6 +49,7 @@ describe("contraintes garanties par la base", () => {
       penaliteRetard: 500,
       delaiGraceJours: 2,
       ouvert: false,
+      datePremierTour: dansJours(7),
     };
     const cercle = (await (
       await client.requete(
