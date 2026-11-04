@@ -15,7 +15,7 @@ export interface CercleComplet {
 /** Événements que les modules s'échangent (décision 02, règle 2). Aucun module n'appelle les tables d'un autre. */
 export type EvenementInterne =
   | { type: "cotisation_confirmee"; cercleId: string; membreId: string; aTemps: boolean }
-  | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number }
+  | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }
   | ({ type: "cercle_complet" } & CercleComplet)
   | { type: "echeance_proche"; cercleId: string; membreId: string; cotisationId: string; joursRestants: number }

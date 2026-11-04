@@ -41,7 +41,7 @@ export async function adherer(client: Client, cercle: Cercle, m: Identite) {
 
 /** Cercle complet : l'organisateur puis les autres membres, dans l'ordre d'inscription. Rend le cercle avec son ordre figé. */
 export async function cercleComplet(client: Client, r: Reglement = reglementDeTest()) {
-  const membres = [];
+  const membres: Identite[] = [];
   for (let i = 0; i < r.nombreMembres; i++) membres.push(await client.inscrire());
   const [org, ...autres] = membres;
   const cree = (await (await creerCercle(client, org!, r)).json()) as Cercle;

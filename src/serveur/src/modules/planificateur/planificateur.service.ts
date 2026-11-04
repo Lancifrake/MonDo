@@ -14,23 +14,33 @@ export class PlanificateurService {
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
   ) {}
 
-  constaterDefaut(cercleId: string, membreId: string, tour: number): Promise<boolean> {
+  constaterDefaut(cercleId: string, membreId: string, tour: number, maintenant: Date = new Date()): Promise<boolean> {
     return this.traiterUneFois(`defaut:${cercleId}:${membreId}:${tour}`, {
       type: "defaut_constate",
       cercleId,
       membreId,
       tour,
+      constateLe: maintenant.toISOString(),
     });
   }
 
   /**
-   * Examine les cotisations dues : échéance proche ou dépassée, une fois par jour et par cotisation.
-   * L'échec d'une cotisation n'arrête pas l'examen des autres.
+   * Examine les cotisations dues : échéance proche ou dépassée, une fois par jour et par cotisation ;
+   * après la fin de grâce, défaut constaté, une seule fois par tour. Une cotisation déclarée mais pas
+   * confirmée n'est jamais un défaut du payeur (litige). L'échec d'une cotisation n'arrête pas l'examen des autres.
    */
   async examinerEcheances(maintenant: Date = new Date()): Promise<{ traitees: number; echecs: number }> {
     let traitees = 0;
     let echecs = 0;
     for (const c of await this.cotisations.listerDues()) {
+      if (c.tour > 0 && maintenant.getTime() > Date.parse(c.finGrace)) {
+        try {
+          if (await this.constaterDefaut(c.cercleId, c.payeurId, c.tour, maintenant)) traitees++;
+        } catch {
+          echecs++;
+        }
+        continue;
+      }
       const ecart = new Date(c.dateLimite).getTime() - maintenant.getTime();
       const commun = { cercleId: c.cercleId, membreId: c.payeurId, cotisationId: c.id };
       const [idTache, evenement]: [string, EvenementInterne] =
