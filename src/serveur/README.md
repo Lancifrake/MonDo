@@ -49,7 +49,9 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
 
-Non fait : constat automatique du défaut à la fin de grâce (prochaine étape), fin de cycle.
+**Défaut automatique** : le planificateur (`examinerEcheances`) constate le défaut d'une cotisation ni payée ni déclarée dès que sa fin de grâce est passée, une seule fois par tour (score −30, mise en demeure, assistant). Une cotisation déclarée mais pas confirmée par le bénéficiaire n'est jamais un défaut du payeur : elle relève d'un litige (pas encore codé). La mise en demeure est datée du constat et ne réclame que les cotisations échues à cette date, jamais les tours à venir.
+
+Non fait : fin de cycle (`cycle_termine`), litige sur un paiement déclaré non confirmé, lancement quotidien du planificateur (aujourd'hui appelé par les tests).
 
 ## Dossier de preuve
 

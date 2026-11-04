@@ -64,21 +64,31 @@ export class PreuveService implements OnModuleInit {
 
   onModuleInit(): void {
     this.evenements.ecouter("defaut_constate", async (e) => {
-      await this.emettreMiseEnDemeure(e.cercleId, e.membreId, e.tour);
+      await this.emettreMiseEnDemeure(e.cercleId, e.membreId, e.tour, new Date(e.constateLe));
     });
   }
 
-  /** Mise en demeure datée, aux montants du règlement signé. Une seule par défaut constaté (cercle, membre, tour). */
-  async emettreMiseEnDemeure(cercleId: string, membreId: string, tour: number): Promise<MiseEnDemeure | undefined> {
+  /**
+   * Mise en demeure datée du constat, aux montants du règlement signé. Une seule par défaut constaté
+   * (cercle, membre, tour). Ne réclame que les cotisations échues à cette date, jamais les tours à venir.
+   */
+  async emettreMiseEnDemeure(
+    cercleId: string,
+    membreId: string,
+    tour: number,
+    constateLe: Date = new Date(),
+  ): Promise<MiseEnDemeure | undefined> {
     const cercle = await this.cercles.trouver(cercleId);
-    const dues = (await this.cotisations.listerPour(cercleId, membreId)).filter((c) => c.statut !== "confirmee");
+    const dues = (await this.cotisations.listerPour(cercleId, membreId)).filter(
+      (c) => c.statut !== "confirmee" && Date.parse(c.dateLimite) <= constateLe.getTime(),
+    );
     const contenu = {
       objet: "mise_en_demeure",
       id: randomUUID(),
       cercleId,
       membreId,
       tour,
-      emiseLe: new Date().toISOString(),
+      emiseLe: constateLe.toISOString(),
       montantDu: calculerMontantDu(
         dues.map((c) => c.montant),
         cercle.reglement.penaliteRetard,

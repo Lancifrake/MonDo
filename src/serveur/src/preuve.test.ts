@@ -11,7 +11,7 @@ import { RegistreService } from "./registre/registre.service.js";
 import { verifierPreuve } from "./registre/merkle.js";
 import { verifierSignature } from "./signature/signature.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { cercleComplet, dansJours } from "./testing/cercles.js";
+import { cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -36,8 +36,10 @@ const reglement: Reglement = {
 /** Un cercle complet de trois, où « defaillant » doit ses deux cotisations générées (une par autre membre). */
 async function scenarioDefaut() {
   const { membres, cercle } = await cercleComplet(client, reglement);
-  const [org, beneficiaire, defaillant] = membres as unknown as [Identite, Identite, Identite];
-  await app.get(PlanificateurService).constaterDefaut(cercle.id, defaillant.id, 1);
+  const [org, beneficiaire, defaillant] = membres as [Identite, Identite, Identite];
+  // Constat après la fin de grâce du deuxième tour : ses deux cotisations sont échues.
+  const finGrace = Math.max(...(await cotisationsDe(client, cercle.id, defaillant)).map((c) => Date.parse(c.finGrace)));
+  await app.get(PlanificateurService).constaterDefaut(cercle.id, defaillant.id, 2, new Date(finGrace + 1000));
   return { org, beneficiaire, defaillant, cercle };
 }
 
@@ -86,7 +88,7 @@ describe("dossier de preuve", () => {
 
   it("rejouer le constat de défaut ne crée pas une seconde mise en demeure", async () => {
     const { beneficiaire, defaillant, cercle } = await scenarioDefaut();
-    await app.get(PlanificateurService).constaterDefaut(cercle.id, defaillant.id, 1);
+    await app.get(PlanificateurService).constaterDefaut(cercle.id, defaillant.id, 2);
     const d = (await (await dossier(cercle.id, defaillant, beneficiaire)).json()) as DossierDePreuve;
     expect(d.misesEnDemeure).toHaveLength(1);
   });
