@@ -9,6 +9,8 @@ Une pull request n'est fusionnée que si `pnpm qualite` passe, en local et dans 
 3. format (Prettier) ;
 4. tests et couverture (Vitest, seuils : lignes 85 %, branches 75 %).
 
+Pour le contrat (`src/contrat`) : compilation, types et tests Hardhat (`pnpm qualite`), plus l'**analyse statique Slither** dans l'intégration continue (job `slither`). Elle échoue dès un constat de gravité faible ou plus. Un faux positif ne s'ignore pas en bloc : il se justifie par un commentaire `slither-disable-next-line` au-dessus de la ligne concernée.
+
 ## Façon de travailler
 - **Test d'abord pour les règles métier et la sécurité** : écrire le test qui échoue, le faire passer, puis refactoriser. Exemple du 03/11 : deux failles de l'arbre de hachage ont été montrées par des tests rouges avant d'être corrigées.
 - **Refactorisation** seulement avec les tests au vert, dans un commit séparé.

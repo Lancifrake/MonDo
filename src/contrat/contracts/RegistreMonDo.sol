@@ -48,6 +48,9 @@ contract RegistreMonDo is AccessControl, Pausable {
         bytes32 racine
     ) external view returns (bool) {
         if (freres.length != freresADroite.length) revert PreuveMalFormee();
+        // 0 signifie « jamais inscrite » (un bloc réel n'a jamais l'horodatage 0) :
+        // ni comparaison temporelle manipulable, ni égalité de solde.
+        // slither-disable-next-line incorrect-equality,timestamp
         if (horodatageDe[racine] == 0) return false;
         bytes32 courant = sha256(abi.encodePacked(bytes1(0x00), empreinte));
         for (uint256 i = 0; i < freres.length; i++) {

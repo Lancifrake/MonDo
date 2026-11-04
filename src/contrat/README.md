@@ -15,6 +15,16 @@ corepack pnpm install
 corepack pnpm qualite
 ```
 
+## Analyse statique (Slither)
+L'intégration continue lance [Slither](https://github.com/crytic/slither) à chaque pull request (job `slither`, réglages dans `slither.config.json`). Elle échoue dès un constat de gravité faible ou plus. Pour la lancer en local (Python 3 requis) :
+```bash
+python3 -m venv .venv-slither && . .venv-slither/bin/activate
+pip install slither-analyzer==0.11.6 solc-select==1.2.0
+solc-select install 0.8.28 && solc-select use 0.8.28
+slither contracts/RegistreMonDo.sol
+```
+Constat justifié (04/11) : `horodatageDe[racine] == 0` dans `verifierInclusion` (détecteurs `incorrect-equality` et `timestamp`). Le 0 signifie « racine jamais inscrite », ce n'est ni une comparaison temporelle manipulable ni une égalité de solde. Slither n'est pas un audit : le contrat reste à faire auditer.
+
 ## Déployer sur Base Sepolia (réseau de test)
 Non fait : il faut une clé de déploiement financée en ETH de test, qui ne doit jamais entrer dans le dépôt.
 ```bash
