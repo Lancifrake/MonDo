@@ -2,6 +2,8 @@
 
 Date : 04/11/2026. Modèle du domaine validé par David le 03/11 (score comme historique d'événements, Administrateur classe séparée, classes V2 incluses en gris), complété par ce que le code contient (`src/serveur`). Le diagramme se dessine dans Visual Paradigm à partir de ce texte ; une fois dessiné, le fichier VP fait foi et ce texte sert de référence.
 
+Version draw.io à recopier : [`classes/mondo-diagramme-de-classes.drawio`](classes/mondo-diagramme-de-classes.drawio) (à ouvrir sur app.diagrams.net ou dans l'extension VS Code). C'est une aide visuelle tirée de ce texte, pas une source : on ne la tient pas à jour une fois le fichier Visual Paradigm dessiné.
+
 ## Comment le dessiner
 - **Un paquetage par module** du serveur (décision 02) : Comptes et identité, Cercles et règlement, Cotisations, Score et ordre de passage, Planificateur, Dossier de preuve, Assistant, Registre.
 - **Classes V2** (phase 2) : remplissage gris, et stéréotype `«V2»`.
