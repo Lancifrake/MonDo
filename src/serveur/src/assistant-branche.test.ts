@@ -7,6 +7,9 @@ import { messageEngagement, messageReglement, type Cercle, type Reglement } from
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import type { DossierDePreuve } from "./modules/preuve/preuve.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
+import { cotisationsDe, dansJours } from "./testing/cercles.js";
+import { randomUUID } from "node:crypto";
+import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -32,6 +35,7 @@ const reglementDe = (extra: Partial<Reglement> = {}): Reglement => ({
   penaliteRetard: 500,
   delaiGraceJours: 2,
   ouvert: false,
+  datePremierTour: dansJours(7),
   ...extra,
 });
 
@@ -125,53 +129,63 @@ describe("assistant branché sur les événements", () => {
 describe("échéances examinées par le planificateur", () => {
   const JOUR = 24 * 60 * 60 * 1000;
 
-  async function cotisation(cercleId: string, payeur: Identite, beneficiaire: Identite, dateLimite: Date) {
-    const r = await client.requete(
-      "POST",
-      "/cotisations",
-      { cercleId, beneficiaireId: beneficiaire.id, montant: 10000, dateLimite: dateLimite.toISOString() },
-      payeur,
-    );
-    return (await r.json()) as { id: string };
+  /** Date limite et payeurs du premier tour, lus dans les cotisations générées. */
+  async function premierTour(cercleId: string, membres: Identite[]) {
+    const toutes = (await Promise.all(membres.map((m) => cotisationsDe(client, cercleId, m)))).flat();
+    const tour1 = toutes.filter((c) => c.tour === 1);
+    return {
+      dateLimite: Date.parse(tour1[0]!.dateLimite),
+      payeurs: [...new Set(tour1.map((c) => c.payeurId))].sort(),
+    };
   }
 
   it("rappels prévus par le règlement, une seule fois même si l'examen est rejoué", async () => {
     const { org, a, b, cercle } = await cercleComplet(reglementDe({ rappelsAvantEcheanceJours: [1] }));
-    const maintenant = new Date("2026-11-03T08:00:00Z");
-    await cotisation(cercle.id, b, a, new Date(maintenant.getTime() + JOUR));
+    const { dateLimite, payeurs } = await premierTour(cercle.id, [org, a, b]);
+    const maintenant = new Date(dateLimite - JOUR);
     const planificateur = app.get(PlanificateurService);
     await planificateur.examinerEcheances(maintenant);
     await planificateur.examinerEcheances(maintenant);
     const actions = await journal(cercle.id, org);
-    expect(actions).toHaveLength(1);
-    expect(actions[0]).toMatchObject({ type: "rappel", membreId: b.id, issue: "en_attente" });
+    // Seul le premier tour est à un jour ; les tours suivants sont à 8 et 15 jours.
+    expect(actions.every((x) => x.type === "rappel" && x.issue === "en_attente")).toBe(true);
+    expect(actions.map((x) => x.membreId).sort()).toEqual(payeurs);
   });
 
   it("sans jours de rappel dans le règlement, aucun rappel avant l'échéance", async () => {
     const { org, a, b, cercle } = await cercleComplet();
-    const maintenant = new Date("2026-11-03T08:00:00Z");
-    await cotisation(cercle.id, b, a, new Date(maintenant.getTime() + JOUR));
-    await app.get(PlanificateurService).examinerEcheances(maintenant);
+    const { dateLimite } = await premierTour(cercle.id, [org, a, b]);
+    await app.get(PlanificateurService).examinerEcheances(new Date(dateLimite - JOUR));
     expect(await journal(cercle.id, org)).toHaveLength(0);
   });
 
-  it("retard dans le délai de grâce : rappel de retard ; au-delà : rien (le défaut prend le relais)", async () => {
+  it("retard dans le délai de grâce : rappel de retard aux payeurs du tour", async () => {
     const { org, a, b, cercle } = await cercleComplet();
-    const maintenant = new Date("2026-11-03T08:00:00Z");
-    await cotisation(cercle.id, b, a, new Date(maintenant.getTime() - JOUR));
-    await cotisation(cercle.id, a, b, new Date(maintenant.getTime() - 5 * JOUR));
-    await app.get(PlanificateurService).examinerEcheances(maintenant);
+    const { dateLimite, payeurs } = await premierTour(cercle.id, [org, a, b]);
+    await app.get(PlanificateurService).examinerEcheances(new Date(dateLimite + JOUR));
     const actions = await journal(cercle.id, org);
-    expect(actions.map((x) => [x.type, x.membreId])).toEqual([["rappel_retard", b.id]]);
+    expect(actions.every((x) => x.type === "rappel_retard")).toBe(true);
+    expect(actions.map((x) => x.membreId).sort()).toEqual(payeurs);
+  });
+
+  it("au-delà du délai de grâce : plus de rappel (le défaut prend le relais)", async () => {
+    const { org, a, b, cercle } = await cercleComplet();
+    const { dateLimite } = await premierTour(cercle.id, [org, a, b]);
+    await app.get(PlanificateurService).examinerEcheances(new Date(dateLimite + 5 * JOUR));
+    expect((await journal(cercle.id, org)).filter((x) => x.type === "rappel_retard")).toHaveLength(0);
   });
 
   it("une cotisation d'un cercle inconnu n'arrête pas l'examen des autres", async () => {
     const { org, a, b, cercle } = await cercleComplet();
-    const maintenant = new Date("2026-11-03T08:00:00Z");
-    await cotisation("cercle-inconnu", a, b, new Date(maintenant.getTime() - JOUR));
-    await cotisation(cercle.id, b, a, new Date(maintenant.getTime() - JOUR));
+    const { dateLimite, payeurs } = await premierTour(cercle.id, [org, a, b]);
+    const maintenant = new Date(dateLimite + JOUR);
+    await app.get<BaseDeDonnees>(BASE_DE_DONNEES).requete(
+      `INSERT INTO cotisations.cotisations (id, cercle_id, payeur_id, beneficiaire_id, montant, date_limite, statut)
+         VALUES ($1, 'cercle-inconnu', $2, $3, 10000, $4, 'due')`,
+      [randomUUID(), a.id, b.id, new Date(dateLimite).toISOString()],
+    );
     const bilan = await app.get(PlanificateurService).examinerEcheances(maintenant);
     expect(bilan.echecs).toBeGreaterThanOrEqual(1);
-    expect(await journal(cercle.id, org)).toHaveLength(1);
+    expect(await journal(cercle.id, org)).toHaveLength(payeurs.length);
   });
 });

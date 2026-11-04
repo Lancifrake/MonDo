@@ -11,6 +11,7 @@ import {
   type Reglement,
 } from "../modules/cercles/cercles.service.js";
 import { creerClient } from "../testing/client.js";
+import { dansJours } from "../testing/cercles.js";
 
 /**
  * Même parcours que les autres tests, mais sur un vrai serveur PostgreSQL.
@@ -57,6 +58,7 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       penaliteRetard: 500,
       delaiGraceJours: 2,
       ouvert: false,
+      datePremierTour: dansJours(7),
     };
     const cercle = (await (
       await client.requete(

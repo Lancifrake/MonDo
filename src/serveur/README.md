@@ -39,6 +39,17 @@ corepack pnpm verifier-types
 
 Un module ne lit que ses propres données et passe par les services exportés ou par les événements des autres. Les connecteurs externes restent simulés.
 
+## Tours de cotisation
+
+Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calendrier.ts`), à partir du règlement signé et de l'ordre figé. On ne crée plus une cotisation à la main.
+- **Date du premier tour** : champ `datePremierTour` du règlement, dans le futur à la création (choix de David, 05/11). Si le cercle se complète à cette date ou après, le départ est décalé d'autant de périodes qu'il faut.
+- **Un tour par membre**, dans l'ordre de passage. Tours suivants : +7 jours en hebdomadaire, même jour chaque mois en mensuel (le 31 devient le dernier jour des mois plus courts, sans dériver).
+- **Chaque membre doit le montant du règlement à chaque bénéficiaire sauf lui-même** : la cagnotte reçue vaut (nombre de membres − 1) × montant.
+- **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
+- `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
+
+Non fait : constat automatique du défaut à la fin de grâce (prochaine étape), fin de cycle.
+
 ## Dossier de preuve
 
 `GET /preuve/cercles/:cercleId/membres/:membreId/dossier`, réservé aux autres membres du cercle, seulement après un défaut constaté. Contient : identité du débiteur, règlement et engagement signés (vérifiables avec les clés publiques), preuves d'inscription au registre, relevé des cotisations, mises en demeure. L'export lui-même est inscrit au registre.

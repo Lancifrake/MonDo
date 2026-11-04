@@ -1,7 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
-import { EvenementsInternes } from "../../evenements/evenements-internes.js";
+import { EvenementsInternes, type CercleComplet } from "../../evenements/evenements-internes.js";
+import { calendrierDesTours } from "./calendrier.js";
+
+const JOUR_MS = 24 * 60 * 60 * 1000;
 
 export interface Cotisation {
   id: string;
@@ -9,7 +12,11 @@ export interface Cotisation {
   payeurId: string;
   beneficiaireId: string;
   montant: number;
+  /** Numéro du tour ; 0 pour une cotisation créée à la main avant le 05/11 (prototype). */
+  tour: number;
   dateLimite: string;
+  /** Au-delà, la cotisation non payée devient un défaut (délai de grâce du règlement). */
+  finGrace: string;
   referenceTransaction?: string;
   statut: "due" | "declaree" | "confirmee";
 }
@@ -20,7 +27,9 @@ interface LigneCotisation extends Record<string, unknown> {
   payeur_id: string;
   beneficiaire_id: string;
   montant: string | number;
+  tour: number | null;
   date_limite: Date | string;
+  fin_grace: Date | string | null;
   reference_transaction: string | null;
   statut: Cotisation["statut"];
 }
@@ -31,7 +40,9 @@ const versCotisation = (l: LigneCotisation): Cotisation => ({
   payeurId: l.payeur_id,
   beneficiaireId: l.beneficiaire_id,
   montant: Number(l.montant),
+  tour: l.tour ?? 0,
   dateLimite: new Date(l.date_limite).toISOString(),
+  finGrace: new Date(l.fin_grace ?? l.date_limite).toISOString(),
   ...(l.reference_transaction ? { referenceTransaction: l.reference_transaction } : {}),
   statut: l.statut,
 });
@@ -42,15 +53,35 @@ export class CotisationsService {
   constructor(
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
-  ) {}
+  ) {
+    this.evenements.ecouter("cercle_complet", (e) => this.planifierTours(e));
+  }
 
-  async creer(d: Omit<Cotisation, "id" | "statut" | "referenceTransaction">): Promise<Cotisation> {
-    const [l] = await this.base.requete<LigneCotisation>(
-      `INSERT INTO cotisations.cotisations (id, cercle_id, payeur_id, beneficiaire_id, montant, date_limite, statut)
-       VALUES ($1, $2, $3, $4, $5, $6, 'due') RETURNING *`,
-      [randomUUID(), d.cercleId, d.payeurId, d.beneficiaireId, d.montant, d.dateLimite],
-    );
-    return versCotisation(l!);
+  /**
+   * Tours et cotisations du cycle, créés d'un coup quand le cercle est complet : chaque membre doit le
+   * montant du règlement à chaque bénéficiaire sauf lui-même. Rejouable : un cercle déjà planifié est ignoré.
+   */
+  async planifierTours(c: CercleComplet): Promise<void> {
+    const tours = calendrierDesTours(c);
+    await this.base.transaction(async (tx) => {
+      const [deja] = await tx.requete("SELECT 1 FROM cotisations.tours WHERE cercle_id = $1 LIMIT 1", [c.cercleId]);
+      if (deja) return;
+      for (const t of tours) {
+        await tx.requete(
+          "INSERT INTO cotisations.tours (cercle_id, numero, beneficiaire_id, date_limite) VALUES ($1, $2, $3, $4)",
+          [c.cercleId, t.numero, t.beneficiaireId, t.dateLimite],
+        );
+        const finGrace = new Date(Date.parse(t.dateLimite) + c.delaiGraceJours * JOUR_MS).toISOString();
+        for (const payeurId of c.ordre.filter((m) => m !== t.beneficiaireId)) {
+          await tx.requete(
+            `INSERT INTO cotisations.cotisations
+               (id, cercle_id, payeur_id, beneficiaire_id, montant, tour, date_limite, fin_grace, statut)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'due')`,
+            [randomUUID(), c.cercleId, payeurId, t.beneficiaireId, c.montant, t.numero, t.dateLimite, finGrace],
+          );
+        }
+      }
+    });
   }
 
   async declarerPaiement(id: string, referenceTransaction: string, parMembreId: string): Promise<Cotisation> {
@@ -88,6 +119,16 @@ export class CotisationsService {
   async listerDues(): Promise<Cotisation[]> {
     const lignes = await this.base.requete<LigneCotisation>(
       "SELECT * FROM cotisations.cotisations WHERE statut = 'due' ORDER BY date_limite, id",
+    );
+    return lignes.map(versCotisation);
+  }
+
+  /** Ce que le membre doit et ce qu'on lui doit dans un cercle, par tour. Rien sur les autres membres. */
+  async listerDuMembre(cercleId: string, membreId: string): Promise<Cotisation[]> {
+    const lignes = await this.base.requete<LigneCotisation>(
+      `SELECT * FROM cotisations.cotisations WHERE cercle_id = $1 AND (payeur_id = $2 OR beneficiaire_id = $2)
+       ORDER BY tour, date_limite, id`,
+      [cercleId, membreId],
     );
     return lignes.map(versCotisation);
   }

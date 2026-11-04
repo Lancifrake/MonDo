@@ -151,6 +151,21 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         cree_le timestamptz NOT NULL
       )`,
   },
+  {
+    // tour et fin_grace restent vides pour les cotisations créées à la main avant le 05/11 (prototype).
+    nom: "010_tours",
+    sql: `
+      CREATE TABLE cotisations.tours (
+        cercle_id text NOT NULL,
+        numero integer NOT NULL CHECK (numero > 0),
+        beneficiaire_id uuid NOT NULL,
+        date_limite timestamptz NOT NULL,
+        PRIMARY KEY (cercle_id, numero)
+      );
+      ALTER TABLE cotisations.cotisations ADD COLUMN tour integer;
+      ALTER TABLE cotisations.cotisations ADD COLUMN fin_grace timestamptz;
+      CREATE UNIQUE INDEX cotisation_par_tour ON cotisations.cotisations (cercle_id, tour, payeur_id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
