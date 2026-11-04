@@ -12,4 +12,4 @@ Lien vers l'issue ou la décision concernée.
 - [ ] Aucun secret, aucune donnée réelle
 - [ ] Documentation ou schémas mis à jour si nécessaire
 - [ ] Règles métier couvertes par des tests (si du code)
-- [ ] Un relecteur demandé
+- [ ] Intégration continue au vert avant la fusion
