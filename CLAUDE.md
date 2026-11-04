@@ -17,7 +17,7 @@ Après chaque tâche terminée, mettre à jour `/Users/smcdavid/.claude/projects
 - Architecture : `docs/conception/architecture/mondo-architecture.excalidraw` (Excalidraw, à ouvrir sur excalidraw.com ou dans l'extension VS Code). Le PNG d'aperçu est une image de référence, pas le rendu Excalidraw. Zoom du serveur (liens entre modules) : `mondo-architecture-serveur.excalidraw`. Icônes : `mondo-icones.excalidrawlib` (23 icônes Lucide, licence ISC dans `LICENCE-lucide.txt`, à importer via le panneau Bibliothèque > Ouvrir).
 - Document de vision : le doc Claude « MonDo, document de vision (version 2) », https://claude.ai/artifact/EQt6NDhWd68wDivegfVbip (créé le 27/10/2026, contenu identique à `docs/cadrage/mondo-vision-v2.md`). Le .md, le .docx et le PDF d'origine sont des copies gelées à cette date : on modifie le doc Claude.
 
-- Diagramme de classes : à dessiner par David dans Visual Paradigm à partir de `docs/conception/diagramme-de-classes.md` (spécification) ; une fois dessiné, le fichier VP fait foi.
+- Diagramme de classes : à dessiner par David dans Visual Paradigm à partir de `docs/conception/diagramme-de-classes.md` (spécification) ; une fois dessiné, le fichier VP fait foi. Aide visuelle à recopier : `docs/conception/classes/mondo-diagramme-de-classes.drawio` (non tenue à jour ensuite).
 - Décisions de conception : `docs/conception/decision-01-blockchain-registre-sans-fonds.md`, `docs/conception/decision-02-monolithe-modulaire.md` (serveur en monolithe modulaire, règles de propriété des données et de scalabilité).
 
 ## Conventions
