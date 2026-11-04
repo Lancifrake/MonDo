@@ -53,7 +53,8 @@ describe("RegistreService", () => {
     const lot = await service.fermerLot();
     expect(lot?.empreintes).toHaveLength(1000);
     expect(connecteur.racinesInscrites).toHaveLength(1);
-  });
+    // Test de volume : 1000 écritures à la suite dépassent parfois 5 s en CI avec la couverture.
+  }, 30_000);
 
   it("fournit une preuve vérifiable pour chaque empreinte", async () => {
     const { service } = await registre();
