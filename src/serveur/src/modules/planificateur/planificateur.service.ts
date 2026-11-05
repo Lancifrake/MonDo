@@ -27,7 +27,8 @@ export class PlanificateurService {
   /**
    * Examine les cotisations dues : échéance proche ou dépassée, une fois par jour et par cotisation ;
    * après la fin de grâce, défaut constaté, une seule fois par tour. Une cotisation déclarée mais pas
-   * confirmée n'est jamais un défaut du payeur (litige). L'échec d'une cotisation n'arrête pas l'examen des autres.
+   * confirmée n'est jamais un défaut du payeur (litige). Puis les fins de cycle. L'échec d'une tâche
+   * n'arrête pas l'examen des autres.
    */
   async examinerEcheances(maintenant: Date = new Date()): Promise<{ traitees: number; echecs: number }> {
     let traitees = 0;
@@ -59,7 +60,38 @@ export class PlanificateurService {
         echecs++;
       }
     }
+    const cycles = await this.examinerFinsDeCycle(maintenant);
+    return { traitees: traitees + cycles.traitees, echecs: echecs + cycles.echecs };
+  }
+
+  /**
+   * Cycle terminé (choix de David, 05/11) : fin de grâce du dernier tour passée, aucun défaut constaté pour
+   * le membre dans ce cercle, toutes ses cotisations confirmées par le bénéficiaire. Si une confirmation
+   * manque, le bonus attend le passage qui suit la confirmation. Une seule fois par membre et par cercle.
+   */
+  private async examinerFinsDeCycle(maintenant: Date): Promise<{ traitees: number; echecs: number }> {
+    let traitees = 0;
+    let echecs = 0;
+    for (const b of await this.cotisations.bilansDeCycle()) {
+      if (!b.toutConfirme || maintenant.getTime() <= Date.parse(b.finCycle)) continue;
+      try {
+        if (await this.aFaitDefaut(b.cercleId, b.membreId)) continue;
+        const evenement: EvenementInterne = { type: "cycle_termine", cercleId: b.cercleId, membreId: b.membreId };
+        if (await this.traiterUneFois(`cycle:${b.cercleId}:${b.membreId}`, evenement)) traitees++;
+      } catch {
+        echecs++;
+      }
+    }
     return { traitees, echecs };
+  }
+
+  /** Les défauts constatés sont les tâches `defaut:cercle:membre:tour` déjà traitées par ce module. */
+  private async aFaitDefaut(cercleId: string, membreId: string): Promise<boolean> {
+    const lignes = await this.base.requete(
+      "SELECT 1 FROM planificateur.taches_traitees WHERE starts_with(id, $1) LIMIT 1",
+      [`defaut:${cercleId}:${membreId}:`],
+    );
+    return lignes.length > 0;
   }
 
   private async traiterUneFois(idTache: string, evenement: EvenementInterne): Promise<boolean> {

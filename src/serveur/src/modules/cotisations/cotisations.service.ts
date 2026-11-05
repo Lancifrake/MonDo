@@ -21,6 +21,14 @@ export interface Cotisation {
   statut: "due" | "declaree" | "confirmee";
 }
 
+export interface BilanDeCycle {
+  cercleId: string;
+  membreId: string;
+  /** Fin de grâce du dernier tour du cercle. */
+  finCycle: string;
+  toutConfirme: boolean;
+}
+
 interface LigneCotisation extends Record<string, unknown> {
   id: string;
   cercle_id: string;
@@ -121,6 +129,30 @@ export class CotisationsService {
       "SELECT * FROM cotisations.cotisations WHERE statut = 'due' ORDER BY date_limite, id",
     );
     return lignes.map(versCotisation);
+  }
+
+  /**
+   * Pour chaque cercle et chaque payeur : fin du cycle (fin de grâce la plus tardive du cercle) et
+   * « tout confirmé » (le bénéficiaire a confirmé toutes ses cotisations). Pour le planificateur.
+   */
+  async bilansDeCycle(): Promise<BilanDeCycle[]> {
+    const lignes = await this.base.requete<{
+      cercle_id: string;
+      payeur_id: string;
+      tout_confirme: boolean;
+      fin_cycle: Date | string;
+    }>(
+      `SELECT cercle_id, payeur_id, bool_and(statut = 'confirmee') AS tout_confirme,
+              max(max(fin_grace)) OVER (PARTITION BY cercle_id) AS fin_cycle
+       FROM cotisations.cotisations WHERE tour > 0
+       GROUP BY cercle_id, payeur_id ORDER BY cercle_id, payeur_id`,
+    );
+    return lignes.map((l) => ({
+      cercleId: l.cercle_id,
+      membreId: l.payeur_id,
+      toutConfirme: l.tout_confirme,
+      finCycle: new Date(l.fin_cycle).toISOString(),
+    }));
   }
 
   /** Ce que le membre doit et ce qu'on lui doit dans un cercle, par tour. Rien sur les autres membres. */

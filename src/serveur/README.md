@@ -63,7 +63,9 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - `MONDO_PLANIFICATEUR_MINUTES` : intervalle en minutes (60 par défaut), `0` pour désactiver ; une valeur invalide empêche le démarrage.
 - Les tests ne démarrent pas la minuterie : ils appellent `examinerEcheances` avec leur propre date.
 
-Non fait : fin de cycle (`cycle_termine`), litige sur un paiement déclaré non confirmé.
+**Fin de cycle** (choix de David, 05/11) : bonus « cycle terminé » (+10) pour un membre quand la fin de grâce du dernier tour est passée, qu'il n'a eu aucun défaut dans ce cercle (même régularisé ensuite) et que le bénéficiaire a confirmé toutes ses cotisations. S'il manque une confirmation, le bonus arrive au passage qui suit. Une seule fois par membre et par cercle.
+
+Non fait : litige sur un paiement déclaré non confirmé, statut « terminé » du cercle.
 
 ## Dossier de preuve
 
