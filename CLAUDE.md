@@ -18,7 +18,7 @@ Après chaque tâche terminée, mettre à jour `/Users/smcdavid/.claude/projects
 - Document de vision : le doc Claude « MonDo, document de vision (version 2) », https://claude.ai/artifact/EQt6NDhWd68wDivegfVbip (créé le 27/10/2026, contenu identique à `docs/cadrage/mondo-vision-v2.md`). Le .md, le .docx et le PDF d'origine sont des copies gelées à cette date : on modifie le doc Claude.
 
 - Diagramme de classes : à dessiner par David dans Visual Paradigm à partir de `docs/conception/diagramme-de-classes.md` (spécification) ; une fois dessiné, le fichier VP fait foi. Aide visuelle à recopier : `docs/conception/classes/mondo-diagramme-de-classes.drawio` (non tenue à jour ensuite).
-- Décisions de conception : `docs/conception/decision-01-blockchain-registre-sans-fonds.md`, `docs/conception/decision-02-monolithe-modulaire.md` (serveur en monolithe modulaire, règles de propriété des données et de scalabilité).
+- Décisions de conception : `docs/conception/decision-01-blockchain-registre-sans-fonds.md`, `docs/conception/decision-02-monolithe-modulaire.md` (serveur en monolithe modulaire, règles de propriété des données et de scalabilité). Choix encore à trancher en équipe (frais, places, pénalité, départ, reconnaissance de dette) : `docs/conception/decision-05-choix-economiques-et-places.md`.
 
 ## Conventions
 - Git : commits `feat` / `fix` / `chore` / `docs`, jamais de co-auteur
