@@ -18,6 +18,8 @@ export interface Cotisation {
   /** Au-delà, la cotisation non payée devient un défaut (délai de grâce du règlement). */
   finGrace: string;
   referenceTransaction?: string;
+  /** Moment de la déclaration du paiement par le payeur. */
+  declareeLe?: string;
   statut: "due" | "declaree" | "confirmee";
 }
 
@@ -39,6 +41,7 @@ interface LigneCotisation extends Record<string, unknown> {
   date_limite: Date | string;
   fin_grace: Date | string | null;
   reference_transaction: string | null;
+  declaree_le?: Date | string | null;
   statut: Cotisation["statut"];
 }
 
@@ -52,6 +55,7 @@ const versCotisation = (l: LigneCotisation): Cotisation => ({
   dateLimite: new Date(l.date_limite).toISOString(),
   finGrace: new Date(l.fin_grace ?? l.date_limite).toISOString(),
   ...(l.reference_transaction ? { referenceTransaction: l.reference_transaction } : {}),
+  ...(l.declaree_le ? { declareeLe: new Date(l.declaree_le).toISOString() } : {}),
   statut: l.statut,
 });
 
@@ -96,7 +100,7 @@ export class CotisationsService {
     const c = await this.trouver(id);
     if (parMembreId !== c.payeurId) throw new ForbiddenException("Seul le payeur déclare son paiement");
     const [l] = await this.base.requete<LigneCotisation>(
-      `UPDATE cotisations.cotisations SET reference_transaction = $2, statut = 'declaree'
+      `UPDATE cotisations.cotisations SET reference_transaction = $2, statut = 'declaree', declaree_le = now()
        WHERE id = $1 AND statut <> 'confirmee' RETURNING *`,
       [id, referenceTransaction],
     );
@@ -114,13 +118,48 @@ export class CotisationsService {
     );
     if (!l) throw new BadRequestException("Aucun paiement déclaré à confirmer");
     const confirmee = versCotisation(l);
-    await this.evenements.publier({
-      type: "cotisation_confirmee",
-      cercleId: confirmee.cercleId,
-      membreId: confirmee.payeurId,
-      aTemps: maintenant <= new Date(confirmee.dateLimite),
-    });
+    await this.publierConfirmation(confirmee, maintenant <= new Date(confirmee.dateLimite));
     return confirmee;
+  }
+
+  /**
+   * Décision d'un litige : paiement validé par l'administrateur. À temps si le paiement avait été déclaré
+   * avant la date limite : le payeur ne paie pas le retard de confirmation du bénéficiaire.
+   */
+  async validerApresLitige(id: string): Promise<Cotisation> {
+    const [l] = await this.base.requete<LigneCotisation>(
+      "UPDATE cotisations.cotisations SET statut = 'confirmee' WHERE id = $1 AND statut = 'declaree' RETURNING *",
+      [id],
+    );
+    if (!l) throw new BadRequestException("Aucun paiement déclaré à valider");
+    const validee = versCotisation(l);
+    await this.publierConfirmation(validee, Date.parse(validee.declareeLe!) <= Date.parse(validee.dateLimite));
+    return validee;
+  }
+
+  /** Décision d'un litige : paiement refusé, la cotisation redevient due (défaut si la grâce est passée). */
+  async remettreDueApresLitige(id: string): Promise<Cotisation> {
+    const [l] = await this.base.requete<LigneCotisation>(
+      `UPDATE cotisations.cotisations SET statut = 'due', reference_transaction = NULL, declaree_le = NULL
+       WHERE id = $1 AND statut = 'declaree' RETURNING *`,
+      [id],
+    );
+    if (!l) throw new BadRequestException("Aucun paiement déclaré à refuser");
+    return versCotisation(l);
+  }
+
+  async consulter(id: string): Promise<Cotisation> {
+    return this.trouver(id);
+  }
+
+  private publierConfirmation(c: Cotisation, aTemps: boolean): Promise<void> {
+    return this.evenements.publier({
+      type: "cotisation_confirmee",
+      cercleId: c.cercleId,
+      membreId: c.payeurId,
+      cotisationId: c.id,
+      aTemps,
+    });
   }
 
   /** Cotisations ni payées ni déclarées, pour l'examen des échéances. */
@@ -153,6 +192,14 @@ export class CotisationsService {
       toutConfirme: l.tout_confirme,
       finCycle: new Date(l.fin_cycle).toISOString(),
     }));
+  }
+
+  /** Paiements déclarés mais pas encore confirmés, pour l'ouverture automatique des litiges. */
+  async listerDeclarees(): Promise<Cotisation[]> {
+    const lignes = await this.base.requete<LigneCotisation>(
+      "SELECT * FROM cotisations.cotisations WHERE statut = 'declaree' AND tour > 0 ORDER BY date_limite, id",
+    );
+    return lignes.map(versCotisation);
   }
 
   /** Ce que le membre doit et ce qu'on lui doit dans un cercle, par tour. Rien sur les autres membres. */

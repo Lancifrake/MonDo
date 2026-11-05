@@ -166,6 +166,29 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       ALTER TABLE cotisations.cotisations ADD COLUMN fin_grace timestamptz;
       CREATE UNIQUE INDEX cotisation_par_tour ON cotisations.cotisations (cercle_id, tour, payeur_id)`,
   },
+  {
+    // Litige sur un paiement déclaré non confirmé (choix de David, 05/11). Un seul litige ouvert par cotisation.
+    nom: "011_litiges",
+    sql: `
+      ALTER TABLE cotisations.cotisations ADD COLUMN declaree_le timestamptz;
+      CREATE SCHEMA IF NOT EXISTS litiges;
+      CREATE TABLE litiges.litiges (
+        id uuid PRIMARY KEY,
+        cotisation_id uuid NOT NULL,
+        cercle_id text NOT NULL,
+        payeur_id uuid NOT NULL,
+        beneficiaire_id uuid NOT NULL,
+        ouvert_par text NOT NULL CHECK (ouvert_par IN ('payeur', 'beneficiaire', 'automatique')),
+        motif text NOT NULL,
+        ouvert_le timestamptz NOT NULL,
+        statut text NOT NULL CHECK (statut IN ('ouvert', 'tranche', 'clos')),
+        decision text CHECK (decision IN ('paiement_valide', 'paiement_refuse', 'confirme_par_beneficiaire')),
+        motif_decision text,
+        tranche_par uuid,
+        tranche_le timestamptz
+      );
+      CREATE UNIQUE INDEX litige_ouvert_par_cotisation ON litiges.litiges (cotisation_id) WHERE statut = 'ouvert'`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
