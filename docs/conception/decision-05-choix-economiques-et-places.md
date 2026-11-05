@@ -10,6 +10,7 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
 - **Bonus de fin de cycle** (+10) : fin de grâce du dernier tour passée, aucun défaut dans le cercle, toutes les cotisations du membre confirmées.
 - **Litige** sur un paiement déclaré non confirmé : ouvert par le payeur après 48 h, par le bénéficiaire qui dit n'avoir rien reçu, ou automatiquement à la fin de grâce ; tranché par un administrateur ; un refus remet la cotisation due ; aucune pénalité pour le bénéficiaire au prototype.
 - **Cercle terminé** à la fin de grâce du dernier tour, impayés ou non.
+- **Période libre** : hebdomadaire, mensuelle, ou tous les N jours (1 à 60) au choix du cercle, ouvert comme privé ; délai de grâce plus court que la période.
 - **Score de départ à 0** (27/10).
 
 ## Résumé
@@ -25,6 +26,7 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
 | 8 | À qui revient la pénalité de retard ? | au bénéficiaire du tour | équipe, puis juriste | la mise en demeure et le relevé |
 | 9 | Que se passe-t-il si un membre quitte le cercle en cours de cycle ? | à discuter, rien n'est cadré | équipe | le départ (−15) |
 | 10 | Qui est le créancier de la reconnaissance de dette, et pour quel montant ? | à trancher avec un juriste | juriste | la reconnaissance de dette signée |
+| 11 | Comment empêcher de gonfler son score avec des cercles rapides entre amis ? | plafond (question 4), puis à choisir | équipe | les points du score |
 
 ## 1. Modèle de frais
 Exemple de référence : 10 membres à 50 000 FCFA, soit une cagnotte de 500 000 FCFA par tour. Celui qui reçoit au tour 1 a l'argent tout de suite, comme un prêt sans intérêt ; celui qui reçoit au tour 10 a épargné et fait confiance aux autres pendant neuf tours.
@@ -105,6 +107,19 @@ Le score prévoit −15 pour un départ avant la fin du cycle, mais rien n'est c
 ## 10. Reconnaissance de dette
 Volontairement absente du code. Il faut savoir avec un juriste si elle vise chaque membre lésé, le cercle collectivement, ou un autre montage, et quelle formule rend le montant certain et liquide au moment du défaut (`recours-legaux.md`, sections 2 et 5).
 
+## 11. Score gonflé par des cercles rapides entre amis
+Depuis le 05/11, chaque cercle choisit sa période : hebdomadaire, mensuelle, ou tous les N jours (de 1 à 60). C'est utile pour les tontines réelles (journalières sur les marchés, tous les 10 ou 14 jours), et le rythme ne change rien à la sécurité de l'argent.
+
+Le risque porte sur le score. Une cotisation à temps rapporte +4, quels que soient le montant et le rythme. Cinq amis peuvent créer un cercle quotidien à 500 FCFA, monter à un bon score en deux semaines, puis prendre les premières places d'un gros cercle d'inconnus. Le risque existait déjà en hebdomadaire, mais un rythme quotidien le rend bien plus rapide.
+
+Parades possibles, cumulables :
+1. **Plafond de cagnotte selon le score** (question 4) : on ne reçoit pas tôt une grosse cagnotte sans en avoir remboursé de comparables. Limite les dégâts, quel que soit le rythme.
+2. **Les cercles privés comptent moins pour le score**, ou pas du tout, puisque le score sert à juger des inconnus.
+3. **Points plafonnés dans le temps** : le score ne monte que d'un nombre limité de points par semaine.
+4. **Points pondérés par le montant** : une cotisation de 500 FCFA rapporte moins qu'une de 50 000 FCFA.
+
+**Recommandation** : la parade 1 d'abord, qui sert de toute façon aux nouveaux membres. Puis une des parades 2 ou 3, à régler avec la simulation du score prévue dans `score-et-places.md`. La 4 rend le score plus difficile à comprendre pour un membre.
+
 ## Choix techniques encore ouverts
 Ils ne touchent pas aux règles, mais bloquent un pilote réel :
 - **Hébergeur** du serveur et de la base (gratuit ou crédits étudiants, décision 03). Le serveur se lance déjà (`pnpm build` puis `pnpm start`), avec une route de santé.
@@ -115,5 +130,5 @@ Ils ne touchent pas aux règles, mais bloquent un pilote réel :
 1. Questions 1, 2 et 3 ensemble : elles forment le modèle économique.
 2. Question 4 : elle protège les cercles de nouveaux, le risque le plus immédiat.
 3. Questions 5, 6 et 7 : elles débloquent les échanges de place.
-4. Questions 8 et 9.
+4. Questions 8, 9 et 11.
 5. Question 10, avec le juriste, avant tout pilote réel.

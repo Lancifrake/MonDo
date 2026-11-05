@@ -79,4 +79,34 @@ describe("calendrier des tours", () => {
     });
     expect(tours[0]!.dateLimite).toBe("2026-12-12T18:00:00.000Z");
   });
+
+  it("tous les N jours : la période choisie par le cercle, ici 5 jours", () => {
+    const tours = calendrierDesTours({
+      ordre,
+      frequence: "jours",
+      periodeJours: 5,
+      datePremierTour: "2026-12-05T18:00:00.000Z",
+      completLe: "2026-11-20T10:00:00.000Z",
+    });
+    expect(tours.map((t) => t.dateLimite)).toEqual([
+      "2026-12-05T18:00:00.000Z",
+      "2026-12-10T18:00:00.000Z",
+      "2026-12-15T18:00:00.000Z",
+    ]);
+  });
+
+  it("tous les jours (N = 1, valeur limite) et décalage d'une seule journée si le cercle se complète en retard", () => {
+    const tours = calendrierDesTours({
+      ordre,
+      frequence: "jours",
+      periodeJours: 1,
+      datePremierTour: "2026-12-05T18:00:00.000Z",
+      completLe: "2026-12-05T20:00:00.000Z",
+    });
+    expect(tours.map((t) => t.dateLimite)).toEqual([
+      "2026-12-06T18:00:00.000Z",
+      "2026-12-07T18:00:00.000Z",
+      "2026-12-08T18:00:00.000Z",
+    ]);
+  });
 });

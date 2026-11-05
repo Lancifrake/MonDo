@@ -52,7 +52,8 @@ Un module ne lit que ses propres données et passe par les services exportés ou
 Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calendrier.ts`), à partir du règlement signé et de l'ordre figé. On ne crée plus une cotisation à la main.
 
 - **Date du premier tour** : champ `datePremierTour` du règlement, dans le futur à la création (choix de David, 05/11). Si le cercle se complète à cette date ou après, le départ est décalé d'autant de périodes qu'il faut.
-- **Un tour par membre**, dans l'ordre de passage. Tours suivants : +7 jours en hebdomadaire, même jour chaque mois en mensuel (le 31 devient le dernier jour des mois plus courts, sans dériver).
+- **Un tour par membre**, dans l'ordre de passage. Tours suivants : +7 jours en hebdomadaire, +N jours avec `frequence: "jours"` et `periodeJours: N` (de 1 à 60, au choix du cercle, par exemple 5 ou 14), même jour chaque mois en mensuel (le 31 devient le dernier jour des mois plus courts, sans dériver).
+- **Délai de grâce plus court que la période** (7 jours en hebdomadaire, N en « jours », 28 en mensuel) : sinon le tour suivant commencerait avant que le défaut du précédent soit constaté. Un règlement qui ne le respecte pas est refusé.
 - **Chaque membre doit le montant du règlement à chaque bénéficiaire sauf lui-même** : la cagnotte reçue vaut (nombre de membres − 1) × montant.
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
