@@ -27,7 +27,8 @@ export class PlanificateurService {
   /**
    * Examine les cotisations dues : échéance proche ou dépassée, une fois par jour et par cotisation ;
    * après la fin de grâce, défaut constaté, une seule fois par tour. Une cotisation déclarée mais pas
-   * confirmée n'est jamais un défaut du payeur (litige). Puis les fins de cycle. L'échec d'une tâche
+   * confirmée n'est jamais un défaut du payeur : à la fin de grâce, un litige s'ouvre tout seul (choix de
+   * David, 05/11). Puis les fins de cycle. L'échec d'une tâche
    * n'arrête pas l'examen des autres.
    */
   async examinerEcheances(maintenant: Date = new Date()): Promise<{ traitees: number; echecs: number }> {
@@ -55,6 +56,22 @@ export class PlanificateurService {
               { type: "echeance_depassee", ...commun, joursDeRetard: Math.ceil(-ecart / JOUR_MS) },
             ];
       try {
+        if (await this.traiterUneFois(idTache, evenement)) traitees++;
+      } catch {
+        echecs++;
+      }
+    }
+    for (const c of await this.cotisations.listerDeclarees()) {
+      if (maintenant.getTime() <= Date.parse(c.finGrace)) continue;
+      try {
+        // Une nouvelle déclaration (après un refus) peut rouvrir un litige : l'identifiant suit la déclaration.
+        const idTache = `litige:${c.id}:${c.declareeLe ?? ""}`;
+        const evenement: EvenementInterne = {
+          type: "confirmation_manquante",
+          cercleId: c.cercleId,
+          membreId: c.payeurId,
+          cotisationId: c.id,
+        };
         if (await this.traiterUneFois(idTache, evenement)) traitees++;
       } catch {
         echecs++;

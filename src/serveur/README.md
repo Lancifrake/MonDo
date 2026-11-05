@@ -35,7 +35,8 @@ corepack pnpm essai-demarrage  # démarre dist/, vérifie /sante et l'arrêt pro
 | `src/modules/score`         | score = rejeu des événements                                   |
 | `src/modules/cotisations`   | paiement déclaré, confirmé par le seul bénéficiaire            |
 | `src/modules/planificateur` | rappels et constats de défaut rejouables, passage chaque heure |
-| `src/modules/preuve`        | dossier de preuve (à faire)                                    |
+| `src/modules/preuve`        | dossier de preuve et mises en demeure                          |
+| `src/modules/litiges`       | litiges sur un paiement non confirmé, tranchés par l'admin     |
 | `src/evenements`            | bus d'événements internes entre modules                        |
 | `src/registre`              | arbre de hachage, inscription par lots (connecteur simulé)     |
 | `src/signature`             | vérification ECDSA P-256, JSON canonique                       |
@@ -65,7 +66,20 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 
 **Fin de cycle** (choix de David, 05/11) : bonus « cycle terminé » (+10) pour un membre quand la fin de grâce du dernier tour est passée, qu'il n'a eu aucun défaut dans ce cercle (même régularisé ensuite) et que le bénéficiaire a confirmé toutes ses cotisations. S'il manque une confirmation, le bonus arrive au passage qui suit. Une seule fois par membre et par cercle.
 
-Non fait : litige sur un paiement déclaré non confirmé, statut « terminé » du cercle.
+Non fait : statut « terminé » du cercle.
+
+## Litiges
+
+Sur un paiement déclaré que le bénéficiaire ne confirme pas (règles choisies par David, 05/11) :
+
+- **Ouverture** : par le payeur, 48 h après sa déclaration ; par le bénéficiaire qui dit n'avoir rien reçu, tout de suite ; ou automatiquement par le planificateur à la fin de grâce. Un seul litige ouvert par cotisation. Un paiement déclaré n'est jamais un défaut.
+- **Décision** par un administrateur, jamais partie au litige : `paiement_valide`, la cotisation est confirmée (à temps si elle avait été déclarée avant la date limite) ; `paiement_refuse`, elle redevient due, et le planificateur constate le défaut à son passage suivant si la grâce est passée. Aucune pénalité pour le bénéficiaire au prototype : la décision reste tracée.
+- **Clôture** : si le bénéficiaire finit par confirmer lui-même, le litige est clos sans décision.
+- Ouverture et décision sont inscrites au registre (empreintes).
+- Routes : `POST /litiges`, `GET /litiges/:id` (parties et administrateur), `GET /litiges` et `POST /litiges/:id/decision` (administrateur).
+- **Administrateurs** (prototype) : identifiants de comptes membres dans `MONDO_ADMINISTRATEURS`, séparés par des virgules. Une vraie administration web viendra plus tard.
+
+Non fait : notification des parties (SMS), pièces jointes (capture du reçu Mobile Money), administration web.
 
 ## Dossier de preuve
 

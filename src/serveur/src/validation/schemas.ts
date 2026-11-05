@@ -39,4 +39,14 @@ export const schemaAdhesion = z.strictObject({ signature: z.string().min(1) });
 
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
+export const schemaOuvertureLitige = z.strictObject({
+  cotisationId: z.uuid(),
+  motif: z.string().trim().min(1).max(500),
+});
+
+export const schemaDecisionLitige = z.strictObject({
+  decision: z.enum(["paiement_valide", "paiement_refuse"]),
+  motif: z.string().trim().min(1).max(500),
+});
+
 export const schemaModeAssistant = z.strictObject({ mode: z.enum(["autonome", "manuel"]) });

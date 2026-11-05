@@ -53,7 +53,7 @@ Relations :
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **Tour** | numero : Integer ; dateLimite : DateTime | généré quand le cercle est complet (05/11) |
-| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; finGrace : DateTime ; referenceTransaction : String [0..1] ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation |
+| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; finGrace : DateTime ; referenceTransaction : String [0..1] ; declareeLe : DateTime [0..1] ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation |
 
 Relations :
 - Cercle 1 ◆── 1..* Tour ; Tour 0..* ── 1 Utilisateur rôle « bénéficiaire »
@@ -81,12 +81,12 @@ Relation : TachePlanifiee 0..* ── 0..1 Cotisation (échéance, retard).
 |---|---|---|
 | **MiseEnDemeure** | id : UUID ; tour : Integer ; emiseLe : DateTime ; montantCotisations : Integer ; montantPenalites : Integer ; montantTotal : Integer ; envoi : EtatEnvoi ; envoyeeLe : DateTime [0..1] ; empreinte : String | montants du règlement signé ; une par défaut constaté |
 | **DossierDePreuve** `«calculé»` | genereLe : DateTime ; empreinte : String | généré à l'export, seulement par les membres lésés |
-| **Litige** | id : UUID ; ouvertLe : DateTime ; statut : StatutLitige ; decision : String [0..1] ; trancheLe : DateTime [0..1] | **pas encore dans le code** |
+| **Litige** | id : UUID ; ouvertPar : OrigineLitige ; motif : String ; ouvertLe : DateTime ; statut : StatutLitige ; decision : DecisionLitige [0..1] ; motifDecision : String [0..1] ; trancheLe : DateTime [0..1] | sur un paiement déclaré non confirmé ; un seul ouvert par cotisation (05/11) |
 
 Relations :
 - MiseEnDemeure 0..* ── 1 Utilisateur rôle « débiteur » ; MiseEnDemeure 0..* ── 1 Cercle ; MiseEnDemeure 0..* ── 1..* Cotisation
 - DossierDePreuve ── 1 Utilisateur rôle « débiteur », 1..* MiseEnDemeure, 1 Reglement, 1..* DocumentSigne, 0..* Cotisation (relevé)
-- Litige 0..* ── 1 Cotisation ; Litige ── 1 Utilisateur rôle « ouvert par » ; Litige 0..* ── 0..1 Administrateur
+- Litige 0..* ── 1 Cotisation ; Litige 0..* ── 0..1 Utilisateur rôle « ouvert par » (aucun si ouverture automatique) ; Litige 0..* ── 0..1 Administrateur rôle « tranche »
 
 ## 7. Assistant (décision 04)
 | Classe | Attributs | Remarques |
@@ -132,7 +132,9 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 | TypeEvenementScore | cotisation_a_temps (+4), cotisation_en_retard (−1), defaut (−30), cycle_termine (+10), depart (−15) |
 | TypeTache | echeance, retard, defaut |
 | EtatEnvoi | a_envoyer, envoyee |
-| StatutLitige | ouvert, tranche |
+| StatutLitige | ouvert, tranche, clos (le bénéficiaire a fini par confirmer) |
+| OrigineLitige | payeur (après 48 h), beneficiaire (« rien reçu »), automatique (fin de grâce) |
+| DecisionLitige | paiement_valide, paiement_refuse, confirme_par_beneficiaire |
 | StatutRecuperation | en_attente, opposee, acceptee, bloquee |
 | ModeAssistant | autonome, manuel |
 | TypeAction | rappel, rappel_retard, mise_en_demeure |
@@ -144,7 +146,8 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 |---|---|
 | CleSignature, classe à part | attribut `clePublique` du compte ; une seule clé, pas encore de rotation |
 | DocumentSigne | la signature est stockée sur l'adhésion |
-| PieceIdentite, ContactConfiance, DemandeRecuperation, EchangePlace, Litige, Administrateur | pas encore codés |
+| PieceIdentite, ContactConfiance, DemandeRecuperation, EchangePlace | pas encore codés |
+| Administrateur | prototype : comptes membres listés dans `MONDO_ADMINISTRATEURS`, pas de classe à part |
 | Reconnaissance de dette | volontairement absente : créancier et montant non tranchés (recours-legaux.md, section 5) |
 
 Ces écarts sont la liste des prochains travaux du serveur, pas des erreurs du modèle.

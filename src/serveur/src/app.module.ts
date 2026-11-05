@@ -7,6 +7,7 @@ import { AssistantModule } from "./modules/assistant/assistant.module.js";
 import { CerclesModule } from "./modules/cercles/cercles.module.js";
 import { ComptesModule } from "./modules/comptes/comptes.module.js";
 import { CotisationsModule } from "./modules/cotisations/cotisations.module.js";
+import { LitigesModule } from "./modules/litiges/litiges.module.js";
 import { PlanificateurModule } from "./modules/planificateur/planificateur.module.js";
 import { PreuveModule } from "./modules/preuve/preuve.module.js";
 import { ScoreModule } from "./modules/score/score.module.js";
@@ -26,6 +27,7 @@ import { SmsModule } from "./sms/sms.module.js";
     CotisationsModule,
     PlanificateurModule,
     PreuveModule,
+    LitigesModule,
     AssistantModule,
   ],
   controllers: [SanteController],
