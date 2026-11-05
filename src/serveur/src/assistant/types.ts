@@ -9,8 +9,8 @@ export interface Reglement {
 }
 
 export type EvenementCercle =
-  | { type: "date_limite_proche"; membreId: string; joursRestants: number }
-  | { type: "date_limite_depassee"; membreId: string; joursDeRetard: number }
+  | { type: "date_limite_proche"; membreId: string; joursRestants: number; cotisationId?: string }
+  | { type: "date_limite_depassee"; membreId: string; joursDeRetard: number; cotisationId?: string }
   | { type: "defaut_constate"; membreId: string };
 
 export type TypeAction = "rappel" | "rappel_retard" | "mise_en_demeure";
@@ -18,6 +18,8 @@ export type TypeAction = "rappel" | "rappel_retard" | "mise_en_demeure";
 export interface Action {
   type: TypeAction;
   membreId: string;
+  /** Cotisation visée par un rappel. */
+  cotisationId?: string;
 }
 
 export type NomAgent = "surveillance" | "relance" | "preuve" | "coordinateur";

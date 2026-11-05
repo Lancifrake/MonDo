@@ -107,6 +107,11 @@ export class PreuveService implements OnModuleInit {
     return { ...miseEnDemeure, envoi: "a_envoyer", envoyeeLe: null, empreinte };
   }
 
+  /** Mises en demeure préparées et pas encore envoyées, pour que l'assistant en rédige le SMS. */
+  async aEnvoyer(cercleId: string, membreId: string): Promise<MiseEnDemeure[]> {
+    return (await this.misesEnDemeure(cercleId, membreId)).filter((m) => m.envoi === "a_envoyer");
+  }
+
   /** Marque comme envoyées les mises en demeure préparées pour ce membre. Le contenu daté, lui, ne change pas. */
   async marquerEnvoyees(cercleId: string, membreId: string): Promise<number> {
     const lignes = await this.base.requete(

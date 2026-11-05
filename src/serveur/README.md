@@ -57,7 +57,7 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
 
-**Défaut automatique** : le planificateur (`examinerEcheances`) constate le défaut d'une cotisation ni payée ni déclarée dès que sa fin de grâce est passée, une seule fois par tour (score −30, mise en demeure, assistant). Une cotisation déclarée mais pas confirmée par le bénéficiaire n'est jamais un défaut du payeur : elle relève d'un litige (pas encore codé). La mise en demeure est datée du constat et ne réclame que les cotisations échues à cette date, jamais les tours à venir.
+**Défaut automatique** : le planificateur (`examinerEcheances`) constate le défaut d'une cotisation ni payée ni déclarée dès que sa fin de grâce est passée, une seule fois par tour (score −30, mise en demeure, assistant). Une cotisation déclarée mais pas confirmée par le bénéficiaire n'est jamais un défaut du payeur : elle relève d'un litige (voir Litiges). La mise en demeure est datée du constat et ne réclame que les cotisations échues à cette date, jamais les tours à venir.
 
 **Passage régulier** : au démarrage du serveur (`main.ts`), le planificateur passe une première fois pour rattraper un arrêt, puis toutes les heures. Jamais deux passages en même temps ; un passage en échec est journalisé et le suivant a lieu quand même ; à l'arrêt, le passage en cours se termine avant la fermeture de la base. Les tâches étant rejouables, passer souvent ou sur plusieurs instances ne double ni un rappel ni un défaut.
 
@@ -91,12 +91,14 @@ Décision 02, règle 4 : un SMS est d'abord écrit en base (`sms.envois`), puis 
 - Clé unique par message : un événement rejoué ne donne qu'un SMS. Chaque message est réservé avant l'envoi : deux serveurs ne l'envoient pas deux fois ; une réservation de plus de 5 minutes (serveur arrêté en route) est reprise.
 - Le code de connexion (OTP) part en direct, sans file : le membre l'attend et doit savoir s'il est parti.
 - Passerelle simulée au prototype (fournisseur non choisi).
+- Passent par la file : les SMS de litige, et ceux de l'assistant (rappel avant l'échéance, rappel de retard, mise en demeure), en mode autonome tout de suite, en mode manuel après l'accord de l'organisateur. Le texte est rédigé au moment de l'envoi : un rappel ne part pas si la cotisation visée a été payée ou déclarée entre-temps. La mise en demeure est marquée envoyée une fois remise à la file.
+- Montants écrits avec une espace ordinaire (10 000 FCFA) pour rester dans l'alphabet GSM (160 caractères par SMS) ; dates à l'heure du Cameroun.
 
 ## Dossier de preuve
 
 `GET /preuve/cercles/:cercleId/membres/:membreId/dossier`, réservé aux autres membres du cercle, seulement après un défaut constaté. Contient : identité du débiteur, règlement et engagement signés (vérifiables avec les clés publiques), preuves d'inscription au registre, relevé des cotisations, mises en demeure. L'export lui-même est inscrit au registre.
 
-Non fait, en attente de décision : reconnaissance de dette (créancier et montant à trancher avec un juriste), clôture du dossier après régularisation (MonDo ne suit pas le paiement des pénalités), envoi réel de la mise en demeure (simulé), export PDF.
+Non fait, en attente de décision : reconnaissance de dette (créancier et montant à trancher avec un juriste), clôture du dossier après régularisation (MonDo ne suit pas le paiement des pénalités), envoi réel de la mise en demeure (SMS par la passerelle simulée), export PDF.
 
 ## Inscription
 
