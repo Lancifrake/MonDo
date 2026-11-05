@@ -208,6 +208,11 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       );
       CREATE INDEX envois_a_faire ON sms.envois (cree_le) WHERE statut IN ('a_envoyer', 'en_cours')`,
   },
+  {
+    // Cotisation visée par un rappel de l'assistant, pour rédiger le SMS au moment de l'envoi.
+    nom: "013_cotisation_des_actions",
+    sql: `ALTER TABLE assistant.actions ADD COLUMN cotisation_id uuid`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

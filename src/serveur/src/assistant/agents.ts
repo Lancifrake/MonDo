@@ -19,10 +19,11 @@ export class Relance implements Agent {
     if (m.vers !== "relance") return [];
     const e = m.corps.evenement;
     let action: Action | undefined;
+    const cotisation = e.type !== "defaut_constate" && e.cotisationId ? { cotisationId: e.cotisationId } : {};
     if (e.type === "date_limite_proche" && this.reglement.rappelsAvantEcheanceJours.includes(e.joursRestants)) {
-      action = { type: "rappel", membreId: e.membreId };
+      action = { type: "rappel", membreId: e.membreId, ...cotisation };
     } else if (e.type === "date_limite_depassee" && e.joursDeRetard <= this.reglement.delaiGraceJours) {
-      action = { type: "rappel_retard", membreId: e.membreId };
+      action = { type: "rappel_retard", membreId: e.membreId, ...cotisation };
     }
     return action ? [{ de: "relance", vers: "coordinateur", corps: { action } }] : [];
   }
