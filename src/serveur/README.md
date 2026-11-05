@@ -34,7 +34,7 @@ corepack pnpm essai-demarrage  # démarre dist/, vérifie /sante et l'arrêt pro
 | `src/modules/cercles`       | règlement signé, adhésions signées, ordre figé à la complétion |
 | `src/modules/score`         | score = rejeu des événements                                   |
 | `src/modules/cotisations`   | paiement déclaré, confirmé par le seul bénéficiaire            |
-| `src/modules/planificateur` | rappels et constats de défaut rejouables, passage chaque heure |
+| `src/modules/planificateur` | rappels, défauts, SMS en file, lots du registre, chaque heure  |
 | `src/modules/preuve`        | dossier de preuve et mises en demeure                          |
 | `src/modules/litiges`       | litiges sur un paiement non confirmé, tranchés par l'admin     |
 | `src/evenements`            | bus d'événements internes entre modules                        |
@@ -58,9 +58,11 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
 
+**Identité** : niveau 1 à l'inscription (numéro vérifié par OTP, nom) ; niveau 2 exigé pour adhérer à un cercle ouvert à des inconnus. Au prototype, `POST /comptes/:id/niveau2` accorde le niveau 2 sans contrôler aucune pièce : cette route est refusée en production (403) tant qu'un prestataire de vérification d'identité n'est pas branché (vision, V2).
+
 **Défaut automatique** : le planificateur (`examinerEcheances`) constate le défaut d'une cotisation ni payée ni déclarée dès que sa fin de grâce est passée, une seule fois par tour (score −30, mise en demeure, assistant). Une cotisation déclarée mais pas confirmée par le bénéficiaire n'est jamais un défaut du payeur : elle relève d'un litige (voir Litiges). La mise en demeure est datée du constat et ne réclame que les cotisations échues à cette date, jamais les tours à venir.
 
-**Passage régulier** : au démarrage du serveur (`main.ts`), le planificateur passe une première fois pour rattraper un arrêt, puis toutes les heures. Jamais deux passages en même temps ; un passage en échec est journalisé et le suivant a lieu quand même ; à l'arrêt, le passage en cours se termine avant la fermeture de la base. Les tâches étant rejouables, passer souvent ou sur plusieurs instances ne double ni un rappel ni un défaut.
+**Passage régulier** : au démarrage du serveur (`main.ts`), le planificateur passe une première fois pour rattraper un arrêt, puis toutes les heures. Chaque passage enchaîne trois étapes indépendantes : échéances, SMS restés en file, puis registre (lots en échec réinscrits, puis le lot en cours fermé et sa racine inscrite sur la chaîne, soit au plus une transaction par heure). Jamais deux passages en même temps ; une étape en échec est journalisée, les suivantes ont lieu quand même et elle est reprise au passage suivant (chaîne en panne : le lot reste figé en base) ; à l'arrêt, le passage en cours se termine avant la fermeture de la base. Les tâches étant rejouables, passer souvent ou sur plusieurs instances ne double ni un rappel ni un défaut.
 
 - `MONDO_PLANIFICATEUR_MINUTES` : intervalle en minutes (60 par défaut), `0` pour désactiver ; une valeur invalide empêche le démarrage.
 - Les tests ne démarrent pas la minuterie : ils appellent `examinerEcheances` avec leur propre date.

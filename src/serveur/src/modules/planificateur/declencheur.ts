@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
+import { RegistreService } from "../../registre/registre.service.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { PlanificateurService } from "./planificateur.service.js";
 
@@ -20,8 +21,10 @@ export function intervallePlanificateur(env: NodeJS.ProcessEnv): number | undefi
 }
 
 /**
- * Lance `examinerEcheances` puis vide la file des SMS, au démarrage (rattrapage après un arrêt) puis à intervalle régulier.
- * Jamais deux passages en même temps ; un passage qui échoue est journalisé et le suivant a lieu quand même.
+ * À chaque passage : `examinerEcheances`, puis la file des SMS, puis le registre (lots en échec réinscrits, puis
+ * le lot en cours fermé et sa racine inscrite sur la chaîne). Au démarrage (rattrapage après un arrêt) puis à
+ * intervalle régulier. Jamais deux passages en même temps. Chaque étape est indépendante : une étape qui échoue
+ * est journalisée, les suivantes ont lieu quand même, et elle est reprise au passage suivant.
  * Démarré par `main.ts` seulement : les tests pilotent le planificateur à la main, avec leur propre date.
  */
 @Injectable()
@@ -33,6 +36,7 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
   constructor(
     @Inject(PlanificateurService) private readonly planificateur: PlanificateurService,
     @Inject(FileSms) private readonly sms: Pick<FileSms, "vider">,
+    @Inject(RegistreService) private readonly registre: Pick<RegistreService, "reprendreInscriptions" | "fermerLot">,
   ) {}
 
   demarrer(intervalleMs: number): void {
@@ -56,17 +60,34 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
     if (this.enCours) return this.enCours;
     this.enCours = (async () => {
       try {
-        const { traitees, echecs } = await this.planificateur.examinerEcheances();
-        if (traitees > 0) this.journal.log(`${traitees} tâche(s) traitée(s)`);
-        if (echecs > 0) this.journal.warn(`${echecs} tâche(s) en échec, rejouées au prochain passage`);
+        await this.etape("Échéances", async () => {
+          const { traitees, echecs } = await this.planificateur.examinerEcheances();
+          if (traitees > 0) this.journal.log(`${traitees} tâche(s) traitée(s)`);
+          if (echecs > 0) this.journal.warn(`${echecs} tâche(s) en échec, rejouées au prochain passage`);
+        });
         // SMS restés en file (passerelle en panne au moment de l'envoi) : nouvelle tentative.
-        await this.sms.vider();
-      } catch (e) {
-        this.journal.error(`Passage interrompu : ${e instanceof Error ? e.message : String(e)}`);
+        await this.etape("SMS", () => this.sms.vider());
+        await this.etape("Registre", async () => {
+          const reprises = await this.registre.reprendreInscriptions();
+          if (reprises > 0) this.journal.log(`${reprises} lot(s) en attente inscrit(s) sur la chaîne`);
+          const lot = await this.registre.fermerLot();
+          if (lot)
+            this.journal.log(`Lot de ${lot.empreintes.length} empreinte(s) inscrit : ${lot.referenceInscription}`);
+        });
       } finally {
         this.enCours = undefined;
       }
     })();
     return this.enCours;
+  }
+
+  private async etape(nom: string, faire: () => Promise<unknown>): Promise<void> {
+    try {
+      await faire();
+    } catch (e) {
+      this.journal.error(
+        `${nom} : passage interrompu, repris au prochain passage (${e instanceof Error ? e.message : String(e)})`,
+      );
+    }
   }
 }
