@@ -33,7 +33,7 @@ Relations :
 ## 2. Cercles et règlement
 | Classe | Attributs | Remarques |
 |---|---|---|
-| **Cercle** | id : UUID ; statut : StatutCercle ; creeLe : DateTime | |
+| **Cercle** | id : UUID ; statut : StatutCercle ; creeLe : DateTime ; termineLe : DateTime [0..1] | |
 | **Reglement** | montant : Integer ; frequence : Frequence ; nombreMembres : Integer {3..50} ; penaliteRetard : Integer ; delaiGraceJours : Integer {0..30} ; ouvert : Boolean ; rappelsAvantEcheanceJours : Integer [0..5] ; datePremierTour : DateTime ; empreinte : String | signé par l'organisateur, figé |
 | **Adhesion** | rang : Integer ; adhereLe : DateTime | rang 1 = organisateur |
 | **DocumentSigne** | type : TypeDocument ; message : String ; signature : String ; empreinte : String | message canonique, vérifiable avec la clé publique |
@@ -124,7 +124,7 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 |---|---|
 | NiveauIdentite | 1, 2 |
 | Frequence | hebdomadaire, mensuelle |
-| StatutCercle | en_attente, complet |
+| StatutCercle | en_attente, complet, termine (fin de grâce du dernier tour, 05/11) |
 | Zone | debut, milieu, fin |
 | TypeDocument | reglement, engagement |
 | StatutEchange | propose, signe, expire, suspendu |
