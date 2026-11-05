@@ -27,7 +27,7 @@ corepack pnpm verifier-types
 | `src/modules/cercles`       | règlement signé, adhésions signées, ordre figé à la complétion |
 | `src/modules/score`         | score = rejeu des événements                                   |
 | `src/modules/cotisations`   | paiement déclaré, confirmé par le seul bénéficiaire            |
-| `src/modules/planificateur` | constats de défaut rejouables                                  |
+| `src/modules/planificateur` | rappels et constats de défaut rejouables, passage chaque heure |
 | `src/modules/preuve`        | dossier de preuve (à faire)                                    |
 | `src/evenements`            | bus d'événements internes entre modules                        |
 | `src/registre`              | arbre de hachage, inscription par lots (connecteur simulé)     |
@@ -51,7 +51,12 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 
 **Défaut automatique** : le planificateur (`examinerEcheances`) constate le défaut d'une cotisation ni payée ni déclarée dès que sa fin de grâce est passée, une seule fois par tour (score −30, mise en demeure, assistant). Une cotisation déclarée mais pas confirmée par le bénéficiaire n'est jamais un défaut du payeur : elle relève d'un litige (pas encore codé). La mise en demeure est datée du constat et ne réclame que les cotisations échues à cette date, jamais les tours à venir.
 
-Non fait : fin de cycle (`cycle_termine`), litige sur un paiement déclaré non confirmé, lancement quotidien du planificateur (aujourd'hui appelé par les tests).
+**Passage régulier** : au démarrage du serveur (`main.ts`), le planificateur passe une première fois pour rattraper un arrêt, puis toutes les heures. Jamais deux passages en même temps ; un passage en échec est journalisé et le suivant a lieu quand même ; à l'arrêt, le passage en cours se termine avant la fermeture de la base. Les tâches étant rejouables, passer souvent ou sur plusieurs instances ne double ni un rappel ni un défaut.
+
+- `MONDO_PLANIFICATEUR_MINUTES` : intervalle en minutes (60 par défaut), `0` pour désactiver ; une valeur invalide empêche le démarrage.
+- Les tests ne démarrent pas la minuterie : ils appellent `examinerEcheances` avec leur propre date.
+
+Non fait : fin de cycle (`cycle_termine`), litige sur un paiement déclaré non confirmé.
 
 ## Dossier de preuve
 
