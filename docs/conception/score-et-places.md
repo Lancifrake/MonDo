@@ -41,6 +41,8 @@ Un membre éligible à une zone peut payer pour passer devant un autre membre de
 - **Groupe qui gonfle ses scores puis prend une grosse cagnotte** : le seuil qui monte avec la cagnotte limite le risque sans le supprimer. À tester en simulation.
 
 ## À faire
+Les choix en attente (modèle et partage des frais, plafond pour les nouveaux, droit de reculer, mode d'ordre, égalités) sont rassemblés dans `decision-05-choix-economiques-et-places.md`.
+
 - Écrire la simulation (10 membres, un défaut) dans `src/` et régler les points et seuils.
 - Décider du pourcentage des frais et de leur répartition.
 - Vérifier le risque de requalification des frais en intérêts (`docs/juridique/recours-legaux.md`, section 6).
