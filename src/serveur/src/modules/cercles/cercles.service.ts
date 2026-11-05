@@ -35,8 +35,10 @@ export interface Cercle {
   reglement: Reglement;
   empreinteReglement: string;
   membres: string[];
-  statut: "en_attente" | "complet";
+  /** terminé : fin de grâce du dernier tour passée ; défauts, litiges et dossier de preuve continuent. */
+  statut: "en_attente" | "complet" | "termine";
   ordre?: PlaceOrdre[];
+  termineLe?: string;
 }
 
 interface LigneCercle extends Record<string, unknown> {
@@ -46,6 +48,7 @@ interface LigneCercle extends Record<string, unknown> {
   empreinte_reglement: string;
   statut: Cercle["statut"];
   ordre: PlaceOrdre[] | null;
+  termine_le?: Date | string | null;
 }
 
 export const messageReglement = (organisateurId: string, r: Reglement) =>
@@ -63,7 +66,18 @@ export class CerclesService {
     @Inject(RegistreService) private readonly registre: RegistreService,
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
-  ) {}
+  ) {
+    this.evenements.ecouter("cercle_termine", (e) => this.terminer(e.cercleId, e.termineLe));
+  }
+
+  /** Une seule fois : un cercle déjà terminé garde sa date. */
+  private async terminer(cercleId: string, termineLe: string): Promise<void> {
+    const fini = await this.base.requete(
+      "UPDATE cercles.cercles SET statut = 'termine', termine_le = $2 WHERE id = $1 AND statut = 'complet' RETURNING id",
+      [cercleId, termineLe],
+    );
+    if (fini.length > 0) await this.registre.enregistrer(canonique({ objet: "fin_cercle", cercleId, termineLe }));
+  }
 
   async creer(
     d: { organisateurId: string; reglement: Reglement; signature: string },
@@ -110,7 +124,9 @@ export class CerclesService {
       const [verrou] = await tx.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1 FOR UPDATE", [
         cercleId,
       ]);
-      if (verrou!.statut === "complet") throw new BadRequestException("Cercle complet");
+      if (verrou!.statut !== "en_attente") {
+        throw new BadRequestException(verrou!.statut === "termine" ? "Cercle terminé" : "Cercle complet");
+      }
       const membres = await this.membres(tx, cercleId);
       if (membres.includes(d.membreId)) throw new BadRequestException("Déjà membre");
       membres.push(d.membreId);
@@ -155,6 +171,7 @@ export class CerclesService {
       membres: await this.membres(this.base, id),
       statut: l.statut,
       ...(l.ordre ? { ordre: l.ordre } : {}),
+      ...(l.termine_le ? { termineLe: new Date(l.termine_le).toISOString() } : {}),
     };
   }
 

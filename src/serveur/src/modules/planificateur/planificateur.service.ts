@@ -89,12 +89,25 @@ export class PlanificateurService {
   private async examinerFinsDeCycle(maintenant: Date): Promise<{ traitees: number; echecs: number }> {
     let traitees = 0;
     let echecs = 0;
-    for (const b of await this.cotisations.bilansDeCycle()) {
+    const bilans = await this.cotisations.bilansDeCycle();
+    for (const b of bilans) {
       if (!b.toutConfirme || maintenant.getTime() <= Date.parse(b.finCycle)) continue;
       try {
         if (await this.aFaitDefaut(b.cercleId, b.membreId)) continue;
         const evenement: EvenementInterne = { type: "cycle_termine", cercleId: b.cercleId, membreId: b.membreId };
         if (await this.traiterUneFois(`cycle:${b.cercleId}:${b.membreId}`, evenement)) traitees++;
+      } catch {
+        echecs++;
+      }
+    }
+    // Cercle terminé à la fin de grâce du dernier tour, impayés ou non (choix de David, 05/11).
+    const finsDeCercle = new Map(bilans.map((b) => [b.cercleId, b.finCycle]));
+    for (const [cercleId, termineLe] of finsDeCercle) {
+      if (maintenant.getTime() <= Date.parse(termineLe)) continue;
+      try {
+        if (await this.traiterUneFois(`cercle_termine:${cercleId}`, { type: "cercle_termine", cercleId, termineLe })) {
+          traitees++;
+        }
       } catch {
         echecs++;
       }

@@ -66,7 +66,7 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 
 **Fin de cycle** (choix de David, 05/11) : bonus « cycle terminé » (+10) pour un membre quand la fin de grâce du dernier tour est passée, qu'il n'a eu aucun défaut dans ce cercle (même régularisé ensuite) et que le bénéficiaire a confirmé toutes ses cotisations. S'il manque une confirmation, le bonus arrive au passage qui suit. Une seule fois par membre et par cercle.
 
-Non fait : statut « terminé » du cercle.
+**Cercle terminé** (choix de David, 05/11) : à la fin de grâce du dernier tour, le planificateur passe le cercle au statut `termine` (date `termineLe` = cette fin de grâce), une seule fois, impayés ou non. Défauts, mises en demeure, litiges et dossier de preuve continuent après. La fin est inscrite au registre ; plus aucune adhésion.
 
 ## Litiges
 

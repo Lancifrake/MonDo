@@ -213,6 +213,15 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
     nom: "013_cotisation_des_actions",
     sql: `ALTER TABLE assistant.actions ADD COLUMN cotisation_id uuid`,
   },
+  {
+    // Cercle terminé à la fin de grâce du dernier tour (choix de David, 05/11).
+    nom: "014_cercle_termine",
+    sql: `
+      ALTER TABLE cercles.cercles DROP CONSTRAINT cercles_statut_check;
+      ALTER TABLE cercles.cercles ADD CONSTRAINT cercles_statut_check
+        CHECK (statut IN ('en_attente', 'complet', 'termine'));
+      ALTER TABLE cercles.cercles ADD COLUMN termine_le timestamptz`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
