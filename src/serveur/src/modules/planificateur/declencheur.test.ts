@@ -24,11 +24,13 @@ function planificateurFactice() {
 
 let f: ReturnType<typeof planificateurFactice>;
 let declencheur: DeclencheurPlanificateur;
+let sms: { vider: ReturnType<typeof vi.fn<() => Promise<void>>> };
 
 beforeEach(() => {
   vi.useFakeTimers();
   f = planificateurFactice();
-  declencheur = new DeclencheurPlanificateur(f as unknown as PlanificateurService);
+  sms = { vider: vi.fn(async () => {}) };
+  declencheur = new DeclencheurPlanificateur(f as unknown as PlanificateurService, sms);
 });
 afterEach(async () => {
   await declencheur.arreter();
@@ -44,6 +46,12 @@ describe("déclenchement régulier du planificateur", () => {
     expect(f.passages).toBe(2);
     await vi.advanceTimersByTimeAsync(120 * MINUTE_MS);
     expect(f.passages).toBe(4);
+  });
+
+  it("chaque passage relance aussi les SMS restés en file", async () => {
+    declencheur.demarrer(60 * MINUTE_MS);
+    await vi.advanceTimersByTimeAsync(60 * MINUTE_MS);
+    expect(sms.vider).toHaveBeenCalledTimes(2);
   });
 
   it("démarré deux fois : une seule minuterie", async () => {

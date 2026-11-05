@@ -79,7 +79,18 @@ Sur un paiement déclaré que le bénéficiaire ne confirme pas (règles choisie
 - Routes : `POST /litiges`, `GET /litiges/:id` (parties et administrateur), `GET /litiges` et `POST /litiges/:id/decision` (administrateur).
 - **Administrateurs** (prototype) : identifiants de comptes membres dans `MONDO_ADMINISTRATEURS`, séparés par des virgules. Une vraie administration web viendra plus tard.
 
-Non fait : notification des parties (SMS), pièces jointes (capture du reçu Mobile Money), administration web.
+- **SMS aux deux parties** à l'ouverture (avec le numéro de suivi, début de l'identifiant du litige), à la décision (un refus dit au payeur de régler vite pour éviter un défaut) et à la clôture.
+
+Non fait : pièces jointes (capture du reçu Mobile Money), administration web.
+
+## File d'envoi des SMS
+
+Décision 02, règle 4 : un SMS est d'abord écrit en base (`sms.envois`), puis envoyé en arrière-plan. Une panne de la passerelle ne bloque donc ni un litige ni une cotisation.
+
+- Envoi tenté tout de suite, puis à chaque passage du planificateur pour ceux restés en file ; abandon après 5 échecs, journalisé sans le numéro.
+- Clé unique par message : un événement rejoué ne donne qu'un SMS. Chaque message est réservé avant l'envoi : deux serveurs ne l'envoient pas deux fois ; une réservation de plus de 5 minutes (serveur arrêté en route) est reprise.
+- Le code de connexion (OTP) part en direct, sans file : le membre l'attend et doit savoir s'il est parti.
+- Passerelle simulée au prototype (fournisseur non choisi).
 
 ## Dossier de preuve
 

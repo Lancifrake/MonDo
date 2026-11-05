@@ -189,6 +189,25 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       );
       CREATE UNIQUE INDEX litige_ouvert_par_cotisation ON litiges.litiges (cotisation_id) WHERE statut = 'ouvert'`,
   },
+  {
+    // File d'envoi des SMS (décision 02, règle 4) : une panne de la passerelle ne bloque rien.
+    nom: "012_file_sms",
+    sql: `
+      CREATE SCHEMA IF NOT EXISTS sms;
+      CREATE TABLE sms.envois (
+        id uuid PRIMARY KEY,
+        cle text NOT NULL UNIQUE,
+        numero text NOT NULL,
+        texte text NOT NULL,
+        statut text NOT NULL CHECK (statut IN ('a_envoyer', 'en_cours', 'envoye', 'echec')),
+        tentatives integer NOT NULL DEFAULT 0,
+        derniere_erreur text,
+        cree_le timestamptz NOT NULL DEFAULT now(),
+        reserve_le timestamptz,
+        envoye_le timestamptz
+      );
+      CREATE INDEX envois_a_faire ON sms.envois (cree_le) WHERE statut IN ('a_envoyer', 'en_cours')`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
