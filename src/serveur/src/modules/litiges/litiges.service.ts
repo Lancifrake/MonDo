@@ -11,6 +11,8 @@ import { BASE_DE_DONNEES, estDoublon, type BaseDeDonnees } from "../../base/base
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { RegistreService } from "../../registre/registre.service.js";
 import { canonique } from "../../signature/canonique.js";
+import { FileSms } from "../../sms/file-sms.js";
+import { ComptesService } from "../comptes/comptes.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
 import { estAdministrateur } from "./administrateurs.js";
 
@@ -68,6 +70,9 @@ const versLitige = (l: LigneLitige): Litige => ({
   ...(l.tranche_le ? { trancheLe: new Date(l.tranche_le).toISOString() } : {}),
 });
 
+/** Numéro de suivi communiqué par SMS : début de l'identifiant du litige. */
+const numeroDeSuivi = (l: Litige) => l.id.slice(0, 8);
+
 /**
  * Litige sur un paiement déclaré mais pas confirmé (choix de David, 05/11) : ouvert par le payeur après
  * 48 h, par le bénéficiaire qui dit n'avoir rien reçu, ou tout seul à la fin de grâce. Un administrateur
@@ -80,6 +85,8 @@ export class LitigesService {
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
     @Inject(RegistreService) private readonly registre: RegistreService,
+    @Inject(ComptesService) private readonly comptes: ComptesService,
+    @Inject(FileSms) private readonly sms: FileSms,
   ) {
     this.evenements.ecouter("confirmation_manquante", async (e) => {
       await this.enregistrer(
@@ -149,6 +156,18 @@ export class LitigesService {
     }
     const tranche = versLitige(l);
     await this.registre.enregistrer(canonique({ objet: "decision_litige", ...tranche }));
+    const { tour } = await this.cotisations.consulter(tranche.cotisationId);
+    const suivi = numeroDeSuivi(tranche);
+    if (decision === "paiement_valide") {
+      const texte = `MonDo : litige ${suivi} tranché, paiement validé. La cotisation du tour ${tour} est confirmée.`;
+      await this.prevenir(tranche, "decision", { payeur: texte, beneficiaire: texte });
+    } else {
+      const debut = `MonDo : litige ${suivi} tranché, paiement refusé. La cotisation du tour ${tour} est de nouveau due`;
+      await this.prevenir(tranche, "decision", {
+        payeur: `${debut} : réglez-la vite pour éviter un défaut.`,
+        beneficiaire: `${debut} par le payeur.`,
+      });
+    }
     return tranche;
   }
 
@@ -168,6 +187,10 @@ export class LitigesService {
       );
       const litige = versLitige(l!);
       await this.registre.enregistrer(canonique({ objet: "ouverture_litige", ...litige }));
+      const texte =
+        `MonDo : litige ouvert sur la cotisation du tour ${c.tour} (paiement déclaré, pas encore confirmé). ` +
+        `Suivi ${numeroDeSuivi(litige)}. Un administrateur va trancher.`;
+      await this.prevenir(litige, "ouverture", { payeur: texte, beneficiaire: texte });
       return litige;
     } catch (e) {
       if (!estDoublon(e)) throw e;
@@ -177,11 +200,32 @@ export class LitigesService {
   }
 
   private async clore(cotisationId: string): Promise<void> {
-    await this.base.requete(
+    const [l] = await this.base.requete<LigneLitige>(
       `UPDATE litiges.litiges SET statut = 'clos', decision = 'confirme_par_beneficiaire', tranche_le = now()
-       WHERE cotisation_id = $1 AND statut = 'ouvert'`,
+       WHERE cotisation_id = $1 AND statut = 'ouvert' RETURNING *`,
       [cotisationId],
     );
+    if (!l) return;
+    const clos = versLitige(l);
+    const { tour } = await this.cotisations.consulter(cotisationId);
+    const texte = `MonDo : litige ${numeroDeSuivi(clos)} clos, le bénéficiaire a confirmé le paiement du tour ${tour}.`;
+    await this.prevenir(clos, "cloture", { payeur: texte, beneficiaire: texte });
+  }
+
+  /** SMS aux deux parties, par la file d'envoi : rejouable (clé par litige, étape et membre), jamais bloquant. */
+  private async prevenir(
+    l: Litige,
+    etape: "ouverture" | "decision" | "cloture",
+    textes: { payeur: string; beneficiaire: string },
+  ): Promise<void> {
+    for (const [membreId, texte] of [
+      [l.payeurId, textes.payeur],
+      [l.beneficiaireId, textes.beneficiaire],
+    ] as const) {
+      const compte = await this.comptes.chercher(membreId);
+      if (compte) await this.sms.mettreEnFile(`litige:${l.id}:${etape}:${membreId}`, compte.numero, texte);
+    }
+    this.sms.declencher();
   }
 
   private async ouvertPour(cotisationId: string): Promise<Litige> {

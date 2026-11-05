@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
+import { FileSms } from "../../sms/file-sms.js";
 import { PlanificateurService } from "./planificateur.service.js";
 
 const MINUTE_MS = 60 * 1000;
@@ -19,7 +20,7 @@ export function intervallePlanificateur(env: NodeJS.ProcessEnv): number | undefi
 }
 
 /**
- * Lance `examinerEcheances` au démarrage (rattrapage après un arrêt) puis à intervalle régulier.
+ * Lance `examinerEcheances` puis vide la file des SMS, au démarrage (rattrapage après un arrêt) puis à intervalle régulier.
  * Jamais deux passages en même temps ; un passage qui échoue est journalisé et le suivant a lieu quand même.
  * Démarré par `main.ts` seulement : les tests pilotent le planificateur à la main, avec leur propre date.
  */
@@ -29,7 +30,10 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
   private minuterie: ReturnType<typeof setInterval> | undefined;
   private enCours: Promise<void> | undefined;
 
-  constructor(@Inject(PlanificateurService) private readonly planificateur: PlanificateurService) {}
+  constructor(
+    @Inject(PlanificateurService) private readonly planificateur: PlanificateurService,
+    @Inject(FileSms) private readonly sms: Pick<FileSms, "vider">,
+  ) {}
 
   demarrer(intervalleMs: number): void {
     if (this.minuterie) return;
@@ -55,6 +59,8 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
         const { traitees, echecs } = await this.planificateur.examinerEcheances();
         if (traitees > 0) this.journal.log(`${traitees} tâche(s) traitée(s)`);
         if (echecs > 0) this.journal.warn(`${echecs} tâche(s) en échec, rejouées au prochain passage`);
+        // SMS restés en file (passerelle en panne au moment de l'envoi) : nouvelle tentative.
+        await this.sms.vider();
       } catch (e) {
         this.journal.error(`Passage interrompu : ${e instanceof Error ? e.message : String(e)}`);
       } finally {

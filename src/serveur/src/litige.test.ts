@@ -6,7 +6,10 @@ import { AppModule } from "./app.module.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { Cotisation } from "./modules/cotisations/cotisations.service.js";
 import type { Litige } from "./modules/litiges/litiges.service.js";
+import { ComptesService } from "./modules/comptes/comptes.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
+import { CONNECTEUR_SMS, type ConnecteurSmsSimule } from "./sms/connecteur-sms.js";
+import { FileSms } from "./sms/file-sms.js";
 import { creerClient, type Identite } from "./testing/client.js";
 import { cercleComplet, cotisationsDe, reglementDeTest } from "./testing/cercles.js";
 
@@ -152,5 +155,64 @@ describe("décision de l'administrateur", () => {
     await client.requete("POST", `/cotisations/${cotisation.id}/confirmation`, undefined, beneficiaire);
     const vu = await json<Litige>(await client.requete("GET", `/litiges/${litige.id}`, undefined, payeur));
     expect(vu).toMatchObject({ statut: "clos", decision: "confirme_par_beneficiaire" });
+  });
+});
+
+/** SMS de litige reçus par un membre (hors code de connexion), une fois la file d'envoi vidée. */
+async function smsDe(qui: Identite): Promise<string[]> {
+  await app.get(FileSms).vider();
+  const numero = (await app.get(ComptesService).chercher(qui.id))!.numero;
+  return app
+    .get<ConnecteurSmsSimule>(CONNECTEUR_SMS)
+    .messages.filter((m) => m.numero === numero && /litige/i.test(m.texte))
+    .map((m) => m.texte);
+}
+
+describe("les parties sont prévenues par SMS", () => {
+  it("ouverture : payeur et bénéficiaire reçoivent le numéro de suivi, l'autre membre rien", async () => {
+    const { beneficiaire, payeur, autre, ouvrir } = await paiementNonConfirme();
+    const litige = await json<Litige>(await ouvrir(beneficiaire));
+    const suivi = litige.id.slice(0, 8);
+    for (const qui of [payeur, beneficiaire]) {
+      const recus = await smsDe(qui);
+      expect(recus).toHaveLength(1);
+      expect(recus[0]).toContain(suivi);
+      expect(recus[0]).toContain("tour 1");
+    }
+    expect(await smsDe(autre)).toEqual([]);
+  });
+
+  it("ouverture automatique rejouée : un seul SMS par partie", async () => {
+    const { beneficiaire, payeur, cotisation } = await paiementNonConfirme();
+    const planificateur = app.get(PlanificateurService);
+    const apres = Date.parse(cotisation.finGrace) + HEURE_MS;
+    await planificateur.examinerEcheances(new Date(apres));
+    await planificateur.examinerEcheances(new Date(apres + HEURE_MS));
+    expect(await smsDe(payeur)).toHaveLength(1);
+    expect(await smsDe(beneficiaire)).toHaveLength(1);
+  });
+
+  it("décision : chaque partie apprend l'issue ; un refus dit au payeur de régler vite", async () => {
+    const { beneficiaire, payeur, ouvrir, trancher } = await paiementNonConfirme();
+    const litige = await json<Litige>(await ouvrir(beneficiaire));
+    await trancher(litige.id, "paiement_refuse");
+    const auPayeur = await smsDe(payeur);
+    expect(auPayeur).toHaveLength(2);
+    expect(auPayeur[1]).toMatch(/refus/);
+    expect(auPayeur[1]).toMatch(/défaut/);
+    expect((await smsDe(beneficiaire))[1]).toMatch(/refus/);
+  });
+
+  it("paiement validé et clôture par le bénéficiaire : SMS aux deux parties", async () => {
+    const a = await paiementNonConfirme();
+    const l1 = await json<Litige>(await a.ouvrir(a.beneficiaire));
+    await a.trancher(l1.id, "paiement_valide");
+    expect((await smsDe(a.payeur))[1]).toMatch(/validé/);
+
+    const b = await paiementNonConfirme();
+    await b.ouvrir(b.beneficiaire);
+    await client.requete("POST", `/cotisations/${b.cotisation.id}/confirmation`, undefined, b.beneficiaire);
+    expect((await smsDe(b.payeur))[1]).toMatch(/clos/);
+    expect(await smsDe(b.beneficiaire)).toHaveLength(2);
   });
 });
