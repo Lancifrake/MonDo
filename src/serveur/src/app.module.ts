@@ -11,6 +11,7 @@ import { PlanificateurModule } from "./modules/planificateur/planificateur.modul
 import { PreuveModule } from "./modules/preuve/preuve.module.js";
 import { ScoreModule } from "./modules/score/score.module.js";
 import { RegistreModule } from "./registre/registre.module.js";
+import { SanteController } from "./sante/sante.controller.js";
 import { SmsModule } from "./sms/sms.module.js";
 
 @Module({
@@ -27,6 +28,7 @@ import { SmsModule } from "./sms/sms.module.js";
     PreuveModule,
     AssistantModule,
   ],
+  controllers: [SanteController],
   // Toute route exige une requête signée, sauf celles marquées @Public().
   providers: [{ provide: APP_GUARD, useClass: GardeAuthentification }],
 })
