@@ -47,6 +47,15 @@ describe("tours de cotisation générés quand le cercle est complet", () => {
     }
   });
 
+  it("tous les 14 jours : tours espacés de la période choisie par le cercle", async () => {
+    const r = reglementDeTest({ frequence: "jours", periodeJours: 14, delaiGraceJours: 3 });
+    const { org, cercle } = await cercleComplet(client, r);
+    const premier = Date.parse(r.datePremierTour);
+    for (const c of await cotisationsDe(client, cercle.id, org)) {
+      expect(Date.parse(c.dateLimite)).toBe(premier + 14 * (c.tour - 1) * JOUR_MS);
+    }
+  });
+
   it("le bénéficiaire voit ce qu'on lui doit, un autre membre ne voit pas les cotisations des autres", async () => {
     const { cercle, membres } = await cercleComplet(client);
     const premier = membres.find((m) => m.id === cercle.ordre![0]!.membreId)!;

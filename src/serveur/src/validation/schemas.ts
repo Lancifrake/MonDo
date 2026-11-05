@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { periodeMinimaleJours } from "../modules/cotisations/calendrier.js";
 
 export const schemaClePublique = z.strictObject({
   kty: z.literal("EC"),
@@ -21,18 +22,39 @@ export const schemaInscription = z.strictObject({
   codeOtp: z.string().regex(/^\d{6}$/, "Code SMS à 6 chiffres"),
 });
 
-export const schemaReglement = z.strictObject({
-  montant: z.number().int().positive().max(100_000_000),
-  frequence: z.enum(["hebdomadaire", "mensuelle"]),
-  nombreMembres: z.number().int().min(3).max(50),
-  penaliteRetard: z.number().int().min(0),
-  delaiGraceJours: z.number().int().min(0).max(30),
-  ouvert: z.boolean(),
-  /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
-  rappelsAvantEcheanceJours: z.array(z.number().int().min(1).max(30)).max(5).optional(),
-  /** Date et heure limite des cotisations du premier tour (choix de David, 05/11). */
-  datePremierTour: z.iso.datetime(),
-});
+export const schemaReglement = z
+  .strictObject({
+    montant: z.number().int().positive().max(100_000_000),
+    /** hebdomadaire, mensuelle (même jour chaque mois) ou jours : tous les `periodeJours` jours, au choix du cercle. */
+    frequence: z.enum(["hebdomadaire", "mensuelle", "jours"]),
+    periodeJours: z.number().int().min(1).max(60).optional(),
+    nombreMembres: z.number().int().min(3).max(50),
+    penaliteRetard: z.number().int().min(0),
+    delaiGraceJours: z.number().int().min(0).max(30),
+    ouvert: z.boolean(),
+    /** Jours avant la date limite où l'assistant peut rappeler. Absent : aucun rappel avant l'échéance. */
+    rappelsAvantEcheanceJours: z.array(z.number().int().min(1).max(30)).max(5).optional(),
+    /** Date et heure limite des cotisations du premier tour (choix de David, 05/11). */
+    datePremierTour: z.iso.datetime(),
+  })
+  .superRefine((r, ctx) => {
+    if ((r.frequence === "jours") !== (r.periodeJours !== undefined)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["periodeJours"],
+        message: "Nombre de jours obligatoire avec « jours », interdit sinon",
+      });
+      return;
+    }
+    // Sinon le tour suivant commence avant que le défaut du précédent soit constaté.
+    if (r.delaiGraceJours >= periodeMinimaleJours(r.frequence, r.periodeJours)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["delaiGraceJours"],
+        message: "Le délai de grâce doit être plus court que la période",
+      });
+    }
+  });
 
 export const schemaCreationCercle = z.strictObject({ reglement: schemaReglement, signature: z.string().min(1) });
 export const schemaAdhesion = z.strictObject({ signature: z.string().min(1) });

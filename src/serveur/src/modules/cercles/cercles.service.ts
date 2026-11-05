@@ -7,11 +7,14 @@ import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
 import { ComptesService } from "../comptes/comptes.service.js";
+import type { Frequence } from "../cotisations/calendrier.js";
 import { ScoreService } from "../score/score.service.js";
 
 export interface Reglement {
   montant: number;
-  frequence: "hebdomadaire" | "mensuelle";
+  frequence: Frequence;
+  /** Avec frequence « jours » seulement : tous les combien de jours (1 à 60). */
+  periodeJours?: number;
   nombreMembres: number;
   penaliteRetard: number;
   delaiGraceJours: number;
@@ -144,13 +147,14 @@ export class CerclesService {
       const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);
       await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
-      const { montant, frequence, delaiGraceJours, datePremierTour } = cercle.reglement;
+      const { montant, frequence, periodeJours, delaiGraceJours, datePremierTour } = cercle.reglement;
       await this.evenements.publier({
         type: "cercle_complet",
         cercleId,
         ordre: ordre.map((p) => p.membreId),
         montant,
         frequence,
+        ...(periodeJours ? { periodeJours } : {}),
         delaiGraceJours,
         datePremierTour,
         completLe,

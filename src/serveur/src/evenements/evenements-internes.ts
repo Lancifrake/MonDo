@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { Frequence } from "../modules/cotisations/calendrier.js";
 
 /** Ce que le module Cotisations doit savoir pour planifier les tours, copié du règlement signé et de l'ordre figé. */
 export interface CercleComplet {
@@ -6,7 +7,8 @@ export interface CercleComplet {
   /** Identifiants des membres dans l'ordre de passage. */
   ordre: string[];
   montant: number;
-  frequence: "hebdomadaire" | "mensuelle";
+  frequence: Frequence;
+  periodeJours?: number;
   delaiGraceJours: number;
   datePremierTour: string;
   completLe: string;
