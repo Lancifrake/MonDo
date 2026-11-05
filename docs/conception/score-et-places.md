@@ -16,6 +16,8 @@ Entre 0 et 100, visible par tous les membres du cercle. On gagne des points en p
 
 Le score ne descend jamais sous 0 ni ne dépasse 100.
 
+**Moment du bonus de fin de cycle** (décidé par David le 05/11) : quand la fin de grâce du dernier tour est passée, si le membre n'a eu aucun défaut dans ce cercle et que toutes ses cotisations ont été confirmées par leur bénéficiaire. Un paiement déclaré mais pas encore confirmé fait attendre le bonus jusqu'à la confirmation. Un défaut régularisé ensuite prive quand même du bonus.
+
 Exemple pour un cercle hebdomadaire de 10 membres : après un cycle sans retard, 10 × 4 + 10 = 50. Après un deuxième cycle, 100 (plafonné).
 
 ### Conséquence du départ à 0
