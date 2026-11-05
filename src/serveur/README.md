@@ -17,7 +17,14 @@ pnpm n'est pas forcément installé : `corepack enable` une fois, ou préfixer p
 corepack pnpm install
 corepack pnpm test
 corepack pnpm verifier-types
+corepack pnpm build            # compile dans dist/
+corepack pnpm start            # lance le serveur compilé (port 3000, ou PORT)
+corepack pnpm essai-demarrage  # démarre dist/, vérifie /sante et l'arrêt propre
 ```
+
+- `GET /sante` (sans signature) : 200 `{ "statut": "ok" }` si la base répond, 503 sinon. Pour l'hébergeur.
+- Sans `DATABASE_URL`, `start` utilise la base embarquée en mémoire : pratique pour essayer, données perdues à l'arrêt.
+- L'intégration continue compile le serveur et lance l'essai de démarrage après `pnpm qualite`.
 
 ## Structure
 

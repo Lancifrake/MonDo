@@ -30,6 +30,9 @@ jobs:
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
       - run: pnpm qualite
+      # Le serveur compilé démarre, répond sur /sante et s'arrête proprement.
+      - run: pnpm build
+      - run: pnpm essai-demarrage
 
   contrat:
     runs-on: ubuntu-latest
