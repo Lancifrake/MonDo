@@ -25,12 +25,31 @@ function planificateurFactice() {
 let f: ReturnType<typeof planificateurFactice>;
 let declencheur: DeclencheurPlanificateur;
 let sms: { vider: ReturnType<typeof vi.fn<() => Promise<void>>> };
+let registre: {
+  ordre: string[];
+  enPanne: boolean;
+  reprendreInscriptions: ReturnType<typeof vi.fn<() => Promise<number>>>;
+  fermerLot: ReturnType<typeof vi.fn<() => Promise<undefined>>>;
+};
 
 beforeEach(() => {
   vi.useFakeTimers();
   f = planificateurFactice();
   sms = { vider: vi.fn(async () => {}) };
-  declencheur = new DeclencheurPlanificateur(f as unknown as PlanificateurService, sms);
+  registre = {
+    ordre: [],
+    enPanne: false,
+    reprendreInscriptions: vi.fn(async () => {
+      registre.ordre.push("reprendre");
+      if (registre.enPanne) throw new Error("nœud injoignable");
+      return 0;
+    }),
+    fermerLot: vi.fn(async () => {
+      registre.ordre.push("fermer");
+      return undefined;
+    }),
+  };
+  declencheur = new DeclencheurPlanificateur(f as unknown as PlanificateurService, sms, registre);
 });
 afterEach(async () => {
   await declencheur.arreter();
@@ -52,6 +71,30 @@ describe("déclenchement régulier du planificateur", () => {
     declencheur.demarrer(60 * MINUTE_MS);
     await vi.advanceTimersByTimeAsync(60 * MINUTE_MS);
     expect(sms.vider).toHaveBeenCalledTimes(2);
+  });
+
+  it("chaque passage réinscrit les lots en échec puis ferme le lot en cours et l'inscrit sur la chaîne", async () => {
+    declencheur.demarrer(60 * MINUTE_MS);
+    await vi.advanceTimersByTimeAsync(60 * MINUTE_MS);
+    expect(registre.ordre).toEqual(["reprendre", "fermer", "reprendre", "fermer"]);
+  });
+
+  it("chaîne en panne : le passage continue (SMS envoyés), le lot sera repris au passage suivant", async () => {
+    registre.enPanne = true;
+    declencheur.demarrer(60 * MINUTE_MS);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sms.vider).toHaveBeenCalledTimes(1);
+    registre.enPanne = false;
+    await vi.advanceTimersByTimeAsync(60 * MINUTE_MS);
+    expect(registre.fermerLot).toHaveBeenCalledTimes(1);
+  });
+
+  it("échéances en erreur : les SMS et le registre passent quand même", async () => {
+    f.echouer = true;
+    declencheur.demarrer(60 * MINUTE_MS);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sms.vider).toHaveBeenCalledTimes(1);
+    expect(registre.fermerLot).toHaveBeenCalledTimes(1);
   });
 
   it("démarré deux fois : une seule minuterie", async () => {

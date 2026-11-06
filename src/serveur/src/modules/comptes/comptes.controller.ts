@@ -27,6 +27,13 @@ export class ComptesController {
   @Post(":id/niveau2")
   async niveau2(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
     if (id !== membreId) throw new ForbiddenException("On ne vérifie que sa propre identité");
+    // Prototype : aucune pièce n'est contrôlée. En production, personne ne doit pouvoir se déclarer vérifié
+    // tant qu'un prestataire de vérification d'identité n'est pas branché (vision, V2).
+    if (process.env.NODE_ENV === "production") {
+      throw new ForbiddenException(
+        "Vérification d'identité simulée, désactivée en production : brancher un prestataire de vérification",
+      );
+    }
     return this.comptes.passerAuNiveau2(id);
   }
 }
