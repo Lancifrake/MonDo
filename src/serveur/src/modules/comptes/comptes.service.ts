@@ -1,5 +1,5 @@
 import { ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { messageInscription } from "../../authentification/messages.js";
 import { BASE_DE_DONNEES, estDoublon, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { verifierSignature } from "../../signature/signature.js";
@@ -88,12 +88,18 @@ export class ComptesService {
     return compte;
   }
 
-  /** Anti-rejeu stocké en base : plusieurs copies du serveur partagent la même mémoire (décision 02, règle 3). */
-  async marquerSignatureUtilisee(signature: string, expireLe: Date): Promise<boolean> {
-    await this.base.requete("DELETE FROM comptes.signatures_vues WHERE expire_le < now()");
+  /**
+   * Anti-rejeu stocké en base : plusieurs copies du serveur partagent la même mémoire (décision 02, règle 3).
+   * Clé = empreinte du membre et du message signé, jamais le texte de la signature, qui s'écrit de plusieurs
+   * façons valides (padding base64, malléabilité ECDSA) : une requête déjà vue est refusée quelle que soit
+   * l'écriture de sa signature.
+   */
+  async marquerRequeteVue(membreId: string, message: string, expireLe: Date): Promise<boolean> {
+    const empreinte = createHash("sha256").update(`${membreId}\n${message}`).digest("hex");
+    await this.base.requete("DELETE FROM comptes.requetes_vues WHERE expire_le < now()");
     const lignes = await this.base.requete(
-      "INSERT INTO comptes.signatures_vues (signature, expire_le) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING signature",
-      [signature, expireLe.toISOString()],
+      "INSERT INTO comptes.requetes_vues (empreinte, expire_le) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING empreinte",
+      [empreinte, expireLe.toISOString()],
     );
     return lignes.length === 1;
   }

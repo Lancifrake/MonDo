@@ -20,6 +20,8 @@ Après chaque tâche terminée, mettre à jour `/Users/smcdavid/.claude/projects
 - Diagramme de classes : à dessiner par David dans Visual Paradigm à partir de `docs/conception/diagramme-de-classes.md` (spécification) ; une fois dessiné, le fichier VP fait foi. Aide visuelle à recopier : `docs/conception/classes/mondo-diagramme-de-classes.drawio` (non tenue à jour ensuite).
 - Décisions de conception : `docs/conception/decision-01-blockchain-registre-sans-fonds.md`, `docs/conception/decision-02-monolithe-modulaire.md` (serveur en monolithe modulaire, règles de propriété des données et de scalabilité). Choix encore à trancher en équipe (frais, places, pénalité, départ, reconnaissance de dette) : `docs/conception/decision-05-choix-economiques-et-places.md`.
 
+- Sécurité : dernier audit interne `docs/conception/audit-securite-2026-11-06.md` (failles corrigées, 3 règles métier à trancher, actions hors code avant un pilote).
+
 ## Conventions
 - Git : commits `feat` / `fix` / `chore` / `docs`, jamais de co-auteur
 - Langue de travail : français

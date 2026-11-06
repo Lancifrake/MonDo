@@ -54,6 +54,38 @@ describe("authentification par requêtes signées", () => {
     );
   });
 
+  it("refuse le rejeu d'une requête dont seul l'encodage de la signature change (padding base64)", async () => {
+    const moi = await client.inscrire();
+    const horodatage = new Date().toISOString();
+    const { messageRequete } = await import("./authentification/messages.js");
+    const signature = await moi.signer(messageRequete("GET", `/score/${moi.id}`, horodatage, undefined));
+    const chemin = `/score/${moi.id}`;
+    expect((await client.requete("GET", chemin, undefined, moi, { horodatage, signature })).status).toBe(200);
+    for (const variante of [signature.replace(/=+$/, ""), `${signature}=`, ` ${signature}`]) {
+      expect((await client.requete("GET", chemin, undefined, moi, { horodatage, signature: variante })).status).toBe(
+        401,
+      );
+    }
+  });
+
+  it("refuse le rejeu avec une signature ECDSA malléable (s remplacé par n − s)", async () => {
+    const moi = await client.inscrire();
+    const horodatage = new Date().toISOString();
+    const { messageRequete } = await import("./authentification/messages.js");
+    const chemin = `/score/${moi.id}`;
+    const signature = await moi.signer(messageRequete("GET", chemin, horodatage, undefined));
+    const octets = Buffer.from(signature, "base64");
+    const n = BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551");
+    const s = BigInt(`0x${octets.subarray(32).toString("hex")}`);
+    const jumelle = Buffer.concat([octets.subarray(0, 32), Buffer.from((n - s).toString(16).padStart(64, "0"), "hex")]);
+    expect((await client.requete("GET", chemin, undefined, moi, { horodatage, signature })).status).toBe(200);
+    const r = await client.requete("GET", chemin, undefined, moi, {
+      horodatage,
+      signature: jumelle.toString("base64"),
+    });
+    expect(r.status).toBe(401);
+  });
+
   it("refuse un corps modifié après signature", async () => {
     const moi = await client.inscrire();
     const horodatage = new Date().toISOString();

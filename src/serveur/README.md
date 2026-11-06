@@ -107,3 +107,6 @@ Non fait, en attente de décision : reconnaissance de dette (créancier et monta
 
 1. `POST /comptes/otp` avec le numéro : un code à 6 chiffres part par SMS (simulé : visible dans le journal du serveur).
 2. `POST /comptes` avec numéro, nom, clé publique, preuve de détention de la clé et code SMS.
+3. Ensuite, chaque requête est signée par le téléphone (ECDSA P-256) : en-têtes `x-mondo-membre`, `x-mondo-horodatage` et `x-mondo-signature`, sur la méthode, le chemin, l'horodatage et le corps en JSON canonique. Une requête vaut 5 minutes et une seule fois : l'anti-rejeu retient l'empreinte du message signé, pas le texte de la signature, qui s'écrit de plusieurs façons valides.
+
+Limites des codes SMS : un code par minute et par numéro tant que le précédent n'a pas servi, au plus 5 codes par numéro sur 24 h, 5 essais par code, validité 5 minutes. Les contrôles et l'écriture se font en une seule instruction : deux demandes simultanées ne passent pas toutes les deux. Une limite par adresse IP reste à poser chez l'hébergeur (voir `docs/conception/audit-securite-2026-11-06.md`).

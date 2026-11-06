@@ -1,4 +1,4 @@
-// Essai de démarrage du serveur compilé (dist/) : il démarre, répond sur /sante, refuse une requête
+// Essai de démarrage du serveur compilé (dist/) : il démarre, répond sur /sante sans révéler son framework, refuse une requête
 // non signée, puis s'arrête proprement sur SIGTERM. Base embarquée, aucune donnée réelle.
 import { spawn } from "node:child_process";
 
@@ -24,6 +24,7 @@ async function verifier() {
   }
   const sante = await fetch(`${base}/sante`);
   if (sante.status !== 200) throw new Error(`/sante a répondu ${sante.status}`);
+  if (sante.headers.has("x-powered-by")) throw new Error("l'en-tête x-powered-by révèle le framework");
   const nonSignee = await fetch(`${base}/cercles/inconnu`);
   if (nonSignee.status !== 401) throw new Error(`requête non signée : ${nonSignee.status} au lieu de 401`);
 }
@@ -33,7 +34,7 @@ try {
   serveur.kill("SIGTERM");
   const { code, signal } = await Promise.race([fin, attendre(10_000).then(() => ({ code: "délai dépassé" }))]);
   if (code !== 0 && signal !== "SIGTERM") throw new Error(`arrêt anormal : ${code ?? signal}`);
-  ecrire("Essai de démarrage réussi : santé 200, requête non signée 401, arrêt propre.");
+  ecrire("Essai de démarrage réussi : santé 200 sans x-powered-by, requête non signée 401, arrêt propre.");
 } catch (e) {
   serveur.kill("SIGKILL");
   ecrire(`Essai de démarrage en échec : ${e.message}`);
