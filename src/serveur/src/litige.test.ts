@@ -51,11 +51,34 @@ async function paiementNonConfirme() {
     client.requete("POST", "/litiges", { cotisationId: cotisation.id, motif }, qui);
   const trancher = (litigeId: string, decision: "paiement_valide" | "paiement_refuse", qui: Identite = admin) =>
     client.requete("POST", `/litiges/${litigeId}/decision`, { decision, motif: "Relevé Mobile Money vérifié" }, qui);
+  /** Fin de grâce passée depuis une heure (date limite décalée d'autant). */
+  const graceEcoulee = () =>
+    app
+      .get<BaseDeDonnees>(BASE_DE_DONNEES)
+      .requete(
+        "UPDATE cotisations.cotisations SET date_limite = now() - interval '3 days', fin_grace = now() - interval '1 hour' WHERE id = $1",
+        [cotisation.id],
+      );
+  const declarer = (reference: string) =>
+    client.requete("POST", `/cotisations/${cotisation.id}/paiement`, { referenceTransaction: reference }, payeur);
   const etat = async () =>
     (await cotisationsDe(client, cercle.id, payeur)).find((c) => c.id === cotisation.id) as Cotisation;
   const score = async (qui: Identite) =>
     json<{ score: number; defauts: number }>(await client.requete("GET", `/score/${qui.id}`, undefined, qui));
-  return { cercle, beneficiaire, payeur, autre, cotisation, vieillir, ouvrir, trancher, etat, score };
+  return {
+    cercle,
+    beneficiaire,
+    payeur,
+    autre,
+    cotisation,
+    vieillir,
+    graceEcoulee,
+    declarer,
+    ouvrir,
+    trancher,
+    etat,
+    score,
+  };
 }
 
 describe("ouverture d'un litige", () => {
@@ -99,6 +122,32 @@ describe("ouverture d'un litige", () => {
   });
 });
 
+describe("déclaration gelée pendant un litige ouvert (choix de David, 06/11)", () => {
+  it("le payeur ne change plus sa référence : l'administrateur tranche sur la pièce d'origine", async () => {
+    const { beneficiaire, declarer, ouvrir, etat } = await paiementNonConfirme();
+    await ouvrir(beneficiaire);
+    const r = await declarer("OM-999");
+    expect(r.status).toBe(400);
+    expect((await json<{ message: string }>(r)).message).toMatch(/litige/i);
+    expect((await etat()).referenceTransaction).toBe("OM-123");
+  });
+
+  it("le bénéficiaire peut toujours confirmer pendant le litige, ce qui le clôt", async () => {
+    const { beneficiaire, cotisation, ouvrir, etat } = await paiementNonConfirme();
+    await ouvrir(beneficiaire);
+    expect(
+      (await client.requete("POST", `/cotisations/${cotisation.id}/confirmation`, undefined, beneficiaire)).status,
+    ).toBe(201);
+    expect((await etat()).statut).toBe("confirmee");
+  });
+
+  it("litige ouvert automatiquement : déclaration gelée aussi", async () => {
+    const { cotisation, declarer } = await paiementNonConfirme();
+    await app.get(PlanificateurService).examinerEcheances(new Date(Date.parse(cotisation.finGrace) + HEURE_MS));
+    expect((await declarer("OM-999")).status).toBe(400);
+  });
+});
+
 describe("décision de l'administrateur", () => {
   it("paiement validé : cotisation confirmée, à temps si déclarée avant la date limite ; le bénéficiaire ne perd rien", async () => {
     const { beneficiaire, payeur, ouvrir, trancher, etat, score } = await paiementNonConfirme();
@@ -127,6 +176,29 @@ describe("décision de l'administrateur", () => {
     expect(c.referenceTransaction).toBeUndefined();
     await app.get(PlanificateurService).examinerEcheances(new Date(Date.parse(cotisation.finGrace) + HEURE_MS));
     expect((await score(payeur)).defauts).toBe(1);
+  });
+
+  it("paiement refusé après la fin de grâce : défaut constaté dès la décision, une seule fois (choix de David, 06/11)", async () => {
+    const { beneficiaire, payeur, cotisation, graceEcoulee, declarer, ouvrir, trancher, score } =
+      await paiementNonConfirme();
+    const litige = await json<Litige>(await ouvrir(beneficiaire));
+    await graceEcoulee();
+    expect((await trancher(litige.id, "paiement_refuse")).status).toBe(201);
+    // Sans attendre le planificateur : une fausse redéclaration dans l'heure n'évite plus le défaut.
+    expect((await score(payeur)).defauts).toBe(1);
+    expect((await declarer("OM-FAUX")).status).toBe(201);
+    await app.get(PlanificateurService).examinerEcheances(new Date(Date.now() + HEURE_MS));
+    expect((await score(payeur)).defauts).toBe(1);
+    expect(cotisation.tour).toBe(1);
+  });
+
+  it("paiement refusé avant la fin de grâce : pas de défaut, le payeur peut encore payer et redéclarer", async () => {
+    const { beneficiaire, payeur, declarer, ouvrir, trancher, etat, score } = await paiementNonConfirme();
+    const litige = await json<Litige>(await ouvrir(beneficiaire));
+    await trancher(litige.id, "paiement_refuse");
+    expect((await score(payeur)).defauts).toBe(0);
+    expect((await declarer("OM-456")).status).toBe(201);
+    expect((await etat()).referenceTransaction).toBe("OM-456");
   });
 
   it("réservée à l'administrateur, qui ne tranche pas un litige où il est partie ; une seule décision", async () => {

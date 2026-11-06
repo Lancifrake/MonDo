@@ -6,7 +6,7 @@ Relecture du serveur (`src/serveur`), du contrat (`src/contrat`) et de l'intégr
 - 2 failles réelles trouvées dans le code, corrigées : rejeu de requête signée (élevée), absence de plafond sur les codes SMS (moyenne).
 - 2 trous corrigés juste avant, dans la PR 18 : lots du registre jamais inscrits sur la chaîne, niveau 2 d'identité auto-déclaré même en production.
 - 2 durcissements mineurs, corrigés : jeton de la CI en lecture seule, en-tête `x-powered-by` retiré.
-- 3 points de règle métier à trancher par l'équipe (pas de correction sans décision).
+- 3 points de règle métier, tranchés par David le 06/11 et codés (PR suivante).
 - Rien de grave relevé dans le contrat, les requêtes SQL ou les contrôles d'accès.
 
 ## Failles corrigées
@@ -42,10 +42,10 @@ Reste à faire chez l'hébergeur : une limite par adresse IP (un attaquant peut 
 - **Secrets** : aucun dans le dépôt ni dans l'historique relu, `.env`, `.pem` et `.key` ignorés, clés lues dans l'environnement seulement.
 - **Dépendances de production** : `pnpm audit --prod` sans vulnérabilité connue (serveur et contrat).
 
-## À trancher en équipe (règles métier)
-1. **Déclaration modifiable pendant un litige.** Le payeur peut redéclarer (nouvelle référence) une cotisation dont le litige est ouvert : l'administrateur tranche sur une pièce qui a changé. Proposition : déclaration gelée pendant un litige ouvert.
-2. **Boucle déclaration, refus, redéclaration.** Après un « paiement refusé », la cotisation redevient due et le défaut n'est constaté qu'au passage suivant du planificateur (moins d'une heure). Un payeur qui redéclare une fausse référence entre-temps évite le défaut, et un nouveau litige s'ouvre. Propositions possibles : constater le défaut dès la décision si la grâce est passée, ou refuser une nouvelle déclaration après un refus.
-3. **Visibilité.** Tout membre connecté voit le règlement, les membres et l'ordre d'un cercle dont il connaît l'identifiant, et le score de n'importe qui. Les identifiants sont impossibles à deviner, mais pour un cercle fermé on peut vouloir réserver ces informations aux membres et aux invités.
+## Règles métier tranchées par David (06/11), codées
+1. **Déclaration gelée pendant un litige ouvert.** Le payeur ne change plus sa référence tant que l'administrateur n'a pas tranché ; il tranche sur la pièce d'origine. Le bénéficiaire peut toujours confirmer, ce qui clôt le litige. Colonne `en_litige` (migration 017), posée à l'ouverture, levée à la décision ou à la confirmation.
+2. **Défaut dès le refus.** Après un « paiement refusé », si la fin de grâce est passée, le défaut est constaté tout de suite, avec la même tâche que le planificateur (jamais deux défauts pour un tour). Avant la fin de grâce, le payeur peut encore payer et redéclarer.
+3. **Visibilité.** Cercle : avec le lien, un non-membre voit le règlement, son empreinte, le statut et les places restantes ; la liste des membres et l'ordre de passage sont réservés aux membres. Score : visible par le membre lui-même et par les membres d'un cercle commun (copie des adhésions dans le module Score, migration 018).
 
 ## Hors code, avant un pilote réel
 - Audit indépendant du contrat, test d'intrusion du serveur.

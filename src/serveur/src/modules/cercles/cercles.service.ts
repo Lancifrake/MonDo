@@ -44,6 +44,9 @@ export interface Cercle {
   termineLe?: string;
 }
 
+/** Ce qu'un non-membre voit avec le lien d'invitation : de quoi décider et signer, jamais qui est dedans. */
+export type CerclePourNonMembre = Omit<Cercle, "membres" | "ordre"> & { placesRestantes: number };
+
 interface LigneCercle extends Record<string, unknown> {
   id: string;
   organisateur_id: string;
@@ -108,6 +111,7 @@ export class CerclesService {
         d.signature,
       ]);
     });
+    await this.evenements.publier({ type: "adhesion_enregistree", cercleId: id, membreId: d.organisateurId });
     return this.trouver(id);
   }
 
@@ -143,6 +147,7 @@ export class CerclesService {
     });
 
     await this.registre.enregistrer(message);
+    await this.evenements.publier({ type: "adhesion_enregistree", cercleId, membreId: d.membreId });
     if (complet) {
       const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);
@@ -177,6 +182,17 @@ export class CerclesService {
       ...(l.ordre ? { ordre: l.ordre } : {}),
       ...(l.termine_le ? { termineLe: new Date(l.termine_le).toISOString() } : {}),
     };
+  }
+
+  /**
+   * Règlement public, membres privés (choix de David, 06/11) : avec le lien, un non-membre voit le règlement,
+   * le statut et les places restantes ; la liste des membres et l'ordre de passage sont réservés aux membres.
+   */
+  async consulterPour(id: string, demandeurId: string): Promise<Cercle | CerclePourNonMembre> {
+    const { membres, ordre, ...cercle } = await this.trouver(id);
+    const placesRestantes = Math.max(0, cercle.reglement.nombreMembres - membres.length);
+    if (membres.includes(demandeurId)) return { ...cercle, membres, ...(ordre ? { ordre } : {}), placesRestantes };
+    return { ...cercle, placesRestantes };
   }
 
   /** Rang et signature d'un membre : rang 1 = organisateur, qui a signé le règlement lui-même. */

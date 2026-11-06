@@ -53,7 +53,7 @@ Relations :
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **Tour** | numero : Integer ; dateLimite : DateTime | généré quand le cercle est complet (05/11) |
-| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; finGrace : DateTime ; referenceTransaction : String [0..1] ; declareeLe : DateTime [0..1] ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation |
+| **Cotisation** | id : UUID ; montant : Integer ; dateLimite : DateTime ; finGrace : DateTime ; referenceTransaction : String [0..1] ; declareeLe : DateTime [0..1] ; enLitige : Boolean ; statut : StatutCotisation | confirmée par le seul bénéficiaire, le silence ne vaut pas confirmation ; déclaration gelée tant que enLitige |
 
 Relations :
 - Cercle 1 ◆── 1..* Tour ; Tour 0..* ── 1 Utilisateur rôle « bénéficiaire »
