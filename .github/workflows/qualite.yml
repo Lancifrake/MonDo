@@ -5,6 +5,10 @@ on:
   push:
     branches: [main]
 
+# Le jeton de la CI ne peut que lire le dépôt : une dépendance compromise ne peut ni pousser ni modifier une PR.
+permissions:
+  contents: read
+
 jobs:
   serveur:
     runs-on: ubuntu-latest

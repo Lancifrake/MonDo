@@ -61,7 +61,7 @@ export class GardeAuthentification implements CanActivate {
       throw new UnauthorizedException("Signature invalide");
     }
     // Après la vérification : on ne laisse pas un inconnu remplir la table des signatures.
-    if (!(await this.comptes.marquerSignatureUtilisee(signature, new Date(instant + FENETRE_MS)))) {
+    if (!(await this.comptes.marquerRequeteVue(membreId, message, new Date(instant + FENETRE_MS)))) {
       throw new UnauthorizedException("Requête déjà utilisée");
     }
     req.membreId = membreId;

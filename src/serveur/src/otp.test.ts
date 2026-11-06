@@ -91,6 +91,26 @@ describe("code SMS à l'inscription (simulé)", () => {
     expect((await client.requete("POST", "/comptes/otp", { numero })).status).toBe(429);
   });
 
+  it("au plus 5 codes par numéro sur 24 h, même en attendant entre deux demandes (fraude au SMS)", async () => {
+    const otp = app.get(OtpService);
+    const numero = numeroNeuf();
+    const t0 = Date.now();
+    const a = (minutes: number) => new Date(t0 + minutes * 60 * 1000);
+    for (let i = 0; i < 5; i++) await otp.demander(numero, a(2 * i));
+    await expect(otp.demander(numero, a(20))).rejects.toThrow(/demain/);
+    await expect(otp.demander(numero, a(23 * 60))).rejects.toThrow(/demain/);
+    await expect(otp.demander(numero, a(24 * 60 + 1))).resolves.toBeDefined();
+  });
+
+  it("deux demandes simultanées pour le même numéro : un seul code envoyé", async () => {
+    const otp = app.get(OtpService);
+    const numero = numeroNeuf();
+    const avant = sms.messages.filter((m) => m.numero === numero).length;
+    const issues = await Promise.allSettled([otp.demander(numero), otp.demander(numero), otp.demander(numero)]);
+    expect(issues.filter((i) => i.status === "fulfilled")).toHaveLength(1);
+    expect(sms.messages.filter((m) => m.numero === numero).length - avant).toBe(1);
+  });
+
   it("le code n'est jamais stocké en clair", async () => {
     const numero = numeroNeuf();
     await client.requete("POST", "/comptes/otp", { numero });

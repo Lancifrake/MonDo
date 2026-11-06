@@ -222,6 +222,26 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         CHECK (statut IN ('en_attente', 'complet', 'termine'));
       ALTER TABLE cercles.cercles ADD COLUMN termine_le timestamptz`,
   },
+  {
+    // Anti-rejeu sur l'empreinte du message signé, plus sur le texte de la signature : une même signature
+    // s'écrit de plusieurs façons (padding base64, malléabilité ECDSA), le message signé d'une seule.
+    nom: "015_requetes_vues",
+    sql: `
+      DROP TABLE comptes.signatures_vues;
+      CREATE TABLE comptes.requetes_vues (
+        empreinte text PRIMARY KEY,
+        expire_le timestamptz NOT NULL
+      )`,
+  },
+  {
+    // Plafond de codes SMS par numéro sur 24 h (fraude au SMS, harcèlement d'un numéro).
+    nom: "016_plafond_otp",
+    sql: `
+      ALTER TABLE comptes.codes_otp ADD COLUMN envois integer NOT NULL DEFAULT 1;
+      ALTER TABLE comptes.codes_otp ADD COLUMN fenetre_debut timestamptz;
+      UPDATE comptes.codes_otp SET fenetre_debut = cree_le;
+      ALTER TABLE comptes.codes_otp ALTER COLUMN fenetre_debut SET NOT NULL`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
