@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
@@ -14,6 +15,7 @@ import { canonique } from "../../signature/canonique.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
+import { PlanificateurService } from "../planificateur/planificateur.service.js";
 import { estAdministrateur } from "./administrateurs.js";
 
 /** Le payeur attend 48 h de confirmation avant de pouvoir ouvrir un litige (choix de David, 05/11). */
@@ -80,6 +82,8 @@ const numeroDeSuivi = (l: Litige) => l.id.slice(0, 8);
  */
 @Injectable()
 export class LitigesService {
+  private readonly journal = new Logger("Litiges");
+
   constructor(
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
@@ -87,6 +91,7 @@ export class LitigesService {
     @Inject(RegistreService) private readonly registre: RegistreService,
     @Inject(ComptesService) private readonly comptes: ComptesService,
     @Inject(FileSms) private readonly sms: FileSms,
+    @Inject(PlanificateurService) private readonly planificateur: PlanificateurService,
   ) {
     this.evenements.ecouter("confirmation_manquante", async (e) => {
       await this.enregistrer(
@@ -156,7 +161,16 @@ export class LitigesService {
     }
     const tranche = versLitige(l);
     await this.registre.enregistrer(canonique({ objet: "decision_litige", ...tranche }));
-    const { tour } = await this.cotisations.consulter(tranche.cotisationId);
+    const { tour, finGrace } = await this.cotisations.consulter(tranche.cotisationId);
+    // Refus après la fin de grâce : défaut constaté tout de suite (choix de David, 06/11), sinon une fausse
+    // redéclaration avant le passage du planificateur l'éviterait. Même tâche que le planificateur : jamais
+    // deux défauts pour un tour. La décision reste acquise si le constat échoue : erreur journalisée, et le
+    // planificateur le constatera à son passage tant que la cotisation reste due.
+    if (decision === "paiement_refuse" && maintenant.getTime() > Date.parse(finGrace)) {
+      await this.planificateur.constaterDefaut(tranche.cercleId, tranche.payeurId, tour, maintenant).catch((e) => {
+        this.journal.error(`Défaut après refus du litige ${tranche.id} non constaté : ${String(e)}`);
+      });
+    }
     const suivi = numeroDeSuivi(tranche);
     if (decision === "paiement_valide") {
       const texte = `MonDo : litige ${suivi} tranché, paiement validé. La cotisation du tour ${tour} est confirmée.`;
@@ -186,6 +200,7 @@ export class LitigesService {
         [randomUUID(), c.id, c.cercleId, c.payeurId, c.beneficiaireId, ouvertPar, motif, maintenant.toISOString()],
       );
       const litige = versLitige(l!);
+      await this.cotisations.geler(c.id);
       await this.registre.enregistrer(canonique({ objet: "ouverture_litige", ...litige }));
       const texte =
         `MonDo : litige ouvert sur la cotisation du tour ${c.tour} (paiement déclaré, pas encore confirmé). ` +

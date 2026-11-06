@@ -242,6 +242,24 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       UPDATE comptes.codes_otp SET fenetre_debut = cree_le;
       ALTER TABLE comptes.codes_otp ALTER COLUMN fenetre_debut SET NOT NULL`,
   },
+  {
+    // Déclaration gelée pendant un litige ouvert (choix de David, 06/11) : posé par Litiges, levé à la décision.
+    nom: "017_cotisation_en_litige",
+    sql: `ALTER TABLE cotisations.cotisations ADD COLUMN en_litige boolean NOT NULL DEFAULT false`,
+  },
+  {
+    // Score visible par soi et les membres d'un cercle commun (choix de David, 06/11). Le module Score tient
+    // sa propre copie des adhésions (événement adhesion_enregistree) ; reprise unique des adhésions existantes.
+    nom: "018_score_membres_cercles",
+    sql: `
+      CREATE TABLE score.membres_cercles (
+        cercle_id uuid NOT NULL,
+        membre_id uuid NOT NULL,
+        PRIMARY KEY (cercle_id, membre_id)
+      );
+      CREATE INDEX membres_cercles_membre ON score.membres_cercles (membre_id);
+      INSERT INTO score.membres_cercles (cercle_id, membre_id) SELECT cercle_id, membre_id FROM cercles.adhesions`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

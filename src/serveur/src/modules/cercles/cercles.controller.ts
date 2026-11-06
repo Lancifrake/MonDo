@@ -26,7 +26,7 @@ export class CerclesController {
   }
 
   @Get(":id")
-  consulter(@Param("id") id: string) {
-    return this.cercles.trouver(id);
+  consulter(@Param("id") id: string, @MembreAuthentifie() demandeurId: string) {
+    return this.cercles.consulterPour(id, demandeurId);
   }
 }

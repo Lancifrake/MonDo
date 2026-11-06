@@ -99,13 +99,25 @@ export class CotisationsService {
   async declarerPaiement(id: string, referenceTransaction: string, parMembreId: string): Promise<Cotisation> {
     const c = await this.trouver(id);
     if (parMembreId !== c.payeurId) throw new ForbiddenException("Seul le payeur déclare son paiement");
+    // Pendant un litige ouvert, la déclaration est gelée : l'administrateur tranche sur la pièce d'origine.
     const [l] = await this.base.requete<LigneCotisation>(
       `UPDATE cotisations.cotisations SET reference_transaction = $2, statut = 'declaree', declaree_le = now()
-       WHERE id = $1 AND statut <> 'confirmee' RETURNING *`,
+       WHERE id = $1 AND statut <> 'confirmee' AND NOT en_litige RETURNING *`,
       [id, referenceTransaction],
     );
-    if (!l) throw new BadRequestException("Cotisation déjà confirmée");
+    if (!l) {
+      throw new BadRequestException(
+        c.statut === "confirmee"
+          ? "Cotisation déjà confirmée"
+          : "Litige en cours : la déclaration est gelée jusqu'à la décision de l'administrateur",
+      );
+    }
     return versCotisation(l);
+  }
+
+  /** Litige ouvert sur cette cotisation : le payeur ne peut plus changer sa déclaration jusqu'à la décision. */
+  async geler(id: string): Promise<void> {
+    await this.base.requete("UPDATE cotisations.cotisations SET en_litige = true WHERE id = $1", [id]);
   }
 
   async confirmer(id: string, parMembreId: string, maintenant: Date = new Date()): Promise<Cotisation> {
@@ -113,7 +125,7 @@ export class CotisationsService {
     if (parMembreId !== c.beneficiaireId) throw new ForbiddenException("Seul le bénéficiaire peut confirmer");
     // Mise à jour conditionnelle : deux confirmations simultanées ne comptent qu'une fois.
     const [l] = await this.base.requete<LigneCotisation>(
-      "UPDATE cotisations.cotisations SET statut = 'confirmee' WHERE id = $1 AND statut = 'declaree' RETURNING *",
+      "UPDATE cotisations.cotisations SET statut = 'confirmee', en_litige = false WHERE id = $1 AND statut = 'declaree' RETURNING *",
       [id],
     );
     if (!l) throw new BadRequestException("Aucun paiement déclaré à confirmer");
@@ -128,7 +140,7 @@ export class CotisationsService {
    */
   async validerApresLitige(id: string): Promise<Cotisation> {
     const [l] = await this.base.requete<LigneCotisation>(
-      "UPDATE cotisations.cotisations SET statut = 'confirmee' WHERE id = $1 AND statut = 'declaree' RETURNING *",
+      "UPDATE cotisations.cotisations SET statut = 'confirmee', en_litige = false WHERE id = $1 AND statut = 'declaree' RETURNING *",
       [id],
     );
     if (!l) throw new BadRequestException("Aucun paiement déclaré à valider");
@@ -140,7 +152,8 @@ export class CotisationsService {
   /** Décision d'un litige : paiement refusé, la cotisation redevient due (défaut si la grâce est passée). */
   async remettreDueApresLitige(id: string): Promise<Cotisation> {
     const [l] = await this.base.requete<LigneCotisation>(
-      `UPDATE cotisations.cotisations SET statut = 'due', reference_transaction = NULL, declaree_le = NULL
+      `UPDATE cotisations.cotisations SET statut = 'due', reference_transaction = NULL, declaree_le = NULL,
+         en_litige = false
        WHERE id = $1 AND statut = 'declaree' RETURNING *`,
       [id],
     );

@@ -1,4 +1,4 @@
-import { Inject, Injectable, type OnModuleInit } from "@nestjs/common";
+import { ForbiddenException, Inject, Injectable, type OnModuleInit } from "@nestjs/common";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { calculerScore, resumerHistorique } from "../../score/score.js";
 import { DepotEvenementsScore } from "./depot-evenements-score.js";
@@ -23,9 +23,18 @@ export class ScoreService implements OnModuleInit {
     this.evenements.ecouter("defaut_constate", (e) =>
       this.depot.ajouter(e.membreId, { type: "defaut", cercleId: e.cercleId, date: date() }),
     );
+    this.evenements.ecouter("adhesion_enregistree", (e) => this.depot.ajouterMembre(e.cercleId, e.membreId));
     this.evenements.ecouter("cycle_termine", (e) =>
       this.depot.ajouter(e.membreId, { type: "cycle_termine", cercleId: e.cercleId, date: date() }),
     );
+  }
+
+  /** Score visible par le membre lui-même et par les membres d'un cercle commun (choix de David, 06/11). */
+  async consulterPour(membreId: string, demandeurId: string) {
+    if (membreId !== demandeurId && !(await this.depot.partagentUnCercle(membreId, demandeurId))) {
+      throw new ForbiddenException("Score visible par le membre et par les membres de ses cercles");
+    }
+    return this.consulter(membreId);
   }
 
   async consulter(membreId: string) {

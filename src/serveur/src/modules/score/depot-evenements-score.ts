@@ -16,6 +16,22 @@ export class DepotEvenementsScore {
     ]);
   }
 
+  async ajouterMembre(cercleId: string, membreId: string): Promise<void> {
+    await this.base.requete(
+      "INSERT INTO score.membres_cercles (cercle_id, membre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+      [cercleId, membreId],
+    );
+  }
+
+  async partagentUnCercle(a: string, b: string): Promise<boolean> {
+    const lignes = await this.base.requete(
+      `SELECT 1 FROM score.membres_cercles x JOIN score.membres_cercles y ON y.cercle_id = x.cercle_id
+       WHERE x.membre_id = $1 AND y.membre_id = $2 LIMIT 1`,
+      [a, b],
+    );
+    return lignes.length > 0;
+  }
+
   async lister(membreId: string): Promise<EvenementScore[]> {
     const lignes = await this.base.requete<{ type: TypeEvenementScore; cercle_id: string; date: Date | string }>(
       "SELECT type, cercle_id, date FROM score.evenements WHERE membre_id = $1 ORDER BY id",
