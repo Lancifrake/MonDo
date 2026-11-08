@@ -45,7 +45,11 @@ async function cercleComplet(r: Reglement = reglementDe()) {
     await client.requete(
       "POST",
       "/cercles",
-      { reglement: r, signature: await org.signer(messageReglement(org.id, r)) },
+      {
+        reglement: r,
+        placeSouhaitee: r.nombreMembres,
+        signature: await org.signer(messageReglement(org.id, r, r.nombreMembres)),
+      },
       org,
     )
   ).json()) as Cercle;
@@ -53,7 +57,12 @@ async function cercleComplet(r: Reglement = reglementDe()) {
     await client.requete(
       "POST",
       `/cercles/${cercle.id}/adhesions`,
-      { signature: await m.signer(messageEngagement(cercle.id, cercle.empreinteReglement, m.id)) },
+      {
+        placeSouhaitee: cercle.reglement.nombreMembres,
+        signature: await m.signer(
+          messageEngagement(cercle.id, cercle.empreinteReglement, m.id, cercle.reglement.nombreMembres),
+        ),
+      },
       m,
     );
   }

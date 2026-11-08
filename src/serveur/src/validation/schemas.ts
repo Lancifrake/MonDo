@@ -56,8 +56,14 @@ export const schemaReglement = z
     }
   });
 
-export const schemaCreationCercle = z.strictObject({ reglement: schemaReglement, signature: z.string().min(1) });
-export const schemaAdhesion = z.strictObject({ signature: z.string().min(1) });
+/** Place souhaitée, signée dans l'engagement (1 = premier à recevoir) ; bornée au nombre de membres par le service. */
+const schemaPlace = z.number().int().min(1).max(50);
+export const schemaCreationCercle = z.strictObject({
+  reglement: schemaReglement,
+  placeSouhaitee: schemaPlace,
+  signature: z.string().min(1),
+});
+export const schemaAdhesion = z.strictObject({ placeSouhaitee: schemaPlace, signature: z.string().min(1) });
 
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
