@@ -64,7 +64,11 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       await client.requete(
         "POST",
         "/cercles",
-        { reglement: r, signature: await org.signer(messageReglement(org.id, r)) },
+        {
+          reglement: r,
+          placeSouhaitee: r.nombreMembres,
+          signature: await org.signer(messageReglement(org.id, r, r.nombreMembres)),
+        },
         org,
       )
     ).json()) as Cercle;
@@ -72,7 +76,12 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       client.requete(
         "POST",
         `/cercles/${cercle.id}/adhesions`,
-        { signature: await m.signer(messageEngagement(cercle.id, cercle.empreinteReglement, m.id)) },
+        {
+          placeSouhaitee: cercle.reglement.nombreMembres,
+          signature: await m.signer(
+            messageEngagement(cercle.id, cercle.empreinteReglement, m.id, cercle.reglement.nombreMembres),
+          ),
+        },
         m,
       );
     expect((await adherer(await client.inscrire())).status).toBe(201);

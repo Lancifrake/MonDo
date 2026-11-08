@@ -260,6 +260,12 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE INDEX membres_cercles_membre ON score.membres_cercles (membre_id);
       INSERT INTO score.membres_cercles (cercle_id, membre_id) SELECT cercle_id, membre_id FROM cercles.adhesions`,
   },
+  {
+    // Choix de la place (choix de David, 08/11) : place souhaitée, signée dans l'engagement. Vide pour les
+    // adhésions d'avant : ces cercles gardent l'ordre par score.
+    nom: "019_place_souhaitee",
+    sql: `ALTER TABLE cercles.adhesions ADD COLUMN place_souhaitee integer`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

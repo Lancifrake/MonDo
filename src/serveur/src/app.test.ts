@@ -83,7 +83,11 @@ describe("Cotisations -> Score, par événements seulement", () => {
       await client.requete(
         "POST",
         "/cercles",
-        { reglement: r, signature: await luc.signer(messageReglement(luc.id, r)) },
+        {
+          reglement: r,
+          placeSouhaitee: r.nombreMembres,
+          signature: await luc.signer(messageReglement(luc.id, r, r.nombreMembres)),
+        },
         luc,
       )
     ).json()) as Cercle;

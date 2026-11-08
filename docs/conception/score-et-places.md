@@ -30,13 +30,16 @@ Exemple pour un cercle hebdomadaire de 10 membres : après un cycle sans retard,
 2. **Milieu** : à partir d'un score modeste (proposition : 30).
 3. **Fin de cycle** : ouvert à tous, y compris aux nouveaux.
 
-Dans chaque zone, ordre par score décroissant. Égalité : ordre d'inscription au cercle. Pas de tirage au sort (le tirage par blockhash de Rota est manipulable).
+**Choix de la place (choix de David, 08/11, codé)** : le score ouvre les zones, le membre choisit. Chacun signe la place qu'il souhaite en rejoignant le cercle (l'organisateur avec le règlement), jamais plus tôt que ce que permet son score, toujours possible plus tard. L'attribution se fait quand le cercle est complet (`src/serveur/src/score/attribution-des-places.ts`) :
+1. par priorité, score décroissant puis premier inscrit, chacun obtient sa place si elle est libre, sinon la place libre la plus proche parmi celles que permet son score, la plus tardive à égalité ;
+2. ceux qui ne trouvent aucune place permise (cercle de nouveaux) prennent les places restantes, le mieux classé la plus tôt.
+Pas de tirage au sort (le tirage par blockhash de Rota est manipulable), jamais d'enchères. Les cercles créés avant le 08/11, sans place souhaitée, gardent l'ordre par zones puis score décroissant.
 
 ## Les frais pour avancer
 Un membre éligible à une zone peut payer pour passer devant un autre membre de cette même zone qui accepte de lui céder sa place. Celui qui cède reçoit une part des frais (le « bonus des derniers » du PDF). Un score trop bas ne s'achète jamais. Pourcentage et répartition des frais à décider (le PDF cite 3 % pour Christelle ; MoneyFellows environ 6 % d'après le PDF).
 
 ## Cas limites
-- **Cercle composé uniquement de nouveaux** : la zone de début reste vide, ordre d'inscription au cercle.
+- **Cercle composé uniquement de nouveaux** : les premiers inscrits obtiennent les places de fin qu'ils ont demandées, les suivants prennent les places restantes dans l'ordre d'inscription (choix de David, 08/11).
 - **Faux compte** : un défaillant qui recrée un compte repart à 0, donc en fin de cycle. Mais avec seulement un numéro de téléphone, il peut revenir sans limite avec une nouvelle carte SIM. La vérification d'identité de niveau 2 (carte d'identité) est exigée pour les cercles d'inconnus et pour recevoir une cagnotte, ce qui rend le retour beaucoup plus difficile.
 - **Groupe qui gonfle ses scores puis prend une grosse cagnotte** : le seuil qui monte avec la cagnotte limite le risque sans le supprimer. À tester en simulation.
 

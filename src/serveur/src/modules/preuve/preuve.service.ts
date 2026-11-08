@@ -141,9 +141,15 @@ export class PreuveService implements OnModuleInit {
       this.cercles.adhesion(cercleId, debiteurId),
       this.cercles.adhesion(cercleId, cercle.organisateurId),
     ]);
-    const msgReglement = messageReglement(cercle.organisateurId, cercle.reglement);
+    const msgReglement = messageReglement(
+      cercle.organisateurId,
+      cercle.reglement,
+      adhesionOrganisateur!.placeSouhaitee,
+    );
     const msgEngagement =
-      adhesionDebiteur!.rang === 1 ? msgReglement : messageEngagement(cercleId, cercle.empreinteReglement, debiteurId);
+      adhesionDebiteur!.rang === 1
+        ? msgReglement
+        : messageEngagement(cercleId, cercle.empreinteReglement, debiteurId, adhesionDebiteur!.placeSouhaitee);
 
     const dossier: DossierDePreuve = {
       genereLe: new Date().toISOString(),

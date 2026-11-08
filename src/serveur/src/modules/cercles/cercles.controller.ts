@@ -22,7 +22,7 @@ export class CerclesController {
     @MembreAuthentifie() membreId: string,
     @Body(new ValidationSchema(schemaAdhesion)) corps: (typeof schemaAdhesion)["_output"],
   ) {
-    return this.cercles.rejoindre(id, { membreId, signature: corps.signature });
+    return this.cercles.rejoindre(id, { membreId, placeSouhaitee: corps.placeSouhaitee, signature: corps.signature });
   }
 
   @Get(":id")

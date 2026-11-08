@@ -17,7 +17,8 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
   2. dans ce périmètre, le membre choisit sa place en rejoignant le cercle, et ce choix fait partie de son engagement signé ;
   3. deux membres veulent la même place : le meilleur score passe, puis le premier inscrit ; jamais d'enchères ;
   4. on peut toujours choisir plus tard que ce que permet son score, jamais plus tôt (le score ne s'achète pas) ;
-  5. place de tête sans candidat autorisé (cercle de nouveaux) : comme aujourd'hui, elle revient au meilleur score présent, puis au premier inscrit, et il le sait avant de signer (proposition, à valider).
+  5. place de tête sans candidat autorisé (cercle de nouveaux) : elle revient au mieux classé de ceux qui n'ont pas trouvé de place permise ;
+  6. modalités choisies par David le 08/11 et codées : attribution à la complétion (chacun signe sa place souhaitée et la règle), en cas de conflit la place libre la plus proche permise, plutôt après ; chacun voit sa place définitive avant le premier tour.
   Les frais en tête et la remise en fin (question 1) équilibreraient naturellement les choix ; c'est aussi la pratique de MoneyFellows, où la place se choisit à l'adhésion et où les premières places se débloquent par l'évaluation du membre.
 
 ## Résumé
