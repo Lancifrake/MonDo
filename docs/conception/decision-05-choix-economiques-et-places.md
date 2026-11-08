@@ -12,6 +12,13 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
 - **Cercle terminé** à la fin de grâce du dernier tour, impayés ou non.
 - **Période libre** : hebdomadaire, mensuelle, ou tous les N jours (1 à 60) au choix du cercle, ouvert comme privé ; délai de grâce plus court que la période.
 - **Score de départ à 0** (27/10).
+- **Choix de la place, « le score ouvre, le membre choisit »** (08/11, à confirmer en équipe). Un bon score ne veut pas dire qu'on veut recevoir tôt : beaucoup font une tontine pour épargner. Règle :
+  1. le score fixe les zones auxquelles on a droit (zones et seuils de `score-et-places.md`) : sous le seuil du milieu, seulement la fin ; au-dessus, le milieu ou la fin ; au-dessus du seuil du début, n'importe quelle place ;
+  2. dans ce périmètre, le membre choisit sa place en rejoignant le cercle, et ce choix fait partie de son engagement signé ;
+  3. deux membres veulent la même place : le meilleur score passe, puis le premier inscrit ; jamais d'enchères ;
+  4. on peut toujours choisir plus tard que ce que permet son score, jamais plus tôt (le score ne s'achète pas) ;
+  5. place de tête sans candidat autorisé (cercle de nouveaux) : comme aujourd'hui, elle revient au meilleur score présent, puis au premier inscrit, et il le sait avant de signer (proposition, à valider).
+  Les frais en tête et la remise en fin (question 1) équilibreraient naturellement les choix ; c'est aussi la pratique de MoneyFellows, où la place se choisit à l'adhésion et où les premières places se débloquent par l'évaluation du membre.
 
 ## Résumé
 | N° | Question | Recommandation | Qui décide | Débloque |
@@ -20,8 +27,8 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
 | 2 | Comment partager les frais ? | à chiffrer, exemple en trois parts | équipe | le calcul des frais et du bonus des derniers |
 | 3 | Comment MonDo encaisse-t-il ses frais sans toucher l'argent ? | le bénéficiaire paie MonDo au prototype | équipe | le suivi des frais dus |
 | 4 | Faut-il un plafond de cagnotte pour les nouveaux membres ? | oui, selon le score | équipe | l'adhésion à un cercle |
-| 5 | Un membre peut-il reculer librement ? | oui, jamais avancer au-delà de son score | équipe | l'échange de places |
-| 6 | Quels modes d'ordre propose-t-on ? | score obligatoire en cercle ouvert, ordre fixé possible en cercle privé | équipe | le règlement et le calcul de l'ordre |
+| 5 | Un membre peut-il reculer librement ? | réglé par le choix de la place (08/11) | équipe | l'échange de places |
+| 6 | Quels modes d'ordre propose-t-on ? | choix encadré par le score (08/11) ; reste : ordre fixé en cercle privé | équipe | le règlement et le calcul de l'ordre |
 | 7 | Comment trancher deux demandes pour la même place ? | score, puis ordre d'inscription ; jamais d'enchères | équipe | l'échange de places |
 | 8 | À qui revient la pénalité de retard ? | au bénéficiaire du tour | équipe, puis juriste | la mise en demeure et le relevé |
 | 9 | Que se passe-t-il si un membre quitte le cercle en cours de cycle ? | à discuter, rien n'est cadré | équipe | le départ (−15) |
@@ -68,11 +75,15 @@ Dans un cercle où tous les membres sont nouveaux (score 0), quelqu'un doit quan
 **Recommandation : la règle 1**, la plus simple et la plus solide. Elle répond aussi à la fraude préparée sur la durée (trois petits cycles parfaits, puis fuite avec une grosse cagnotte) : on ne reçoit pas tôt une cagnotte bien plus grosse que celles qu'on a déjà remboursées. Montants à fixer.
 
 ## 5. Droit de reculer
+**Réglé par le choix de la place (08/11)** : chacun choisit sa place dans le périmètre de son score, donc peut toujours se placer plus tard. Reste à voir si l'on peut aussi changer de place une fois le cercle complet (échange signé à deux, flow 5).
+
 Reculer ne met personne en danger : celui qui passe en dernier fait confiance aux autres et ne peut pas partir avec l'argent.
 
 **Recommandation** : on peut toujours reculer librement, on n'avance jamais au-delà de ce que permet son score. Avec le modèle A, celui qui recule touche en plus le bonus des derniers.
 
 ## 6. Mode d'ordre
+**En partie réglé (08/11)** : le mode par défaut devient le choix encadré par le score (voir « Déjà décidé »), en cercle ouvert comme privé. Reste à trancher : l'ordre fixé par l'organisateur en cercle privé, et le tirage au sort.
+
 Le règlement a déjà un champ « cercle ouvert ou privé ». On peut y ajouter un mode d'ordre :
 - **Par score** : obligatoire pour un cercle ouvert à des inconnus.
 - **Fixé par l'organisateur** : seulement pour un cercle privé. L'ordre est écrit dans le règlement et chaque membre le signe en le connaissant. Le score reste visible, à titre d'information.
