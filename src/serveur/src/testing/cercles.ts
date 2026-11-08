@@ -25,18 +25,24 @@ export const reglementDeTest = (extra: Partial<Reglement> = {}): Reglement => ({
   ...extra,
 });
 
-export async function creerCercle(client: Client, org: Identite, r: Reglement) {
+/** Place souhaitée par défaut : la dernière, toujours permise quel que soit le score. */
+export async function creerCercle(client: Client, org: Identite, r: Reglement, placeSouhaitee = r.nombreMembres) {
   return client.requete(
     "POST",
     "/cercles",
-    { reglement: r, signature: await org.signer(messageReglement(org.id, r)) },
+    { reglement: r, placeSouhaitee, signature: await org.signer(messageReglement(org.id, r, placeSouhaitee)) },
     org,
   );
 }
 
-export async function adherer(client: Client, cercle: Cercle, m: Identite) {
-  const signature = await m.signer(messageEngagement(cercle.id, cercle.empreinteReglement, m.id));
-  return client.requete("POST", `/cercles/${cercle.id}/adhesions`, { signature }, m);
+export async function adherer(
+  client: Client,
+  cercle: Pick<Cercle, "id" | "empreinteReglement" | "reglement">,
+  m: Identite,
+  placeSouhaitee = cercle.reglement.nombreMembres,
+) {
+  const signature = await m.signer(messageEngagement(cercle.id, cercle.empreinteReglement, m.id, placeSouhaitee));
+  return client.requete("POST", `/cercles/${cercle.id}/adhesions`, { placeSouhaitee, signature }, m);
 }
 
 /** Cercle complet : l'organisateur puis les autres membres, dans l'ordre d'inscription. Rend le cercle avec son ordre figé. */

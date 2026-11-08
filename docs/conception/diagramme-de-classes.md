@@ -35,9 +35,9 @@ Relations :
 |---|---|---|
 | **Cercle** | id : UUID ; statut : StatutCercle ; creeLe : DateTime ; termineLe : DateTime [0..1] | |
 | **Reglement** | montant : Integer ; frequence : Frequence ; periodeJours : Integer {1..60} [0..1] ; nombreMembres : Integer {3..50} ; penaliteRetard : Integer ; delaiGraceJours : Integer {0..30, plus court que la période} ; ouvert : Boolean ; rappelsAvantEcheanceJours : Integer [0..5] ; datePremierTour : DateTime ; empreinte : String | signé par l'organisateur, figé |
-| **Adhesion** | rang : Integer ; adhereLe : DateTime | rang 1 = organisateur |
+| **Adhesion** | rang : Integer ; placeSouhaitee : Integer ; adhereLe : DateTime | rang 1 = organisateur ; place signée dans l'engagement (08/11) |
 | **DocumentSigne** | type : TypeDocument ; message : String ; signature : String ; empreinte : String | message canonique, vérifiable avec la clé publique |
-| **PlaceOrdre** | position : Integer ; zone : Zone | figée quand le cercle est complet |
+| **PlaceOrdre** | position : Integer ; zone : Zone ; placeSouhaitee : Integer | attribuée quand le cercle est complet (score prioritaire, plus proche plutôt après) |
 | **EchangePlace** | id : UUID ; frais : Integer ; proposeLe : DateTime ; expireLe : DateTime ; statut : StatutEchange | expire à 48 h sans seconde signature |
 
 Relations :
