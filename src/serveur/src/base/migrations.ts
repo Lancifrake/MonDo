@@ -395,6 +395,16 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE INDEX sommes_dues_creancier ON cotisations.sommes_dues (creancier_id);
       CREATE INDEX sommes_dues_cercle ON cotisations.sommes_dues (cercle_id)`,
   },
+  {
+    // Pénalité de retard due au bénéficiaire du tour (choix de David, 11/11) : montant du règlement copié sur
+    // chaque cotisation, due une fois, à la fin de grâce. Reprise unique du montant pour les cercles existants.
+    nom: "024_penalite_au_beneficiaire",
+    sql: `
+      ALTER TABLE cotisations.cotisations ADD COLUMN penalite bigint NOT NULL DEFAULT 0;
+      ALTER TABLE cotisations.cotisations ADD COLUMN penalite_due_le timestamptz;
+      UPDATE cotisations.cotisations c SET penalite = (x.reglement->>'penaliteRetard')::bigint
+        FROM cercles.cercles x WHERE x.id::text = c.cercle_id AND c.tour > 0`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

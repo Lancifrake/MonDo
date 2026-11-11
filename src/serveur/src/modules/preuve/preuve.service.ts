@@ -8,7 +8,7 @@ import { canonique } from "../../signature/canonique.js";
 import { CerclesService, messageEngagement, messageReglement, type Reglement } from "../cercles/cercles.service.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
-import { calculerMontantDu, type MontantDu } from "./montants.js";
+import { calculerMontantDu, type LigneReclamee, type MontantDu } from "./montants.js";
 
 export interface MiseEnDemeure {
   id: string;
@@ -17,6 +17,8 @@ export interface MiseEnDemeure {
   tour: number;
   emiseLe: string;
   montantDu: MontantDu;
+  /** Détail par cotisation, avec le bénéficiaire à qui elle et sa pénalité sont dues. Absent avant le 11/11. */
+  lignes?: LigneReclamee[];
   cotisationsDues: string[];
   /** Préparée par le module Preuve, envoyée par l'assistant (décision 04). Canal simulé au prototype. */
   envoi: "a_envoyer" | "envoyee";
@@ -86,10 +88,17 @@ export class PreuveService implements OnModuleInit {
     tour: number,
     constateLe: Date = new Date(),
   ): Promise<MiseEnDemeure | undefined> {
-    const cercle = await this.cercles.trouver(cercleId);
     const dues = (await this.cotisations.listerPour(cercleId, membreId)).filter(
       (c) => c.statut !== "confirmee" && Date.parse(c.dateLimite) <= constateLe.getTime(),
     );
+    // La pénalité n'est due qu'à la fin de grâce de la cotisation, pas dès la date limite.
+    const lignes: LigneReclamee[] = dues.map((c) => ({
+      cotisationId: c.id,
+      tour: c.tour,
+      beneficiaireId: c.beneficiaireId,
+      montant: c.montant,
+      penalite: Date.parse(c.finGrace) <= constateLe.getTime() ? c.penalite : 0,
+    }));
     const contenu = {
       objet: "mise_en_demeure",
       id: randomUUID(),
@@ -97,10 +106,8 @@ export class PreuveService implements OnModuleInit {
       membreId,
       tour,
       emiseLe: constateLe.toISOString(),
-      montantDu: calculerMontantDu(
-        dues.map((c) => c.montant),
-        cercle.reglement.penaliteRetard,
-      ),
+      montantDu: calculerMontantDu(lignes),
+      lignes,
       cotisationsDues: dues.map((c) => c.id),
     };
     const empreinte = hacher(canonique(contenu));

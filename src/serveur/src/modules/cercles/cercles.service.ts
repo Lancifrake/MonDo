@@ -279,7 +279,8 @@ export class CerclesService {
       const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);
       await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
-      const { montant, frequence, periodeJours, delaiGraceJours, datePremierTour, bareme } = cercle.reglement;
+      const { montant, frequence, periodeJours, delaiGraceJours, datePremierTour, bareme, penaliteRetard } =
+        cercle.reglement;
       await this.evenements.publier({
         type: "cercle_complet",
         cercleId,
@@ -288,6 +289,7 @@ export class CerclesService {
         frequence,
         ...(periodeJours ? { periodeJours } : {}),
         delaiGraceJours,
+        penaliteRetard,
         datePremierTour,
         completLe,
         ...(bareme
