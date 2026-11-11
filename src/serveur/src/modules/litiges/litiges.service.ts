@@ -132,6 +132,15 @@ export class LitigesService {
     return lignes.map(versLitige);
   }
 
+  /** Litiges où le membre est partie, du plus récent au plus ancien. */
+  async listerPour(membreId: string): Promise<Litige[]> {
+    const lignes = await this.base.requete<LigneLitige>(
+      "SELECT * FROM litiges.litiges WHERE payeur_id = $1 OR beneficiaire_id = $1 ORDER BY ouvert_le DESC, id",
+      [membreId],
+    );
+    return lignes.map(versLitige);
+  }
+
   /**
    * Le litige est marqué tranché avant d'agir sur la cotisation : la confirmation qui en découle ne le clôt
    * pas une seconde fois. Si la cotisation refuse, le litige redevient ouvert.
