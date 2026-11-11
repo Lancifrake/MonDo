@@ -2,10 +2,12 @@
 
 Date : 04/11/2026. Modèle du domaine validé par David le 03/11 (score comme historique d'événements, Administrateur classe séparée, classes V2 incluses en gris), complété par ce que le code contient (`src/serveur`). Le diagramme se dessine dans Visual Paradigm à partir de ce texte ; une fois dessiné, le fichier VP fait foi et ce texte sert de référence.
 
-Version draw.io à recopier : [`classes/mondo-diagramme-de-classes.drawio`](classes/mondo-diagramme-de-classes.drawio) (à ouvrir sur app.diagrams.net ou dans l'extension VS Code). C'est une aide visuelle tirée de ce texte, pas une source : on ne la tient pas à jour une fois le fichier Visual Paradigm dessiné.
+Version PlantUML à importer dans Visual Paradigm (11/11, à jour) : [`classes/mondo-diagramme-de-classes.puml`](classes/mondo-diagramme-de-classes.puml). Dans Visual Paradigm Online, coller le texte dans l'import PlantUML (langage PlantUML) puis OK : classes, paquetages, énumérations et relations sont créés. C'est une aide tirée de ce texte, pas une source.
+
+Version draw.io (04/11, périmée) : [`classes/mondo-diagramme-de-classes.drawio`](classes/mondo-diagramme-de-classes.drawio). Elle ne contient ni les tours, ni les litiges, ni la place souhaitée ; garder la version PlantUML.
 
 ## Comment le dessiner
-- **Un paquetage par module** du serveur (décision 02) : Comptes et identité, Cercles et règlement, Cotisations, Score et ordre de passage, Planificateur, Dossier de preuve, Assistant, Registre.
+- **Un paquetage par module** du serveur (décision 02) : Comptes et identité, Cercles et règlement, Cotisations, Score et ordre de passage, Planificateur, Dossier de preuve, Litiges, Assistant, Registre.
 - **Classes V2** (phase 2) : remplissage gris, et stéréotype `«V2»`.
 - **Classes calculées** (jamais stockées) : stéréotype `«calculé»`.
 - **Énumérations** : stéréotype `«enumeration»`, regroupées dans un paquetage Types.
@@ -17,7 +19,7 @@ Version draw.io à recopier : [`classes/mondo-diagramme-de-classes.drawio`](clas
 |---|---|---|
 | **Utilisateur** | id : UUID ; numero : String ; nom : String ; niveauIdentite : NiveauIdentite ; creeLe : DateTime | code : `Compte` ; opération `passerAuNiveau2()` |
 | **CleSignature** | clePublique : JWK (ECDSA P-256) ; creeeLe : DateTime ; revoqueeLe : DateTime [0..1] | la clé privée n'est jamais sur le serveur ; une seule clé active |
-| **CodeOtp** | numero : String ; empreinteCode : String ; expireLe : DateTime ; essais : Integer ; consomme : Boolean | 5 min, 5 essais, usage unique |
+| **CodeOtp** | numero : String ; empreinteCode : String ; expireLe : DateTime ; essais : Integer ; consomme : Boolean ; envois : Integer ; fenetreDebut : DateTime | 5 min, 5 essais, usage unique, 5 codes par numéro sur 24 h (06/11) |
 | **PieceIdentite** | type : String ; empreinteRecto : String ; empreinteVerso : String ; empreinteSelfie : String ; verifieeLe : DateTime [0..1] | niveau 2, vérification simulée au prototype |
 | **ContactConfiance** | nom : String ; numero : String ; consentementLe : DateTime [0..1] | exigé au niveau 2, facultatif au niveau 1, aucun engagement financier |
 | **DemandeRecuperation** | id : UUID ; demandeeLe : DateTime ; finDelaiLe : DateTime ; avecContact : Boolean ; statut : StatutRecuperation | 24 à 72 h avec contact, 72 h + CNI et selfie sans |
@@ -81,14 +83,22 @@ Relation : TachePlanifiee 0..* ── 0..1 Cotisation (échéance, retard).
 |---|---|---|
 | **MiseEnDemeure** | id : UUID ; tour : Integer ; emiseLe : DateTime ; montantCotisations : Integer ; montantPenalites : Integer ; montantTotal : Integer ; envoi : EtatEnvoi ; envoyeeLe : DateTime [0..1] ; empreinte : String | montants du règlement signé ; une par défaut constaté |
 | **DossierDePreuve** `«calculé»` | genereLe : DateTime ; empreinte : String | généré à l'export, seulement par les membres lésés |
-| **Litige** | id : UUID ; ouvertPar : OrigineLitige ; motif : String ; ouvertLe : DateTime ; statut : StatutLitige ; decision : DecisionLitige [0..1] ; motifDecision : String [0..1] ; trancheLe : DateTime [0..1] | sur un paiement déclaré non confirmé ; un seul ouvert par cotisation (05/11) |
 
 Relations :
 - MiseEnDemeure 0..* ── 1 Utilisateur rôle « débiteur » ; MiseEnDemeure 0..* ── 1 Cercle ; MiseEnDemeure 0..* ── 1..* Cotisation
 - DossierDePreuve ── 1 Utilisateur rôle « débiteur », 1..* MiseEnDemeure, 1 Reglement, 1..* DocumentSigne, 0..* Cotisation (relevé)
+
+## 7. Litiges
+Module à part dans le code (`src/modules/litiges`) depuis le 05/11.
+
+| Classe | Attributs | Remarques |
+|---|---|---|
+| **Litige** | id : UUID ; ouvertPar : OrigineLitige ; motif : String ; ouvertLe : DateTime ; statut : StatutLitige ; decision : DecisionLitige [0..1] ; motifDecision : String [0..1] ; trancheLe : DateTime [0..1] | sur un paiement déclaré non confirmé ; un seul ouvert par cotisation (05/11) |
+
+Relations :
 - Litige 0..* ── 1 Cotisation ; Litige 0..* ── 0..1 Utilisateur rôle « ouvert par » (aucun si ouverture automatique) ; Litige 0..* ── 0..1 Administrateur rôle « tranche »
 
-## 7. Assistant (décision 04)
+## 8. Assistant (décision 04)
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **ReglageAssistant** | mode : ModeAssistant | manuel par défaut |
@@ -103,7 +113,7 @@ Relations :
 - Coordinateur 1 ── 0..* ActionAssistant (produit)
 - ActionAssistant de type mise_en_demeure ── 0..1 MiseEnDemeure (envoie)
 
-## 8. Registre
+## 9. Registre
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **EmpreinteRegistre** | id : Integer ; empreinte : String | SHA-256, aucune donnée personnelle |
@@ -111,7 +121,7 @@ Relations :
 
 Relation : LotRegistre 0..1 ◆── 1..* EmpreinteRegistre (une empreinte en attente n'a pas encore de lot).
 
-## 9. Classes V2 (en gris)
+## 10. Classes V2 (en gris)
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **FondsDeGarantie** `«V2»` | id : UUID ; plafond : Integer | tenu par un partenaire agréé, jamais par MonDo |
@@ -119,7 +129,7 @@ Relation : LotRegistre 0..1 ◆── 1..* EmpreinteRegistre (une empreinte en a
 
 Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSurPassage ; RetenueSurPassage 0..* ── 1 FondsDeGarantie.
 
-## 10. Énumérations
+## 11. Énumérations
 | Énumération | Valeurs |
 |---|---|
 | NiveauIdentite | 1, 2 |

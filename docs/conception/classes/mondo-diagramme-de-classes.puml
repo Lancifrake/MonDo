@@ -1,0 +1,392 @@
+@startuml
+' MonDo, diagramme de classes (PlantUML), tiré de docs/conception/diagramme-de-classes.md (11/11/2026).
+' À coller dans Visual Paradigm Online : Diagram > Import > PlantUML (langage PlantUML), puis OK.
+' Un paquetage par module du serveur (décision 02). Les liens entre paquetages passent par identifiant.
+
+title MonDo, diagramme de classes
+skinparam classAttributeIconSize 0
+skinparam packageStyle folder
+skinparam shadowing false
+hide empty members
+
+package "1. Comptes et identité" {
+  class Utilisateur {
+    - id : UUID
+    - numero : String
+    - nom : String
+    - niveauIdentite : NiveauIdentite
+    - creeLe : DateTime
+    + passerAuNiveau2()
+  }
+  class CleSignature {
+    - clePublique : JWK
+    - creeeLe : DateTime
+    - revoqueeLe : DateTime [0..1]
+  }
+  class CodeOtp {
+    - numero : String
+    - empreinteCode : String
+    - expireLe : DateTime
+    - essais : Integer
+    - consomme : Boolean
+    - envois : Integer
+    - fenetreDebut : DateTime
+  }
+  class PieceIdentite {
+    - type : String
+    - empreinteRecto : String
+    - empreinteVerso : String
+    - empreinteSelfie : String
+    - verifieeLe : DateTime [0..1]
+  }
+  class ContactConfiance {
+    - nom : String
+    - numero : String
+    - consentementLe : DateTime [0..1]
+  }
+  class DemandeRecuperation {
+    - id : UUID
+    - demandeeLe : DateTime
+    - finDelaiLe : DateTime
+    - avecContact : Boolean
+    - statut : StatutRecuperation
+  }
+  class Administrateur {
+    - id : UUID
+    - nom : String
+  }
+}
+
+package "2. Cercles et règlement" {
+  class Cercle {
+    - id : UUID
+    - statut : StatutCercle
+    - creeLe : DateTime
+    - termineLe : DateTime [0..1]
+  }
+  class Reglement {
+    - montant : Integer
+    - frequence : Frequence
+    - periodeJours : Integer [0..1]
+    - nombreMembres : Integer
+    - penaliteRetard : Integer
+    - delaiGraceJours : Integer
+    - ouvert : Boolean
+    - rappelsAvantEcheanceJours : Integer [0..5]
+    - datePremierTour : DateTime
+    - empreinte : String
+  }
+  class Adhesion {
+    - rang : Integer
+    - placeSouhaitee : Integer
+    - adhereLe : DateTime
+  }
+  class DocumentSigne {
+    - type : TypeDocument
+    - message : String
+    - signature : String
+    - empreinte : String
+  }
+  class PlaceOrdre {
+    - position : Integer
+    - zone : Zone
+    - placeSouhaitee : Integer
+  }
+  class EchangePlace {
+    - id : UUID
+    - frais : Integer
+    - proposeLe : DateTime
+    - expireLe : DateTime
+    - statut : StatutEchange
+  }
+}
+
+package "3. Cotisations" {
+  class Tour {
+    - numero : Integer
+    - dateLimite : DateTime
+  }
+  class Cotisation {
+    - id : UUID
+    - montant : Integer
+    - dateLimite : DateTime
+    - finGrace : DateTime
+    - referenceTransaction : String [0..1]
+    - declareeLe : DateTime [0..1]
+    - enLitige : Boolean
+    - statut : StatutCotisation
+  }
+}
+
+package "4. Score et ordre de passage" {
+  class EvenementScore {
+    - type : TypeEvenementScore
+    - date : DateTime
+  }
+  class Score <<calculé>> {
+    - valeur : Integer
+    - cyclesTermines : Integer
+    - defauts : Integer
+  }
+}
+
+package "5. Planificateur" {
+  class TachePlanifiee {
+    - idUnique : String
+    - type : TypeTache
+    - traiteeLe : DateTime
+  }
+}
+
+package "6. Dossier de preuve" {
+  class MiseEnDemeure {
+    - id : UUID
+    - tour : Integer
+    - emiseLe : DateTime
+    - montantCotisations : Integer
+    - montantPenalites : Integer
+    - montantTotal : Integer
+    - envoi : EtatEnvoi
+    - envoyeeLe : DateTime [0..1]
+    - empreinte : String
+  }
+  class DossierDePreuve <<calculé>> {
+    - genereLe : DateTime
+    - empreinte : String
+  }
+}
+
+package "7. Litiges" {
+  class Litige {
+    - id : UUID
+    - ouvertPar : OrigineLitige
+    - motif : String
+    - ouvertLe : DateTime
+    - statut : StatutLitige
+    - decision : DecisionLitige [0..1]
+    - motifDecision : String [0..1]
+    - trancheLe : DateTime [0..1]
+  }
+}
+
+package "8. Assistant (décision 04)" {
+  class ReglageAssistant {
+    - mode : ModeAssistant
+  }
+  class ActionAssistant {
+    - id : UUID
+    - type : TypeAction
+    - issue : IssueAction
+    - creeeLe : DateTime
+    - trancheeLe : DateTime [0..1]
+  }
+  interface Agent {
+    - nom : NomAgent
+    + recevoir(message : Message) : Message[*]
+  }
+  class Surveillance
+  class Relance
+  class Preuve
+  class Coordinateur
+  class Message {
+    - de : NomAgent
+    - vers : NomAgent
+    - corps : String
+  }
+}
+
+package "9. Registre" {
+  class EmpreinteRegistre {
+    - id : Integer
+    - empreinte : String
+  }
+  class LotRegistre {
+    - id : Integer
+    - racine : String
+    - referenceInscription : String [0..1]
+    - fermeLe : DateTime
+  }
+}
+
+package "10. Phase 2 «V2»" {
+  class FondsDeGarantie <<V2>> #D9D9D9 {
+    - id : UUID
+    - plafond : Integer
+  }
+  class RetenueSurPassage <<V2>> #D9D9D9 {
+    - taux : Decimal
+    - montant : Integer
+  }
+}
+
+package "11. Types" {
+  enum NiveauIdentite {
+    1
+    2
+  }
+  enum Frequence {
+    hebdomadaire
+    mensuelle
+    jours
+  }
+  enum StatutCercle {
+    en_attente
+    complet
+    termine
+  }
+  enum Zone {
+    debut
+    milieu
+    fin
+  }
+  enum TypeDocument {
+    reglement
+    engagement
+  }
+  enum StatutEchange {
+    propose
+    signe
+    expire
+    suspendu
+  }
+  enum StatutCotisation {
+    due
+    declaree
+    confirmee
+  }
+  enum TypeEvenementScore {
+    cotisation_a_temps
+    cotisation_en_retard
+    defaut
+    cycle_termine
+    depart
+  }
+  enum TypeTache {
+    echeance
+    retard
+    defaut
+  }
+  enum EtatEnvoi {
+    a_envoyer
+    envoyee
+  }
+  enum StatutLitige {
+    ouvert
+    tranche
+    clos
+  }
+  enum OrigineLitige {
+    payeur
+    beneficiaire
+    automatique
+  }
+  enum DecisionLitige {
+    paiement_valide
+    paiement_refuse
+    confirme_par_beneficiaire
+  }
+  enum StatutRecuperation {
+    en_attente
+    opposee
+    acceptee
+    bloquee
+  }
+  enum ModeAssistant {
+    autonome
+    manuel
+  }
+  enum TypeAction {
+    rappel
+    rappel_retard
+    mise_en_demeure
+  }
+  enum IssueAction {
+    executee
+    en_attente
+    acceptee
+    refusee
+    hors_reglement
+  }
+  enum NomAgent {
+    surveillance
+    relance
+    preuve
+    coordinateur
+  }
+}
+
+' 1. Comptes et identité
+Utilisateur "1" *-- "1..*" CleSignature
+Utilisateur "1" -- "0..1" PieceIdentite
+Utilisateur "1" -- "0..1" ContactConfiance
+Utilisateur "1" -- "0..*" DemandeRecuperation
+Administrateur "0..1" -- "0..*" DemandeRecuperation : tranche >
+
+' 2. Cercles et règlement
+Cercle "1" *-- "1" Reglement
+Cercle "1" *-- "1..50" Adhesion
+Utilisateur "1" -- "0..*" Adhesion
+Cercle "0..*" -- "1" Utilisateur : organisateur >
+Adhesion "1" *-- "1..*" DocumentSigne
+Cercle "1" *-- "0..*" PlaceOrdre
+PlaceOrdre "0..*" -- "1" Utilisateur
+EchangePlace "0..*" -- "1" Cercle
+EchangePlace "0..*" -- "1" Utilisateur : demandeur >
+EchangePlace "0..*" -- "1" Utilisateur : cédant >
+
+' 3. Cotisations
+Cercle "1" *-- "1..*" Tour
+Tour "0..*" -- "1" Utilisateur : bénéficiaire >
+Tour "1" *-- "0..*" Cotisation
+Cotisation "0..*" -- "1" Utilisateur : payeur >
+
+' 4. Score et ordre de passage
+Utilisateur "1" -- "0..*" EvenementScore
+EvenementScore "0..*" -- "1" Cercle
+Utilisateur "1" -- "1" Score
+Score ..> EvenementScore : calculé à partir de
+
+' 5. Planificateur
+TachePlanifiee "0..*" -- "0..1" Cotisation
+
+' 6. Dossier de preuve
+MiseEnDemeure "0..*" -- "1" Utilisateur : débiteur >
+MiseEnDemeure "0..*" -- "1" Cercle
+MiseEnDemeure "0..*" -- "1..*" Cotisation
+DossierDePreuve "0..*" -- "1" Utilisateur : débiteur >
+DossierDePreuve "0..*" -- "1..*" MiseEnDemeure
+DossierDePreuve "0..*" -- "1" Reglement
+DossierDePreuve "0..*" -- "1..*" DocumentSigne
+DossierDePreuve "0..*" -- "0..*" Cotisation : relevé >
+
+' 7. Litiges
+Litige "0..*" -- "1" Cotisation
+Litige "0..*" -- "0..1" Utilisateur : ouvert par >
+Litige "0..*" -- "0..1" Administrateur : tranche >
+
+' 8. Assistant
+Cercle "1" -- "0..1" ReglageAssistant
+Cercle "1" -- "0..*" ActionAssistant
+ActionAssistant "0..*" -- "1" Utilisateur : cible >
+Surveillance ..|> Agent
+Relance ..|> Agent
+Preuve ..|> Agent
+Coordinateur ..|> Agent
+Coordinateur "1" -- "0..*" ActionAssistant : produit >
+ActionAssistant "0..1" -- "0..1" MiseEnDemeure : envoie >
+
+' 9. Registre
+LotRegistre "0..1" *-- "1..*" EmpreinteRegistre
+
+' 10. Phase 2
+Cercle "1" -- "0..1" FondsDeGarantie
+Tour "1" -- "0..1" RetenueSurPassage
+RetenueSurPassage "0..*" -- "1" FondsDeGarantie
+
+note as Regle
+  Entre paquetages, les liens passent par identifiant :
+  aucune clé étrangère entre schémas (décision 02).
+  «calculé» : jamais stocké. «V2» : phase 2, en gris.
+end note
+
+@enduml
