@@ -14,6 +14,12 @@ const schemaNumero = z.string().regex(/^\+?\d{8,15}$/, "Numéro de téléphone i
 
 export const schemaDemandeOtp = z.strictObject({ numero: schemaNumero });
 
+export const schemaContactConfiance = z.strictObject({
+  nom: z.string().trim().min(1).max(100),
+  numero: schemaNumero,
+});
+export const schemaAccordContact = z.strictObject({ code: z.string().regex(/^\d{6}$/, "Code à 6 chiffres") });
+
 export const schemaInscription = z.strictObject({
   numero: schemaNumero,
   nom: z.string().trim().min(1).max(100),

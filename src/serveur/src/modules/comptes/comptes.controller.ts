@@ -1,8 +1,14 @@
 import { Body, Controller, ForbiddenException, Get, Inject, Param, Post } from "@nestjs/common";
 import { MembreAuthentifie, Public } from "../../authentification/garde.js";
-import { schemaDemandeOtp, schemaInscription } from "../../validation/schemas.js";
+import {
+  schemaAccordContact,
+  schemaContactConfiance,
+  schemaDemandeOtp,
+  schemaInscription,
+} from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
 import { ComptesService } from "./comptes.service.js";
+import { ContactConfianceService } from "./contact-confiance.service.js";
 import { OtpService } from "./otp.service.js";
 
 @Controller("comptes")
@@ -10,6 +16,7 @@ export class ComptesController {
   constructor(
     @Inject(ComptesService) private readonly comptes: ComptesService,
     @Inject(OtpService) private readonly otp: OtpService,
+    @Inject(ContactConfianceService) private readonly contacts: ContactConfianceService,
   ) {}
 
   @Public()
@@ -29,6 +36,28 @@ export class ComptesController {
   async moi(@MembreAuthentifie() membreId: string) {
     const { clePublique: _clePublique, ...compte } = await this.comptes.trouver(membreId);
     return compte;
+  }
+
+  /** Contact de confiance : chacun ne gère que le sien, l'identité vient de la signature. */
+  @Get("moi/contact-de-confiance")
+  contact(@MembreAuthentifie() membreId: string) {
+    return this.contacts.consulter(membreId);
+  }
+
+  @Post("moi/contact-de-confiance")
+  designerContact(
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaContactConfiance)) corps: (typeof schemaContactConfiance)["_output"],
+  ) {
+    return this.contacts.designer(membreId, corps);
+  }
+
+  @Post("moi/contact-de-confiance/accord")
+  accordContact(
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaAccordContact)) corps: (typeof schemaAccordContact)["_output"],
+  ) {
+    return this.contacts.enregistrerAccord(membreId, corps.code);
   }
 
   @Post(":id/niveau2")

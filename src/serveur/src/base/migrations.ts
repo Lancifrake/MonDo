@@ -266,6 +266,24 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
     nom: "019_place_souhaitee",
     sql: `ALTER TABLE cercles.adhesions ADD COLUMN place_souhaitee integer`,
   },
+  {
+    // Contact de confiance (flow 1) : un par compte, accord par un code envoyé au contact, gardé haché.
+    nom: "020_contact_confiance",
+    sql: `
+      CREATE TABLE comptes.contacts_confiance (
+        compte_id uuid PRIMARY KEY REFERENCES comptes.comptes (id),
+        nom text NOT NULL,
+        numero text NOT NULL,
+        empreinte_code text NOT NULL,
+        sel text NOT NULL,
+        essais integer NOT NULL,
+        expire_le timestamptz NOT NULL,
+        demande_le timestamptz NOT NULL,
+        consentement_le timestamptz,
+        designations integer NOT NULL,
+        fenetre_debut timestamptz NOT NULL
+      )`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
