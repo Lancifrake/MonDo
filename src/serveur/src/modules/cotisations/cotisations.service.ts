@@ -2,6 +2,9 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type CercleComplet } from "../../evenements/evenements-internes.js";
+import { FileSms } from "../../sms/file-sms.js";
+import { fcfa } from "../../sms/montant.js";
+import { ComptesService } from "../comptes/comptes.service.js";
 import { calendrierDesTours } from "./calendrier.js";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -20,6 +23,8 @@ export interface Cotisation {
   referenceTransaction?: string;
   /** Moment de la déclaration du paiement par le payeur. */
   declareeLe?: string;
+  /** Litige ouvert : la déclaration est gelée et le bénéficiaire n'est plus relancé. */
+  enLitige: boolean;
   statut: "due" | "declaree" | "confirmee";
 }
 
@@ -42,6 +47,7 @@ interface LigneCotisation extends Record<string, unknown> {
   fin_grace: Date | string | null;
   reference_transaction: string | null;
   declaree_le?: Date | string | null;
+  en_litige?: boolean | null;
   statut: Cotisation["statut"];
 }
 
@@ -56,6 +62,7 @@ const versCotisation = (l: LigneCotisation): Cotisation => ({
   finGrace: new Date(l.fin_grace ?? l.date_limite).toISOString(),
   ...(l.reference_transaction ? { referenceTransaction: l.reference_transaction } : {}),
   ...(l.declaree_le ? { declareeLe: new Date(l.declaree_le).toISOString() } : {}),
+  enLitige: l.en_litige === true,
   statut: l.statut,
 });
 
@@ -65,8 +72,35 @@ export class CotisationsService {
   constructor(
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
+    @Inject(ComptesService) private readonly comptes: ComptesService,
+    @Inject(FileSms) private readonly sms: FileSms,
   ) {
     this.evenements.ecouter("cercle_complet", (e) => this.planifierTours(e));
+    this.evenements.ecouter("confirmation_attendue", (e) => this.relancerBeneficiaire(e.cotisationId, e.palierHeures));
+  }
+
+  /**
+   * Rappel au bénéficiaire à 24 h puis à 48 h (flow 6) : son silence ne vaut pas confirmation. L'état est relu
+   * au moment d'écrire : rien si le paiement a été confirmé ou si un litige s'est ouvert entre-temps. Le SMS ne
+   * nomme pas le payeur et ne reprend pas la référence : le détail se lit dans l'application.
+   */
+  private async relancerBeneficiaire(cotisationId: string, palierHeures: 24 | 48): Promise<void> {
+    const c = await this.trouver(cotisationId);
+    if (c.statut !== "declaree" || c.enLitige) return;
+    const beneficiaire = await this.comptes.chercher(c.beneficiaireId);
+    if (!beneficiaire) return;
+    const debut = `MonDo : un membre déclare vous avoir payé ${fcfa(c.montant)} (tour ${c.tour}).`;
+    const texte =
+      palierHeures === 24
+        ? `${debut} Vérifiez votre compte Mobile Money puis confirmez la réception dans l'application.`
+        : `${debut} Second rappel : confirmez la réception, ou signalez que vous n'avez rien reçu.`;
+    // La clé suit la déclaration : une nouvelle déclaration après un refus relance de nouveau.
+    await this.sms.mettreEnFile(
+      `relance_confirmation:${c.id}:${c.declareeLe ?? ""}:${palierHeures}`,
+      beneficiaire.numero,
+      texte,
+    );
+    this.sms.declencher();
   }
 
   /**

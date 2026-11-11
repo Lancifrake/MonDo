@@ -1,9 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type EvenementInterne } from "../../evenements/evenements-internes.js";
-import { CotisationsService } from "../cotisations/cotisations.service.js";
+import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
 
-const JOUR_MS = 24 * 60 * 60 * 1000;
+const HEURE_MS = 60 * 60 * 1000;
+const JOUR_MS = 24 * HEURE_MS;
 
 /** Tâches rejouables : un identifiant unique par tâche évite de traiter deux fois la même chose (décision 02, règle 5). */
 @Injectable()
@@ -62,7 +63,14 @@ export class PlanificateurService {
       }
     }
     for (const c of await this.cotisations.listerDeclarees()) {
-      if (maintenant.getTime() <= Date.parse(c.finGrace)) continue;
+      if (maintenant.getTime() <= Date.parse(c.finGrace)) {
+        try {
+          if (await this.relancerConfirmation(c, maintenant)) traitees++;
+        } catch {
+          echecs++;
+        }
+        continue;
+      }
       try {
         // Une nouvelle déclaration (après un refus) peut rouvrir un litige : l'identifiant suit la déclaration.
         const idTache = `litige:${c.id}:${c.declareeLe ?? ""}`;
@@ -79,6 +87,23 @@ export class PlanificateurService {
     }
     const cycles = await this.examinerFinsDeCycle(maintenant);
     return { traitees: traitees + cycles.traitees, echecs: echecs + cycles.echecs };
+  }
+
+  /**
+   * Paiement déclaré, ni confirmé ni en litige : le bénéficiaire est relancé 24 h puis 48 h après la
+   * déclaration (flow 6). Une seule relance par palier et par déclaration ; après un arrêt de deux jours,
+   * seule celle de 48 h part.
+   */
+  private async relancerConfirmation(c: Cotisation, maintenant: Date): Promise<boolean> {
+    if (c.enLitige || !c.declareeLe) return false;
+    const attente = maintenant.getTime() - Date.parse(c.declareeLe);
+    if (attente < 24 * HEURE_MS) return false;
+    const palierHeures = attente >= 48 * HEURE_MS ? 48 : 24;
+    return this.traiterUneFois(`relance_confirmation:${c.id}:${c.declareeLe}:${palierHeures}`, {
+      type: "confirmation_attendue",
+      cotisationId: c.id,
+      palierHeures,
+    });
   }
 
   /**
