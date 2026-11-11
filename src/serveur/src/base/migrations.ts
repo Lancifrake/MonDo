@@ -284,6 +284,43 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         fenetre_debut timestamptz NOT NULL
       )`,
   },
+  {
+    // Vérification d'identité interne (choix de David, 11/11). Les images sont dans le stockage d'objets
+    // chiffré : la base ne garde que la clé de stockage et une empreinte. Un seul dossier en attente par compte.
+    nom: "021_verification_identite",
+    sql: `
+      CREATE TABLE comptes.verifications_identite (
+        id uuid PRIMARY KEY,
+        compte_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        type_piece text NOT NULL,
+        consentement_le timestamptz NOT NULL,
+        version_consentement text NOT NULL,
+        deposee_le timestamptz NOT NULL,
+        statut text NOT NULL CHECK (statut IN ('en_attente', 'validee', 'refusee')),
+        motif_decision text,
+        decidee_par uuid,
+        decidee_le timestamptz,
+        dernier_cercle_termine_le timestamptz
+      );
+      CREATE UNIQUE INDEX verification_en_attente ON comptes.verifications_identite (compte_id)
+        WHERE statut = 'en_attente';
+      CREATE INDEX verifications_compte ON comptes.verifications_identite (compte_id, deposee_le);
+      CREATE TABLE comptes.pieces_identite (
+        verification_id uuid NOT NULL REFERENCES comptes.verifications_identite (id),
+        nature text NOT NULL CHECK (nature IN ('recto', 'verso', 'selfie')),
+        cle_stockage text NOT NULL,
+        empreinte text NOT NULL,
+        supprimee_le timestamptz,
+        PRIMARY KEY (verification_id, nature)
+      );
+      CREATE TABLE comptes.acces_pieces (
+        id bigserial PRIMARY KEY,
+        verification_id uuid NOT NULL,
+        nature text NOT NULL,
+        administrateur_id uuid NOT NULL,
+        consultee_le timestamptz NOT NULL DEFAULT now()
+      )`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

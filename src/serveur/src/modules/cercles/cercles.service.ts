@@ -122,7 +122,21 @@ export class CerclesService {
       "UPDATE cercles.cercles SET statut = 'termine', termine_le = $2 WHERE id = $1 AND statut = 'complet' RETURNING id",
       [cercleId, termineLe],
     );
-    if (fini.length > 0) await this.registre.enregistrer(canonique({ objet: "fin_cercle", cercleId, termineLe }));
+    if (fini.length === 0) return;
+    await this.registre.enregistrer(canonique({ objet: "fin_cercle", cercleId, termineLe }));
+    for (const membreId of await this.membres(this.base, cercleId)) {
+      await this.evenements.publier({ type: "fin_de_cercle_pour_membre", cercleId, membreId, termineLe });
+    }
+  }
+
+  /** Vrai si le membre est dans un cercle qui n'est pas terminé (en attente ou en cours). */
+  async aUnCercleEnCours(membreId: string): Promise<boolean> {
+    const lignes = await this.base.requete(
+      `SELECT 1 FROM cercles.adhesions a JOIN cercles.cercles c ON c.id = a.cercle_id
+       WHERE a.membre_id = $1 AND c.statut <> 'termine' LIMIT 1`,
+      [membreId],
+    );
+    return lignes.length > 0;
   }
 
   async creer(
