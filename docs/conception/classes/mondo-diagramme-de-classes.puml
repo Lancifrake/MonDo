@@ -7,9 +7,15 @@ title MonDo, diagramme de classes
 skinparam classAttributeIconSize 0
 skinparam packageStyle folder
 skinparam shadowing false
+skinparam linetype ortho
+skinparam nodesep 90
+skinparam ranksep 110
+skinparam defaultFontSize 12
+skinparam packageBorderColor #555555
+skinparam ArrowColor #333333
 hide empty members
 
-package "1. Comptes et identité" {
+package "1 Comptes et identité" {
   class Utilisateur {
     - id : UUID
     - numero : String
@@ -57,7 +63,7 @@ package "1. Comptes et identité" {
   }
 }
 
-package "2. Cercles et règlement" {
+package "2 Cercles et règlement" {
   class Cercle {
     - id : UUID
     - statut : StatutCercle
@@ -101,7 +107,7 @@ package "2. Cercles et règlement" {
   }
 }
 
-package "3. Cotisations" {
+package "3 Cotisations" {
   class Tour {
     - numero : Integer
     - dateLimite : DateTime
@@ -118,7 +124,7 @@ package "3. Cotisations" {
   }
 }
 
-package "4. Score et ordre de passage" {
+package "4 Score et ordre de passage" {
   class EvenementScore {
     - type : TypeEvenementScore
     - date : DateTime
@@ -130,7 +136,7 @@ package "4. Score et ordre de passage" {
   }
 }
 
-package "5. Planificateur" {
+package "5 Planificateur" {
   class TachePlanifiee {
     - idUnique : String
     - type : TypeTache
@@ -138,7 +144,7 @@ package "5. Planificateur" {
   }
 }
 
-package "6. Dossier de preuve" {
+package "6 Dossier de preuve" {
   class MiseEnDemeure {
     - id : UUID
     - tour : Integer
@@ -156,7 +162,7 @@ package "6. Dossier de preuve" {
   }
 }
 
-package "7. Litiges" {
+package "7 Litiges" {
   class Litige {
     - id : UUID
     - ouvertPar : OrigineLitige
@@ -169,7 +175,7 @@ package "7. Litiges" {
   }
 }
 
-package "8. Assistant (décision 04)" {
+package "8 Assistant (décision 04)" {
   class ReglageAssistant {
     - mode : ModeAssistant
   }
@@ -195,7 +201,7 @@ package "8. Assistant (décision 04)" {
   }
 }
 
-package "9. Registre" {
+package "9 Registre" {
   class EmpreinteRegistre {
     - id : Integer
     - empreinte : String
@@ -208,7 +214,7 @@ package "9. Registre" {
   }
 }
 
-package "10. Phase 2 «V2»" {
+package "10 Phase 2 «V2»" {
   class FondsDeGarantie <<V2>> #D9D9D9 {
     - id : UUID
     - plafond : Integer
@@ -219,7 +225,7 @@ package "10. Phase 2 «V2»" {
   }
 }
 
-package "11. Types" {
+package "11 Types" {
   enum NiveauIdentite {
     1
     2
@@ -315,73 +321,98 @@ package "11. Types" {
   }
 }
 
-' 1. Comptes et identité
-Utilisateur "1" *-- "1..*" CleSignature
-Utilisateur "1" -- "0..1" PieceIdentite
-Utilisateur "1" -- "0..1" ContactConfiance
-Utilisateur "1" -- "0..*" DemandeRecuperation
-Administrateur "0..1" -- "0..*" DemandeRecuperation : tranche >
+' Les directions sont imposées (up, down, left, right) pour garder les paquetages en grille :
+' rangée 1 Assistant et satellites de Comptes ; rangée 2 Cercle et Utilisateur (les deux pivots) ;
+' rangée 3 Cotisations et Score ; rangée 4 Litiges, Planificateur, Dossier de preuve ; puis Phase 2, Registre et Types.
 
-' 2. Cercles et règlement
-Cercle "1" *-- "1" Reglement
-Cercle "1" *-- "1..50" Adhesion
-Utilisateur "1" -- "0..*" Adhesion
-Cercle "0..*" -- "1" Utilisateur : organisateur >
-Adhesion "1" *-- "1..*" DocumentSigne
-Cercle "1" *-- "0..*" PlaceOrdre
-PlaceOrdre "0..*" -- "1" Utilisateur
-EchangePlace "0..*" -- "1" Cercle
-EchangePlace "0..*" -- "1" Utilisateur : demandeur >
-EchangePlace "0..*" -- "1" Utilisateur : cédant >
+' 1 Comptes et identité : les satellites au-dessus de Utilisateur
+CleSignature "1..*" -down-* "1" Utilisateur
+PieceIdentite "0..1" -down- "1" Utilisateur
+ContactConfiance "0..1" -down- "1" Utilisateur
+DemandeRecuperation "0..*" -down- "1" Utilisateur
+DemandeRecuperation "0..*" -left- "0..1" Administrateur : < tranche
 
-' 3. Cotisations
-Cercle "1" *-- "1..*" Tour
-Tour "0..*" -- "1" Utilisateur : bénéficiaire >
-Tour "1" *-- "0..*" Cotisation
-Cotisation "0..*" -- "1" Utilisateur : payeur >
+' 2 Cercles et règlement : Cercle à gauche de Utilisateur
+Utilisateur "1" -right- "0..*" Cercle : < organisateur
+Cercle "1" *-down- "1" Reglement
+Cercle "1" *-down- "1..50" Adhesion
+Cercle "1" *-down- "0..*" PlaceOrdre
+Adhesion "1" *-down- "1..*" DocumentSigne
+Utilisateur "1" -right- "0..*" Adhesion
+Utilisateur "1" -right- "0..*" PlaceOrdre
+EchangePlace "0..*" -down- "1" Cercle
+Utilisateur "1" -right- "0..*" EchangePlace : < demandeur
+Utilisateur "1" -right- "0..*" EchangePlace : < cédant
 
-' 4. Score et ordre de passage
-Utilisateur "1" -- "0..*" EvenementScore
-EvenementScore "0..*" -- "1" Cercle
-Utilisateur "1" -- "1" Score
-Score ..> EvenementScore : calculé à partir de
+' 3 Cotisations : sous Cercle
+Cercle "1" *-down- "1..*" Tour
+Tour "1" *-down- "0..*" Cotisation
+Utilisateur "1" -down- "0..*" Tour : < bénéficiaire
+Utilisateur "1" -down- "0..*" Cotisation : < payeur
 
-' 5. Planificateur
-TachePlanifiee "0..*" -- "0..1" Cotisation
+' 4 Score et ordre de passage : sous Utilisateur
+Utilisateur "1" -down- "1" Score
+Score .down.> EvenementScore : calculé à partir de
+EvenementScore "0..*" -up- "1" Utilisateur
+EvenementScore "0..*" -up- "1" Cercle
 
-' 6. Dossier de preuve
-MiseEnDemeure "0..*" -- "1" Utilisateur : débiteur >
-MiseEnDemeure "0..*" -- "1" Cercle
-MiseEnDemeure "0..*" -- "1..*" Cotisation
-DossierDePreuve "0..*" -- "1" Utilisateur : débiteur >
-DossierDePreuve "0..*" -- "1..*" MiseEnDemeure
-DossierDePreuve "0..*" -- "1" Reglement
-DossierDePreuve "0..*" -- "1..*" DocumentSigne
-DossierDePreuve "0..*" -- "0..*" Cotisation : relevé >
+' 5 Planificateur : sous Cotisation
+Cotisation "0..1" -down- "0..*" TachePlanifiee
 
-' 7. Litiges
-Litige "0..*" -- "1" Cotisation
-Litige "0..*" -- "0..1" Utilisateur : ouvert par >
-Litige "0..*" -- "0..1" Administrateur : tranche >
+' 6 Dossier de preuve : sous Cotisation
+Cotisation "1..*" -down- "0..*" MiseEnDemeure
+Utilisateur "1" -down- "0..*" MiseEnDemeure : < débiteur
+Cercle "1" -down- "0..*" MiseEnDemeure
+MiseEnDemeure "1..*" -down- "0..*" DossierDePreuve
+Utilisateur "1" -down- "0..*" DossierDePreuve : < débiteur
+Reglement "1" -down- "0..*" DossierDePreuve
+DocumentSigne "1..*" -down- "0..*" DossierDePreuve
+Cotisation "0..*" -down- "0..*" DossierDePreuve : < relevé
 
-' 8. Assistant
-Cercle "1" -- "0..1" ReglageAssistant
-Cercle "1" -- "0..*" ActionAssistant
-ActionAssistant "0..*" -- "1" Utilisateur : cible >
-Surveillance ..|> Agent
-Relance ..|> Agent
-Preuve ..|> Agent
-Coordinateur ..|> Agent
-Coordinateur "1" -- "0..*" ActionAssistant : produit >
-ActionAssistant "0..1" -- "0..1" MiseEnDemeure : envoie >
+' 7 Litiges : sous Cotisation
+Cotisation "1" -down- "0..*" Litige
+Utilisateur "0..1" -down- "0..*" Litige : < ouvert par
+Administrateur "0..1" -down- "0..*" Litige : tranche >
 
-' 9. Registre
-LotRegistre "0..1" *-- "1..*" EmpreinteRegistre
+' 8 Assistant : au-dessus de Cercle
+ReglageAssistant "0..1" -down- "1" Cercle
+ActionAssistant "0..*" -down- "1" Cercle
+ActionAssistant "0..*" -down- "1" Utilisateur : cible >
+Agent <|.down. Surveillance
+Agent <|.down. Relance
+Agent <|.down. Preuve
+Agent <|.down. Coordinateur
+Coordinateur "1" -down- "0..*" ActionAssistant : produit >
+ActionAssistant "0..1" -down- "0..1" MiseEnDemeure : envoie >
 
-' 10. Phase 2
-Cercle "1" -- "0..1" FondsDeGarantie
-Tour "1" -- "0..1" RetenueSurPassage
-RetenueSurPassage "0..*" -- "1" FondsDeGarantie
+' 9 Registre
+LotRegistre "0..1" *-down- "1..*" EmpreinteRegistre
+
+' 10 Phase 2
+Cercle "1" -right- "0..1" FondsDeGarantie
+Tour "1" -right- "0..1" RetenueSurPassage
+RetenueSurPassage "0..*" -up- "1" FondsDeGarantie
+
+' Mise en page seulement (liens invisibles) : Registre et Types sous le reste, énumérations en grille
+DossierDePreuve -[hidden]down- LotRegistre
+EmpreinteRegistre -[hidden]down- NiveauIdentite
+NiveauIdentite -[hidden]right- Frequence
+Frequence -[hidden]right- StatutCercle
+StatutCercle -[hidden]right- Zone
+Zone -[hidden]right- TypeDocument
+TypeDocument -[hidden]right- StatutEchange
+NiveauIdentite -[hidden]down- StatutCotisation
+StatutCotisation -[hidden]right- TypeEvenementScore
+TypeEvenementScore -[hidden]right- TypeTache
+TypeTache -[hidden]right- EtatEnvoi
+EtatEnvoi -[hidden]right- StatutLitige
+StatutLitige -[hidden]right- OrigineLitige
+StatutCotisation -[hidden]down- DecisionLitige
+DecisionLitige -[hidden]right- StatutRecuperation
+StatutRecuperation -[hidden]right- ModeAssistant
+ModeAssistant -[hidden]right- TypeAction
+TypeAction -[hidden]right- IssueAction
+IssueAction -[hidden]right- NomAgent
 
 note as Regle
   Entre paquetages, les liens passent par identifiant :
