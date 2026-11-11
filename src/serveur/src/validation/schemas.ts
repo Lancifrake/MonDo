@@ -84,6 +84,11 @@ export const schemaReglement = z
     rappelsAvantEcheanceJours: z.array(z.number().int().min(1).max(30)).max(5).optional(),
     /** Date et heure limite des cotisations du premier tour (choix de David, 05/11). */
     datePremierTour: z.iso.datetime(),
+    /**
+     * Cercle privé seulement (choix de David, 11/11) : l'organisateur fixe l'ordre de passage, identifiants des
+     * membres du premier au dernier. Chacun signe le règlement en connaissant cet ordre.
+     */
+    ordreFixe: z.array(z.uuid()).min(3).max(50).optional(),
   })
   .superRefine((r, ctx) => {
     if ((r.frequence === "jours") !== (r.periodeJours !== undefined)) {
@@ -93,6 +98,16 @@ export const schemaReglement = z
         message: "Nombre de jours obligatoire avec « jours », interdit sinon",
       });
       return;
+    }
+    if (r.ordreFixe) {
+      const probleme = r.ouvert
+        ? "L'ordre fixé par l'organisateur est réservé aux cercles privés"
+        : r.ordreFixe.length !== r.nombreMembres
+          ? "L'ordre fixé doit nommer chaque membre, ni plus ni moins"
+          : new Set(r.ordreFixe).size !== r.ordreFixe.length
+            ? "Un membre ne figure qu'une fois dans l'ordre fixé"
+            : undefined;
+      if (probleme) ctx.addIssue({ code: "custom", path: ["ordreFixe"], message: probleme });
     }
     // Sinon le tour suivant commence avant que le défaut du précédent soit constaté.
     if (r.delaiGraceJours >= periodeMinimaleJours(r.frequence, r.periodeJours)) {

@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees, type Executeur } from "../../base/base-de-donnees.js";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { RegistreService } from "../../registre/registre.service.js";
-import { attribuerLesPlaces, premierePlaceAutorisee } from "../../score/attribution-des-places.js";
+import { attribuerLesPlaces, premierePlaceAutorisee, zoneDe } from "../../score/attribution-des-places.js";
 import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
@@ -26,6 +26,8 @@ export interface Reglement {
   rappelsAvantEcheanceJours?: number[];
   /** Date limite des cotisations du premier tour ; décalée d'une période si le cercle n'est pas complet à temps. */
   datePremierTour: string;
+  /** Cercle privé : ordre de passage fixé par l'organisateur, identifiants du premier au dernier (11/11). */
+  ordreFixe?: string[];
 }
 
 export interface PlaceOrdre {
@@ -51,8 +53,12 @@ export interface Cercle {
 /** Ce qu'un non-membre voit avec le lien d'invitation : de quoi décider et signer, jamais qui est dedans. */
 export type CerclePourNonMembre = Omit<Cercle, "membres" | "ordre"> & {
   placesRestantes: number;
-  /** Place la plus tôt que le score du demandeur lui permet de demander. */
-  premierePlaceAutorisee: number;
+  /** Place la plus tôt que le score du demandeur lui permet de demander. Absente si l'ordre est fixé. */
+  premierePlaceAutorisee?: number;
+  /** Ordre fixé par l'organisateur : la liste n'est montrée qu'aux membres prévus. */
+  ordreFixeParOrganisateur?: true;
+  /** Ma place dans l'ordre fixé, si l'organisateur m'y a mis. */
+  placeFixee?: number;
 };
 
 /** Résumé d'un cercle pour l'un de ses membres : de quoi afficher sa liste de cercles. */
@@ -182,7 +188,12 @@ export class CerclesService {
       throw new BadRequestException("La date du premier tour doit être dans le futur");
     }
     const organisateur = await this.comptes.trouver(d.organisateurId);
-    await this.verifierPlace(d.organisateurId, d.placeSouhaitee, d.reglement.nombreMembres);
+    if (d.reglement.ordreFixe) {
+      for (const id of d.reglement.ordreFixe) {
+        if (!(await this.comptes.chercher(id))) throw new BadRequestException("Ordre fixé : un membre est inconnu");
+      }
+    }
+    await this.verifierPlace(d.organisateurId, d.placeSouhaitee, d.reglement);
     // Forme validée en amont (schemaReglement).
     const message = messageReglement(d.organisateurId, d.reglement, d.placeSouhaitee);
     if (!verifierSignature(organisateur.clePublique, message, d.signature)) {
@@ -214,7 +225,7 @@ export class CerclesService {
     if (cercle.reglement.ouvert && membre.niveau < 2) {
       throw new ForbiddenException("Identité vérifiée (niveau 2) requise pour un cercle ouvert");
     }
-    await this.verifierPlace(d.membreId, d.placeSouhaitee, cercle.reglement.nombreMembres);
+    await this.verifierPlace(d.membreId, d.placeSouhaitee, cercle.reglement);
     const message = messageEngagement(cercle.id, cercle.empreinteReglement, d.membreId, d.placeSouhaitee);
     if (!verifierSignature(membre.clePublique, message, d.signature)) {
       throw new ForbiddenException("Signature de l'engagement invalide");
@@ -308,6 +319,14 @@ export class CerclesService {
     const { membres, ordre, ...cercle } = await this.trouver(id);
     const placesRestantes = Math.max(0, cercle.reglement.nombreMembres - membres.length);
     if (membres.includes(demandeurId)) return { ...cercle, membres, ...(ordre ? { ordre } : {}), placesRestantes };
+    const { ordreFixe, ...reglementSansOrdre } = cercle.reglement;
+    if (ordreFixe) {
+      // Un membre prévu lit l'ordre qu'il va signer ; un inconnu qui a le lien ne voit pas qui est attendu.
+      const placeFixee = ordreFixe.indexOf(demandeurId) + 1;
+      return placeFixee > 0
+        ? { ...cercle, placesRestantes, ordreFixeParOrganisateur: true, placeFixee }
+        : { ...cercle, reglement: reglementSansOrdre, placesRestantes, ordreFixeParOrganisateur: true };
+    }
     const { score } = await this.score.consulter(demandeurId);
     return {
       ...cercle,
@@ -333,9 +352,22 @@ export class CerclesService {
     };
   }
 
-  /** Place comprise dans le cercle, et pas plus tôt que ce que permet le score du membre (on peut toujours plus tard). */
-  private async verifierPlace(membreId: string, place: number, nombreMembres: number): Promise<void> {
+  /**
+   * Place comprise dans le cercle, et pas plus tôt que ce que permet le score du membre (on peut toujours plus
+   * tard). Ordre fixé par l'organisateur : seuls les membres prévus entrent, chacun à la place écrite dans le
+   * règlement ; le score n'intervient pas, puisque tous signent l'ordre en le connaissant.
+   */
+  private async verifierPlace(membreId: string, place: number, reglement: Reglement): Promise<void> {
+    const { nombreMembres, ordreFixe } = reglement;
     if (place > nombreMembres) throw new BadRequestException(`Place entre 1 et ${nombreMembres}`);
+    if (ordreFixe) {
+      const fixee = ordreFixe.indexOf(membreId) + 1;
+      if (fixee === 0) throw new ForbiddenException("Ce cercle est réservé aux membres prévus par l'organisateur");
+      if (place !== fixee) {
+        throw new BadRequestException(`L'organisateur vous a fixé la place ${fixee} : c'est celle à signer`);
+      }
+      return;
+    }
     const { score } = await this.score.consulter(membreId);
     const plusTot = premierePlaceAutorisee(score, nombreMembres);
     if (place < plusTot) {
@@ -365,23 +397,31 @@ export class CerclesService {
       [cercleId],
     );
     const souhait = new Map(places.map((l) => [l.membre_id, l.place_souhaitee]));
-    const ordre: PlaceOrdre[] = membres.every((id) => souhait.get(id))
-      ? attribuerLesPlaces(
-          membres.map((id, i) => ({
-            id,
-            score: scores[i]!.score,
-            rangInscription: i + 1,
-            placeSouhaitee: souhait.get(id)!,
-          })),
-        ).map((p) => ({
-          position: p.position,
-          zone: p.zone,
-          membreId: p.membre.id,
-          placeSouhaitee: p.membre.placeSouhaitee,
+    const { ordreFixe } = (await this.trouver(cercleId)).reglement;
+    const ordre: PlaceOrdre[] = ordreFixe
+      ? ordreFixe.map((membreId, i) => ({
+          position: i + 1,
+          zone: zoneDe(i + 1, ordreFixe.length),
+          membreId,
+          placeSouhaitee: i + 1,
         }))
-      : calculerOrdreDePassage(membres.map((id, i) => ({ id, score: scores[i]!.score, rangInscription: i + 1 }))).map(
-          (p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }),
-        );
+      : membres.every((id) => souhait.get(id))
+        ? attribuerLesPlaces(
+            membres.map((id, i) => ({
+              id,
+              score: scores[i]!.score,
+              rangInscription: i + 1,
+              placeSouhaitee: souhait.get(id)!,
+            })),
+          ).map((p) => ({
+            position: p.position,
+            zone: p.zone,
+            membreId: p.membre.id,
+            placeSouhaitee: p.membre.placeSouhaitee,
+          }))
+        : calculerOrdreDePassage(membres.map((id, i) => ({ id, score: scores[i]!.score, rangInscription: i + 1 }))).map(
+            (p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }),
+          );
     await this.base.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(ordre)]);
     return ordre;
   }
