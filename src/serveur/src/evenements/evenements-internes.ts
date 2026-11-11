@@ -12,6 +12,16 @@ export interface CercleComplet {
   delaiGraceJours: number;
   datePremierTour: string;
   completLe: string;
+  /** Frais du modèle A, calculés par Cercles à partir du barème signé. Absent pour un cercle d'avant le 11/11. */
+  frais?: FraisDeTour[];
+}
+
+/** Ce que le bénéficiaire d'un tour du début doit, hors cotisations : sa part à MonDo et les remises. */
+export interface FraisDeTour {
+  /** Numéro du tour (égal à la place) du bénéficiaire qui paie. */
+  tour: number;
+  partMonDo: number;
+  remises: { creancierId: string; montant: number }[];
 }
 
 /** Événements que les modules s'échangent (décision 02, règle 2). Aucun module n'appelle les tables d'un autre. */

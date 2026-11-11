@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Inject, Param, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import { MembreAuthentifie } from "../../authentification/garde.js";
 import { schemaAdhesion, schemaCreationCercle } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
+import { calculerBareme } from "../../score/frais.js";
 import { CerclesService } from "./cercles.service.js";
 
 @Controller("cercles")
@@ -20,6 +21,16 @@ export class CerclesController {
   @Get()
   mesCercles(@MembreAuthentifie() membreId: string) {
     return this.cercles.listerPour(membreId);
+  }
+
+  /** Barème des frais à écrire dans le règlement avant de le signer (modèle A, décision 05). */
+  @Get("bareme")
+  bareme(@Query("nombreMembres") nombreMembres: string, @Query("montant") montant: string) {
+    const [n, m] = [Number(nombreMembres), Number(montant)];
+    if (!Number.isInteger(n) || n < 3 || n > 50 || !Number.isInteger(m) || m <= 0 || m > 100_000_000) {
+      throw new BadRequestException("Préciser nombreMembres (3 à 50) et montant (entier positif)");
+    }
+    return calculerBareme(n, m);
   }
 
   @Post(":id/adhesions")

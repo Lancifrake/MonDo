@@ -370,6 +370,31 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE UNIQUE INDEX verification_en_attente ON comptes.verifications_identite (compte_id, motif)
         WHERE statut = 'en_attente'`,
   },
+  {
+    // Sommes dues hors cotisations (choix de David, 11/11) : part de MonDo et remises du modèle A, puis
+    // remboursements après un départ. Suivies comme une cotisation. creancier_id vide : la somme revient à MonDo.
+    nom: "023_sommes_dues",
+    sql: `
+      CREATE TABLE cotisations.sommes_dues (
+        id uuid PRIMARY KEY,
+        cercle_id text NOT NULL,
+        nature text NOT NULL CHECK (nature IN ('frais_mondo', 'remise', 'remboursement_depart')),
+        debiteur_id uuid NOT NULL,
+        creancier_id uuid,
+        montant bigint NOT NULL CHECK (montant > 0),
+        tour integer NOT NULL,
+        exigible_le timestamptz NOT NULL,
+        date_limite timestamptz NOT NULL,
+        reference_transaction text,
+        declaree_le timestamptz,
+        confirmee_le timestamptz,
+        origine_id uuid,
+        statut text NOT NULL CHECK (statut IN ('due', 'declaree', 'confirmee', 'annulee'))
+      );
+      CREATE INDEX sommes_dues_debiteur ON cotisations.sommes_dues (debiteur_id);
+      CREATE INDEX sommes_dues_creancier ON cotisations.sommes_dues (creancier_id);
+      CREATE INDEX sommes_dues_cercle ON cotisations.sommes_dues (cercle_id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

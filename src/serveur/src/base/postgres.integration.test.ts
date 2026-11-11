@@ -16,7 +16,7 @@ import {
   type Reglement,
 } from "../modules/cercles/cercles.service.js";
 import { creerClient } from "../testing/client.js";
-import { dansJours } from "../testing/cercles.js";
+import { avecBareme, dansJours } from "../testing/cercles.js";
 
 /**
  * Même parcours que les autres tests, mais sur un vrai serveur PostgreSQL.
@@ -56,7 +56,7 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
 
   it("parcours complet et course pour la dernière place", async () => {
     const org = await client.inscrire();
-    const r: Reglement = {
+    const r: Reglement = avecBareme({
       montant: 10000,
       frequence: "hebdomadaire",
       nombreMembres: 3,
@@ -64,7 +64,7 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       delaiGraceJours: 2,
       ouvert: false,
       datePremierTour: dansJours(7),
-    };
+    });
     const cercle = (await (
       await client.requete(
         "POST",
@@ -96,6 +96,24 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     const final = (await (await client.requete("GET", `/cercles/${cercle.id}`, undefined, org)).json()) as Cercle;
     expect(final.membres).toHaveLength(3);
     expect(final.ordre).toHaveLength(3);
+
+    // Sommes dues du modèle A (migration 023) : créées à la complétion, lues par le débiteur.
+    const premier = [org, ...candidats].find((m) => m.id === final.ordre![0]!.membreId);
+    const dues = (await (
+      await client.requete("GET", `/sommes-dues?cercleId=${cercle.id}`, undefined, premier ?? org)
+    ).json()) as { id: string; nature: string }[];
+    if (premier) {
+      expect(dues.map((s) => s.nature).sort()).toEqual(["frais_mondo", "remise"]);
+      expect(
+        (await client.requete("POST", `/sommes-dues/${dues[0]!.id}/paiement`, { referenceTransaction: "T" }, premier))
+          .status,
+      ).toBe(400);
+      expect(
+        (await client.requete("POST", `/sommes-dues/${dues[0]!.id}/confirmation`, undefined, premier)).status,
+      ).toBe(403);
+    }
+    expect((await client.requete("GET", "/sommes-dues", undefined, org)).status).toBe(200);
+    expect((await client.requete("GET", "/administration/sommes-dues", undefined, org)).status).toBe(403);
 
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
