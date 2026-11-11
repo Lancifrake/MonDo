@@ -6,13 +6,14 @@ export const CHEMIN_DEPOT_IDENTITE = "/comptes/moi/identite";
 export const TAILLE_MAX_DEPOT_IDENTITE = 9 * 1024 * 1024;
 
 type Suite = (erreur?: unknown) => void;
+type RequeteBrute = IncomingMessage & { body?: unknown; _body?: boolean };
 
 /**
  * Lit un corps JSON plus gros que la limite ordinaire (100 ko), pour une seule route. Écrit sans dépendance
  * nouvelle. Au-delà de la taille permise, la lecture s'arrête et la requête est refusée (413).
  */
 function lireGrosCorpsJson(tailleMax: number) {
-  return (req: IncomingMessage & { body?: unknown; _body?: boolean }, res: ServerResponse, suite: Suite) => {
+  return (req: RequeteBrute, res: ServerResponse, suite: Suite) => {
     if (req.method !== "POST" || !/^application\/json/i.test(req.headers["content-type"] ?? "")) return suite();
     const morceaux: Buffer[] = [];
     let taille = 0;
@@ -52,7 +53,12 @@ function lireGrosCorpsJson(tailleMax: number) {
 export function configurerApplication(app: NestExpressApplication): void {
   // Ne pas annoncer le framework (en-tête « X-Powered-By: Express ») : rien à offrir à un attaquant.
   app.disable("x-powered-by");
-  app.use(CHEMIN_DEPOT_IDENTITE, lireGrosCorpsJson(TAILLE_MAX_DEPOT_IDENTITE));
+  const grosCorps = lireGrosCorpsJson(TAILLE_MAX_DEPOT_IDENTITE);
+  app.use(CHEMIN_DEPOT_IDENTITE, grosCorps);
+  // Pièces d'une récupération sans contact : /comptes/recuperation/<id>/pieces, et seulement ce chemin.
+  app.use("/comptes/recuperation", (req: RequeteBrute, res: ServerResponse, suite: Suite) =>
+    /^\/[0-9a-f-]{36}\/pieces\/?$/i.test(req.url ?? "") ? grosCorps(req, res, suite) : suite(),
+  );
   app.useBodyParser("json");
   app.useBodyParser("urlencoded", { extended: true });
 }

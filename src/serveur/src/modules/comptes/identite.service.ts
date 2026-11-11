@@ -45,6 +45,8 @@ export interface VerificationIdentite {
   versionConsentement: string;
   deposeeLe: string;
   statut: "en_attente" | "validee" | "refusee";
+  /** niveau2 : passage au niveau 2 ; recuperation : preuve d'identité d'une récupération sans contact. */
+  motif: "niveau2" | "recuperation";
   motifDecision?: string;
   decideeLe?: string;
 }
@@ -57,6 +59,7 @@ interface LigneVerification extends Record<string, unknown> {
   version_consentement: string;
   deposee_le: Date | string;
   statut: VerificationIdentite["statut"];
+  motif: VerificationIdentite["motif"];
   motif_decision: string | null;
   decidee_le: Date | string | null;
 }
@@ -69,6 +72,7 @@ const versVerification = (l: LigneVerification): VerificationIdentite => ({
   versionConsentement: l.version_consentement,
   deposeeLe: new Date(l.deposee_le).toISOString(),
   statut: l.statut,
+  motif: l.motif,
   ...(l.motif_decision ? { motifDecision: l.motif_decision } : {}),
   ...(l.decidee_le ? { decideeLe: new Date(l.decidee_le).toISOString() } : {}),
 });
@@ -118,6 +122,41 @@ export class IdentiteService {
     if (!(await this.contacts.aUnContactConsentant(compteId))) {
       throw new ForbiddenException("Un contact de confiance qui a donné son accord est exigé pour le niveau 2");
     }
+    return this.enregistrer(compteId, d, "niveau2", null, maintenant);
+  }
+
+  /** Carte et selfie d'une récupération sans contact : même stockage, même file, même décision. */
+  async deposerPourRecuperation(
+    compteId: string,
+    recuperationId: string,
+    d: { typePiece: string; versionConsentement: string; recto: string; verso: string; selfie: string },
+    maintenant = new Date(),
+  ): Promise<VerificationIdentite> {
+    if (d.versionConsentement !== VERSION_CONSENTEMENT) {
+      throw new BadRequestException("Texte de consentement périmé : relire et accepter la version en vigueur");
+    }
+    return this.enregistrer(compteId, d, "recuperation", recuperationId, maintenant);
+  }
+
+  /** Décision de l'Administrateur sur les pièces d'une récupération, ou « aucune » tant qu'il n'a pas décidé. */
+  async decisionPourRecuperation(recuperationId: string): Promise<"validee" | "refusee" | "aucune"> {
+    const lignes = await this.base.requete<{ statut: VerificationIdentite["statut"] }>(
+      "SELECT statut FROM comptes.verifications_identite WHERE recuperation_id = $1",
+      [recuperationId],
+    );
+    if (lignes.some((l) => l.statut === "validee")) return "validee";
+    return lignes.some((l) => l.statut === "refusee") && !lignes.some((l) => l.statut === "en_attente")
+      ? "refusee"
+      : "aucune";
+  }
+
+  private async enregistrer(
+    compteId: string,
+    d: { typePiece: string; versionConsentement: string; recto: string; verso: string; selfie: string },
+    motif: VerificationIdentite["motif"],
+    recuperationId: string | null,
+    maintenant: Date,
+  ): Promise<VerificationIdentite> {
     const images = NATURES.map((nature) => {
       const contenu = Buffer.from(d[nature], "base64");
       if (contenu.length > TAILLE_MAX_IMAGE)
@@ -139,9 +178,9 @@ export class IdentiteService {
       // L'index unique garantit un seul dossier en attente par compte, même pour deux dépôts simultanés.
       [ligne] = (await this.base.requete<LigneVerification>(
         `INSERT INTO comptes.verifications_identite
-           (id, compte_id, type_piece, consentement_le, version_consentement, deposee_le, statut)
-         VALUES ($1, $2, $3, $4, $5, $4, 'en_attente') RETURNING *`,
-        [id, compteId, d.typePiece, maintenant.toISOString(), d.versionConsentement],
+           (id, compte_id, type_piece, consentement_le, version_consentement, deposee_le, statut, motif, recuperation_id)
+         VALUES ($1, $2, $3, $4, $5, $4, 'en_attente', $6, $7) RETURNING *`,
+        [id, compteId, d.typePiece, maintenant.toISOString(), d.versionConsentement, motif, recuperationId],
       )) as [LigneVerification];
     } catch (e) {
       if (estDoublon(e)) throw new ConflictException("Un dossier est déjà en attente de décision");
@@ -171,7 +210,8 @@ export class IdentiteService {
   /** Mon dernier dossier, sans aucune image. */
   async consulterLeMien(compteId: string): Promise<VerificationIdentite> {
     const [l] = await this.base.requete<LigneVerification>(
-      "SELECT * FROM comptes.verifications_identite WHERE compte_id = $1 ORDER BY deposee_le DESC, id LIMIT 1",
+      `SELECT * FROM comptes.verifications_identite WHERE compte_id = $1 AND motif = 'niveau2'
+       ORDER BY deposee_le DESC, id LIMIT 1`,
       [compteId],
     );
     if (!l) throw new NotFoundException("Aucun dossier d'identité déposé");
@@ -227,7 +267,8 @@ export class IdentiteService {
     );
     if (!l) throw new BadRequestException("Dossier déjà décidé");
     const decidee = versVerification(l);
-    if (decision === "validee") await this.comptes.passerAuNiveau2(decidee.compteId);
+    const recuperation = decidee.motif === "recuperation";
+    if (decision === "validee" && !recuperation) await this.comptes.passerAuNiveau2(decidee.compteId);
     // Trace au registre : une empreinte, sans le motif ni aucune donnée de la pièce.
     await this.registre.enregistrer(
       canonique({
@@ -240,10 +281,11 @@ export class IdentiteService {
       }),
     );
     // Selfie supprimé tout de suite ; tout en cas de refus. Un échec est repris par la purge du planificateur.
-    await this.supprimerPieces(id, decision === "refusee" ? NATURES : ["selfie"]).catch((e: unknown) =>
+    // Pièces d'une récupération : elles n'ont servi qu'à cette décision, rien n'est gardé.
+    await this.supprimerPieces(id, decision === "refusee" || recuperation ? NATURES : ["selfie"]).catch((e: unknown) =>
       this.journal.error(`Suppression après décision à reprendre : ${e instanceof Error ? e.message : String(e)}`),
     );
-    const compte = await this.comptes.chercher(decidee.compteId);
+    const compte = recuperation ? undefined : await this.comptes.chercher(decidee.compteId);
     if (compte) {
       await this.sms.mettreEnFile(
         `identite:${id}:decision`,
@@ -262,7 +304,7 @@ export class IdentiteService {
     await this.base.requete(
       `UPDATE comptes.verifications_identite
        SET dernier_cercle_termine_le = GREATEST(COALESCE(dernier_cercle_termine_le, $2), $2)
-       WHERE compte_id = $1 AND statut = 'validee'`,
+       WHERE compte_id = $1 AND statut = 'validee' AND motif = 'niveau2'`,
       [compteId, termineLe.toISOString()],
     );
   }
@@ -279,7 +321,7 @@ export class IdentiteService {
       `SELECT p.verification_id, p.nature FROM comptes.pieces_identite p
        JOIN comptes.verifications_identite v ON v.id = p.verification_id
        WHERE p.supprimee_le IS NULL
-         AND (v.statut = 'refusee' OR (v.statut = 'validee' AND p.nature = 'selfie'))`,
+         AND (v.statut = 'refusee' OR (v.statut = 'validee' AND (p.nature = 'selfie' OR v.motif = 'recuperation')))`,
     );
     for (const m of manquees) supprimees += await this.supprimerPieces(m.verification_id, [m.nature]);
 
@@ -287,7 +329,7 @@ export class IdentiteService {
     limite.setUTCFullYear(limite.getUTCFullYear() - DUREE_CONSERVATION_CARTE_ANS);
     const echues = await this.base.requete<{ id: string; compte_id: string }>(
       `SELECT v.id, v.compte_id FROM comptes.verifications_identite v
-       WHERE v.statut = 'validee' AND GREATEST(v.decidee_le, COALESCE(v.dernier_cercle_termine_le, v.decidee_le)) < $1
+       WHERE v.statut = 'validee' AND v.motif = 'niveau2' AND GREATEST(v.decidee_le, COALESCE(v.dernier_cercle_termine_le, v.decidee_le)) < $1
          AND EXISTS (SELECT 1 FROM comptes.pieces_identite p WHERE p.verification_id = v.id AND p.supprimee_le IS NULL)`,
       [limite.toISOString()],
     );

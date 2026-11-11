@@ -7,6 +7,7 @@ import { attribuerLesPlaces, premierePlaceAutorisee } from "../../score/attribut
 import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
+import { FileSms } from "../../sms/file-sms.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import type { Frequence } from "../cotisations/calendrier.js";
 import { ScoreService } from "../score/score.service.js";
@@ -112,8 +113,42 @@ export class CerclesService {
     @Inject(RegistreService) private readonly registre: RegistreService,
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
+    @Inject(FileSms) private readonly sms: FileSms,
   ) {
     this.evenements.ecouter("cercle_termine", (e) => this.terminer(e.cercleId, e.termineLe));
+    this.evenements.ecouter("compte_bloque", (e) =>
+      this.prevenirLesAutres(
+        e.membreId,
+        `blocage:${e.membreId}:${e.bloqueLe}`,
+        "MonDo : le compte d'un membre de votre cercle est bloqué le temps d'une vérification. Ses échéances sont suspendues, les vôtres ne changent pas.",
+      ),
+    );
+    this.evenements.ecouter("compte_debloque", (e) =>
+      this.prevenirLesAutres(
+        e.membreId,
+        `deblocage:${e.membreId}:${e.debloqueLe}`,
+        "MonDo : le compte bloqué d'un membre de votre cercle est débloqué. Ses échéances reprennent, décalées de la durée du blocage.",
+      ),
+    );
+  }
+
+  /**
+   * SMS, par la file, aux autres membres des cercles en cours du membre (règle du 03/11). Le message ne le
+   * nomme pas. Une clé par destinataire : un événement rejoué ne donne qu'un SMS.
+   */
+  private async prevenirLesAutres(membreId: string, cle: string, texte: string): Promise<void> {
+    const autres = await this.base.requete<{ membre_id: string }>(
+      `SELECT DISTINCT b.membre_id FROM cercles.adhesions a
+       JOIN cercles.cercles c ON c.id = a.cercle_id AND c.statut = 'complet'
+       JOIN cercles.adhesions b ON b.cercle_id = a.cercle_id AND b.membre_id <> a.membre_id
+       WHERE a.membre_id = $1`,
+      [membreId],
+    );
+    for (const { membre_id } of autres) {
+      const compte = await this.comptes.chercher(membre_id);
+      if (compte) await this.sms.mettreEnFile(`${cle}:${membre_id}`, compte.numero, texte);
+    }
+    if (autres.length > 0) this.sms.declencher();
   }
 
   /** Une seule fois : un cercle déjà terminé garde sa date. */

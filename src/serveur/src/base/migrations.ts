@@ -321,6 +321,55 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         consultee_le timestamptz NOT NULL DEFAULT now()
       )`,
   },
+  {
+    // Récupération de compte (flow 2) et compte bloqué (règle du 03/11). Une seule récupération en cours et
+    // un seul blocage en cours par compte. Les clés remplacées sont gardées : les signatures passées restent
+    // vérifiables. Les pièces d'une récupération sans contact passent par la même file que le niveau 2.
+    nom: "022_recuperation_et_blocage",
+    sql: `
+      CREATE TABLE comptes.codes_secrets (
+        compte_id uuid PRIMARY KEY REFERENCES comptes.comptes (id),
+        empreinte text NOT NULL,
+        sel text NOT NULL,
+        echecs integer NOT NULL,
+        fenetre_debut timestamptz
+      );
+      CREATE TABLE comptes.recuperations (
+        id uuid PRIMARY KEY,
+        compte_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        nouvelle_cle jsonb NOT NULL,
+        demandee_le timestamptz NOT NULL,
+        fin_delai_le timestamptz NOT NULL,
+        avec_contact boolean NOT NULL,
+        statut text NOT NULL CHECK (statut IN ('en_attente', 'opposee', 'acceptee', 'refusee', 'expiree')),
+        decidee_par uuid,
+        motif_decision text,
+        close_le timestamptz
+      );
+      CREATE UNIQUE INDEX recuperation_en_cours ON comptes.recuperations (compte_id)
+        WHERE statut IN ('en_attente', 'opposee');
+      CREATE TABLE comptes.blocages (
+        id uuid PRIMARY KEY,
+        compte_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        motif text NOT NULL CHECK (motif IN ('essais_rates', 'opposition')),
+        bloque_le timestamptz NOT NULL,
+        fin_le timestamptz,
+        leve_le timestamptz
+      );
+      CREATE UNIQUE INDEX blocage_en_cours ON comptes.blocages (compte_id) WHERE leve_le IS NULL;
+      CREATE TABLE comptes.cles_revoquees (
+        id bigserial PRIMARY KEY,
+        compte_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        cle_publique jsonb NOT NULL,
+        revoquee_le timestamptz NOT NULL
+      );
+      ALTER TABLE comptes.verifications_identite ADD COLUMN motif text NOT NULL DEFAULT 'niveau2'
+        CHECK (motif IN ('niveau2', 'recuperation'));
+      ALTER TABLE comptes.verifications_identite ADD COLUMN recuperation_id uuid;
+      DROP INDEX comptes.verification_en_attente;
+      CREATE UNIQUE INDEX verification_en_attente ON comptes.verifications_identite (compte_id, motif)
+        WHERE statut = 'en_attente'`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

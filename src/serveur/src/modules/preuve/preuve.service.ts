@@ -35,7 +35,15 @@ export interface PieceSignee {
 export interface DossierDePreuve {
   genereLe: string;
   cercleId: string;
-  debiteur: { id: string; nom: string; numero: string; niveauIdentite: 1 | 2; clePublique: JsonWebKey };
+  debiteur: {
+    id: string;
+    nom: string;
+    numero: string;
+    niveauIdentite: 1 | 2;
+    clePublique: JsonWebKey;
+    /** Clés remplacées lors d'une récupération : un engagement signé avant se vérifie avec l'une d'elles. */
+    clesRevoquees: { clePublique: JsonWebKey; revoqueeLe: string }[];
+  };
   reglement: PieceSignee & { contenu: Reglement; organisateurId: string; clePubliqueOrganisateur: JsonWebKey };
   engagement: PieceSignee;
   releveCotisations: Cotisation[];
@@ -160,6 +168,7 @@ export class PreuveService implements OnModuleInit {
         numero: debiteur.numero,
         niveauIdentite: debiteur.niveau,
         clePublique: debiteur.clePublique,
+        clesRevoquees: await this.comptes.clesRevoquees(debiteurId),
       },
       reglement: {
         contenu: cercle.reglement,

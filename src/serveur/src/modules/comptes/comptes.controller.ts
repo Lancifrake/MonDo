@@ -2,16 +2,20 @@ import { Body, Controller, ForbiddenException, Get, Inject, Param, Post } from "
 import { MembreAuthentifie, Public } from "../../authentification/garde.js";
 import {
   schemaAccordContact,
+  schemaCodeSecret,
   schemaContactConfiance,
+  schemaDemandeRecuperation,
   schemaDemandeOtp,
   schemaDepotIdentite,
   schemaInscription,
+  schemaPiecesRecuperation,
 } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
 import { ComptesService } from "./comptes.service.js";
 import { ContactConfianceService } from "./contact-confiance.service.js";
 import { IdentiteService, TEXTE_CONSENTEMENT, VERSION_CONSENTEMENT } from "./identite.service.js";
 import { OtpService } from "./otp.service.js";
+import { RecuperationService } from "./recuperation.service.js";
 
 @Controller("comptes")
 export class ComptesController {
@@ -20,6 +24,7 @@ export class ComptesController {
     @Inject(OtpService) private readonly otp: OtpService,
     @Inject(ContactConfianceService) private readonly contacts: ContactConfianceService,
     @Inject(IdentiteService) private readonly identite: IdentiteService,
+    @Inject(RecuperationService) private readonly recuperation: RecuperationService,
   ) {}
 
   @Public()
@@ -82,6 +87,50 @@ export class ComptesController {
     @Body(new ValidationSchema(schemaDepotIdentite)) corps: (typeof schemaDepotIdentite)["_output"],
   ) {
     return this.identite.deposer(membreId, corps);
+  }
+
+  /** Code secret demandé à la récupération du compte (flow 1 et 2). Le redéfinir remplace l'ancien. */
+  @Post("moi/code-secret")
+  codeSecret(
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaCodeSecret)) corps: (typeof schemaCodeSecret)["_output"],
+  ) {
+    return this.recuperation.definirCodeSecret(membreId, corps.code);
+  }
+
+  /**
+   * Récupération depuis un nouveau téléphone : sans requête signée, puisque l'ancienne clé est perdue. La
+   * demande est prouvée par le code SMS, le code secret et la détention de la nouvelle clé.
+   */
+  @Public()
+  @Post("recuperation")
+  demanderRecuperation(
+    @Body(new ValidationSchema(schemaDemandeRecuperation)) corps: (typeof schemaDemandeRecuperation)["_output"],
+  ) {
+    return this.recuperation.demander(corps);
+  }
+
+  /** Pièces de la récupération sans contact, prouvées par la nouvelle clé (dans le corps, pas par la garde). */
+  @Public()
+  @Post("recuperation/:id/pieces")
+  piecesRecuperation(
+    @Param("id") id: string,
+    @Body(new ValidationSchema(schemaPiecesRecuperation)) corps: (typeof schemaPiecesRecuperation)["_output"],
+  ) {
+    const { consentement: _consentement, ...pieces } = corps;
+    return this.recuperation.deposerPieces(id, pieces);
+  }
+
+  /** La récupération en cours sur mon compte, vue de l'ancien téléphone. */
+  @Get("moi/recuperation")
+  maRecuperation(@MembreAuthentifie() membreId: string) {
+    return this.recuperation.enCoursPour(membreId);
+  }
+
+  /** Le titulaire s'oppose : le compte est bloqué jusqu'à la décision d'un Administrateur. */
+  @Post("moi/recuperation/opposition")
+  opposition(@MembreAuthentifie() membreId: string) {
+    return this.recuperation.sOpposer(membreId);
   }
 
   @Post(":id/niveau2")

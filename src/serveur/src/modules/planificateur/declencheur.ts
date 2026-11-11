@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import { CerclesService } from "../cercles/cercles.service.js";
 import { IdentiteService } from "../comptes/identite.service.js";
+import { RecuperationService } from "../comptes/recuperation.service.js";
 import { RegistreService } from "../../registre/registre.service.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { PlanificateurService } from "./planificateur.service.js";
@@ -41,6 +42,7 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
     @Inject(RegistreService) private readonly registre: Pick<RegistreService, "reprendreInscriptions" | "fermerLot">,
     @Inject(IdentiteService) private readonly identite: Pick<IdentiteService, "purger">,
     @Inject(CerclesService) private readonly cercles: Pick<CerclesService, "aUnCercleEnCours">,
+    @Inject(RecuperationService) private readonly recuperation: Pick<RecuperationService, "finaliser">,
   ) {}
 
   demarrer(intervalleMs: number): void {
@@ -68,6 +70,11 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
           const { traitees, echecs } = await this.planificateur.examinerEcheances();
           if (traitees > 0) this.journal.log(`${traitees} tâche(s) traitée(s)`);
           if (echecs > 0) this.journal.warn(`${echecs} tâche(s) en échec, rejouées au prochain passage`);
+        });
+        // Récupérations de compte dont le délai est passé sans opposition.
+        await this.etape("Récupérations", async () => {
+          const closes = await this.recuperation.finaliser();
+          if (closes > 0) this.journal.log(`${closes} récupération(s) de compte close(s)`);
         });
         // SMS restés en file (passerelle en panne au moment de l'envoi) : nouvelle tentative.
         await this.etape("SMS", () => this.sms.vider());

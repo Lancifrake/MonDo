@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type EvenementInterne } from "../../evenements/evenements-internes.js";
+import { BlocagesService } from "../comptes/blocages.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
 
 const HEURE_MS = 60 * 60 * 1000;
@@ -13,6 +14,7 @@ export class PlanificateurService {
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
+    @Inject(BlocagesService) private readonly blocages: BlocagesService,
   ) {}
 
   constaterDefaut(cercleId: string, membreId: string, tour: number, maintenant: Date = new Date()): Promise<boolean> {
@@ -35,7 +37,12 @@ export class PlanificateurService {
   async examinerEcheances(maintenant: Date = new Date()): Promise<{ traitees: number; echecs: number }> {
     let traitees = 0;
     let echecs = 0;
+    // Compte bloqué (règle du 03/11) : ni rappel, ni retard, ni défaut pour ses cotisations. Les blocages
+    // arrivés à leur terme sont levés d'abord : les dates sont alors décalées avant l'examen.
+    await this.blocages.leverEchus(maintenant);
+    const bloques = await this.blocages.comptesBloques();
     for (const c of await this.cotisations.listerDues()) {
+      if (bloques.has(c.payeurId)) continue;
       if (c.tour > 0 && maintenant.getTime() > Date.parse(c.finGrace)) {
         try {
           if (await this.constaterDefaut(c.cercleId, c.payeurId, c.tour, maintenant)) traitees++;

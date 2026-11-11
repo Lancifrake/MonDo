@@ -95,6 +95,20 @@ Faite en interne, sans prestataire (choix de David, 08/11 et 11/11).
 
 Le corps des requêtes reste limité à 100 ko, sauf pour le dépôt des pièces (9 Mo), lu par `src/application.ts`.
 
+## Récupération de compte et compte bloqué
+
+Flow 2, délais choisis par David (08/11 et 11/11).
+
+- **Code secret** : `POST /comptes/moi/code-secret` (4 à 8 chiffres, requête signée). Gardé haché (scrypt), jamais en clair.
+- **Demande** depuis le nouveau téléphone : `POST /comptes/recuperation`, sans requête signée puisque l'ancienne clé est perdue. Elle est prouvée par le code SMS du numéro, le code secret et la détention de la nouvelle clé (`messageRecuperation`). Toute erreur donne la même réponse 403, sans dire si le numéro existe. Une seule demande en cours par compte.
+- **Avec un contact de confiance** qui a donné son accord, et le bon code secret : délai de **48 h**. Le titulaire (SMS sur son numéro) et le contact sont prévenus.
+- **Sans contact**, ou sans code secret défini : délai de **72 h**, plus carte d'identité et selfie, déposés par `POST /comptes/recuperation/:id/pieces` (prouvés par la nouvelle clé, `messagePiecesRecuperation`) et validés par un Administrateur dans la même file que le niveau 2. Ces images sont toutes supprimées dès la décision. Sans pièces validées, la demande s'éteint 7 jours après la fin du délai.
+- **Fin du délai** sans opposition : le planificateur remplace la clé (`RecuperationService.finaliser`, rejouable). L'ancienne clé est gardée comme clé révoquée : les documents signés avant restent vérifiables, et le dossier de preuve les liste (`clesRevoquees`). Le changement est inscrit au registre (empreintes des clés).
+- **Opposition** : le titulaire, avec son ancienne clé, voit la demande (`GET /comptes/moi/recuperation`) et s'y oppose (`POST /comptes/moi/recuperation/opposition`). Le compte est alors bloqué et le dossier part chez l'Administrateur : `GET /administration/recuperations`, puis `POST /administration/recuperations/:id/decision` (`titulaire_confirme` ou `recuperation_acceptee`, avec un motif), qui débloque le compte. Un Administrateur ne tranche jamais pour son propre compte.
+- **Compte bloqué** (règle du 03/11) : seulement après une opposition (levé par l'Administrateur) ou après 5 codes secrets faux en 24 h (levé par le temps, 24 h). Un compte bloqué ne peut plus agir : toute requête signée reçoit 423. Ses cotisations ne donnent ni rappel, ni retard, ni défaut ; au déblocage, leurs dates limites et fins de grâce reculent de la durée du blocage. Les autres membres de ses cercles en cours sont prévenus par SMS au blocage et au déblocage, sans que le message le nomme.
+
+Valeurs choisies par prudence, sans règle écrite : 5 codes secrets faux, blocage de 24 h, extinction à 7 jours. Non fait : gel du numéro de réception de la cagnotte après une récupération (flow 2), puisque le compte n'a qu'un numéro.
+
 ## Litiges
 
 Sur un paiement déclaré que le bénéficiaire ne confirme pas (règles choisies par David, 05/11) :
