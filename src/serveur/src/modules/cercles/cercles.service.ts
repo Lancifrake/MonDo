@@ -119,6 +119,15 @@ export const messageEngagement = (
     ...(placeSouhaitee === undefined ? {} : { placeSouhaitee }),
   });
 
+/** Échange de places : les deux membres signent le même message, qui nomme le cercle et les deux places. */
+export const messageEchange = (
+  cercleId: string,
+  demandeurId: string,
+  placeDemandeur: number,
+  cedantId: string,
+  placeCedant: number,
+) => canonique({ objet: "echange_de_places", cercleId, demandeurId, placeDemandeur, cedantId, placeCedant });
+
 const UUID = /^[0-9a-f-]{36}$/i;
 
 /** Barème signé et ordre figé : qui doit quoi à qui. La remise va à chaque membre d'une place de fin. */
@@ -358,6 +367,17 @@ export class CerclesService {
     }
     this.sms.declencher();
     return { cercleId, partiLe, remboursements };
+  }
+
+  /** Échange signé par les deux : leurs places sont permutées dans l'ordre figé, sous verrou de la ligne. */
+  async echangerPlaces(cercleId: string, a: string, b: string): Promise<void> {
+    await this.base.transaction(async (tx) => {
+      const [l] = await tx.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1 FOR UPDATE", [cercleId]);
+      const ordre = (l?.ordre ?? []).map((p) =>
+        p.membreId === a ? { ...p, membreId: b } : p.membreId === b ? { ...p, membreId: a } : p,
+      );
+      await tx.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(ordre)]);
+    });
   }
 
   async trouver(id: string): Promise<Cercle> {

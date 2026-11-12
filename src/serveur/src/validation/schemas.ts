@@ -140,6 +140,12 @@ export const schemaCreationCercle = z.strictObject({
 });
 export const schemaAdhesion = z.strictObject({ placeSouhaitee: schemaPlace, signature: z.string().min(1) });
 
+export const schemaPropositionEchange = z.strictObject({
+  avecMembreId: z.uuid(),
+  signature: z.string().min(1).max(200),
+});
+export const schemaAcceptationEchange = z.strictObject({ signature: z.string().min(1).max(200) });
+
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
 export const schemaOuvertureLitige = z.strictObject({

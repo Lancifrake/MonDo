@@ -435,6 +435,28 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       UPDATE score.evenements e SET cercle_prive = true
         FROM score.cercles c WHERE c.cercle_id::text = e.cercle_id AND c.prive`,
   },
+  {
+    // Échange de places après complétion (choix de David, 11/11) : signé par les deux, expire à 48 h.
+    // Une seule proposition en cours par demandeur et par cercle.
+    nom: "027_echanges_de_places",
+    sql: `
+      CREATE TABLE cercles.echanges (
+        id uuid PRIMARY KEY,
+        cercle_id uuid NOT NULL REFERENCES cercles.cercles (id),
+        demandeur_id uuid NOT NULL,
+        cedant_id uuid NOT NULL,
+        place_demandeur integer NOT NULL,
+        place_cedant integer NOT NULL,
+        signature_demandeur text NOT NULL,
+        signature_cedant text,
+        propose_le timestamptz NOT NULL,
+        expire_le timestamptz NOT NULL,
+        conclu_le timestamptz,
+        statut text NOT NULL CHECK (statut IN ('propose', 'signe', 'refuse', 'expire'))
+      );
+      CREATE UNIQUE INDEX echange_en_cours ON cercles.echanges (cercle_id, demandeur_id) WHERE statut = 'propose';
+      CREATE INDEX echanges_cedant ON cercles.echanges (cercle_id, cedant_id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

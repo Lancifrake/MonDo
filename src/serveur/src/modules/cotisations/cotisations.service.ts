@@ -376,6 +376,77 @@ export class CotisationsService {
     });
   }
 
+  /**
+   * Échange de places : les tours des deux membres sont permutés, avec leurs cotisations et les frais du
+   * modèle A, qui suivent la place et non la personne. Refusé si l'un des deux tours a commencé (date limite
+   * passée, paiement déclaré ou confirmé) ou si une somme de frais les concernant est déjà déclarée ou réglée.
+   * Tout ou rien, dans une transaction. `simuler` : contrôle seulement, rien n'est écrit.
+   */
+  async echangerTours(cercleId: string, a: string, b: string, maintenant: Date, simuler = false): Promise<void> {
+    await this.base.transaction(async (tx) => {
+      const tours = await tx.requete<{ numero: number; beneficiaire_id: string; date_limite: Date | string }>(
+        "SELECT numero, beneficiaire_id, date_limite FROM cotisations.tours WHERE cercle_id = $1 AND beneficiaire_id = ANY($2::uuid[]) FOR UPDATE",
+        [cercleId, [a, b]],
+      );
+      const tourDe = (id: string) => tours.find((t) => t.beneficiaire_id === id);
+      const [tourA, tourB] = [tourDe(a), tourDe(b)];
+      if (!tourA || !tourB)
+        throw new BadRequestException("Échange impossible : tour introuvable pour l'un des deux membres");
+      const numeros = [tourA.numero, tourB.numero];
+      const commences = await tx.requete(
+        `SELECT 1 FROM cotisations.cotisations
+         WHERE cercle_id = $1 AND tour = ANY($2::int[]) AND (statut <> 'due' OR en_litige OR penalite_due_le IS NOT NULL)
+         LIMIT 1`,
+        [cercleId, numeros],
+      );
+      const fraisEngages = await tx.requete(
+        `SELECT 1 FROM cotisations.sommes_dues
+         WHERE cercle_id = $1 AND nature IN ('frais_mondo', 'remise') AND statut IN ('declaree', 'confirmee')
+           AND (debiteur_id = ANY($2::uuid[]) OR creancier_id = ANY($2::uuid[])) LIMIT 1`,
+        [cercleId, [a, b]],
+      );
+      if (
+        [tourA, tourB].some((t) => new Date(t.date_limite).getTime() <= maintenant.getTime()) ||
+        commences.length > 0 ||
+        fraisEngages.length > 0
+      ) {
+        throw new BadRequestException(
+          "Échange impossible : l'un des deux tours a commencé, ou des frais liés à ces places sont déjà réglés",
+        );
+      }
+      if (simuler) return;
+      for (const [tour, ancien, nouveau] of [
+        [tourA.numero, a, b],
+        [tourB.numero, b, a],
+      ] as const) {
+        await tx.requete("UPDATE cotisations.tours SET beneficiaire_id = $3 WHERE cercle_id = $1 AND numero = $2", [
+          cercleId,
+          tour,
+          nouveau,
+        ]);
+        await tx.requete("UPDATE cotisations.cotisations SET beneficiaire_id = $3 WHERE cercle_id = $1 AND tour = $2", [
+          cercleId,
+          tour,
+          nouveau,
+        ]);
+        // Le nouveau bénéficiaire ne se paie pas lui-même : sa ligne de payeur revient à l'ancien bénéficiaire.
+        await tx.requete(
+          "UPDATE cotisations.cotisations SET payeur_id = $4 WHERE cercle_id = $1 AND tour = $2 AND payeur_id = $3",
+          [cercleId, tour, nouveau, ancien],
+        );
+      }
+      // Frais et remises non réglés : les deux membres échangent leurs rôles (qui doit, à qui).
+      await tx.requete(
+        `UPDATE cotisations.sommes_dues SET
+           debiteur_id = CASE debiteur_id WHEN $2::uuid THEN $3::uuid WHEN $3::uuid THEN $2::uuid ELSE debiteur_id END,
+           creancier_id = CASE creancier_id WHEN $2::uuid THEN $3::uuid WHEN $3::uuid THEN $2::uuid ELSE creancier_id END
+         WHERE cercle_id = $1 AND nature IN ('frais_mondo', 'remise') AND statut = 'due'
+           AND (debiteur_id IN ($2, $3) OR creancier_id IN ($2, $3))`,
+        [cercleId, a, b],
+      );
+    });
+  }
+
   async consulter(id: string): Promise<Cotisation> {
     return this.trouver(id);
   }

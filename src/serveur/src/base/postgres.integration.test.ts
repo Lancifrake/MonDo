@@ -5,6 +5,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
 import { BlocagesService } from "../modules/comptes/blocages.service.js";
+import { CotisationsService } from "../modules/cotisations/cotisations.service.js";
 import { PlanificateurService } from "../modules/planificateur/planificateur.service.js";
 import { IdentiteService } from "../modules/comptes/identite.service.js";
 import { RecuperationService } from "../modules/comptes/recuperation.service.js";
@@ -141,6 +142,16 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       defauts: number;
     };
     expect(scoreOrg.defauts).toBeGreaterThanOrEqual(1);
+
+    // Échange de places (migration 027) : liste vide, contrôle des tours en lecture seule sur un vrai serveur.
+    expect(await (await client.requete("GET", `/cercles/${cercle.id}/echanges`, undefined, org)).json()).toEqual([]);
+    const [m1, m2] = final.membres;
+    if (m1 && m2) {
+      await app
+        .get(CotisationsService)
+        .echangerTours(cercle.id, m1, m2, new Date(), true)
+        .catch((e: unknown) => expect(String(e)).toMatch(/Échange impossible/));
+    }
 
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
