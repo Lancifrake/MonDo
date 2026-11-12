@@ -1,0 +1,18 @@
+# Contexte de construction réduit au strict nécessaire : rien des documents, rien de personnel, aucun secret.
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!src/
+src/*
+!src/serveur/
+!src/contrat/
+src/contrat/*
+!src/contrat/package.json
+src/serveur/node_modules
+src/serveur/dist
+src/serveur/coverage
+src/serveur/.env*
+**/*.pem
+**/*.key

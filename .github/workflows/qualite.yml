@@ -38,6 +38,27 @@ jobs:
       - run: pnpm build
       - run: pnpm essai-demarrage
 
+  # L'image de production se construit, démarre sans être root et répond sur /sante (simulateurs autorisés
+  # hors production) ; en production sans configuration, elle refuse de démarrer.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f src/serveur/Dockerfile -t mondo-serveur .
+      - name: Démarrage vérifié par /sante
+        run: |
+          docker run -d --name essai -e NODE_ENV=demonstration -e MONDO_PLANIFICATEUR_MINUTES=0 -p 3000:3000 mondo-serveur
+          for i in $(seq 1 30); do
+            [ "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/sante)" = "200" ] && break
+            sleep 2
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/sante)" = "200"
+          test "$(docker exec essai id -u)" != "0"
+          docker stop essai
+      - name: Refus de démarrer en production sans configuration
+        run: |
+          if docker run --rm mondo-serveur; then echo "le serveur a démarré en production sans configuration"; exit 1; fi
+
   contrat:
     runs-on: ubuntu-latest
     defaults:
