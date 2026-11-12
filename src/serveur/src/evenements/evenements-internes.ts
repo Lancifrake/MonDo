@@ -42,7 +42,7 @@ export type EvenementInterne =
   | { type: "cercle_termine"; cercleId: string; termineLe: string }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }
-  | { type: "adhesion_enregistree"; cercleId: string; membreId: string }
+  | { type: "adhesion_enregistree"; cercleId: string; membreId: string; cerclePrive: boolean }
   | ({ type: "cercle_complet" } & CercleComplet)
   | { type: "echeance_proche"; cercleId: string; membreId: string; cotisationId: string; joursRestants: number }
   | { type: "echeance_depassee"; cercleId: string; membreId: string; cotisationId: string; joursDeRetard: number };

@@ -102,3 +102,36 @@ describe("calculerOrdreDePassage", () => {
     }
   });
 });
+
+describe("cercles privés : moitié des gains, pertes entières (choix de David, 11/11)", () => {
+  const e = (type: EvenementScore["type"], cerclePrive: boolean): EvenementScore => ({
+    type,
+    cercleId: "c",
+    date: "2026-11-11T00:00:00.000Z",
+    cerclePrive,
+  });
+
+  it("une cotisation à temps rapporte 2 au lieu de 4, un cycle terminé 5 au lieu de 10", () => {
+    expect(calculerScore([e("cotisation_a_temps", true)])).toBe(2);
+    expect(calculerScore([e("cotisation_a_temps", false)])).toBe(4);
+    expect(calculerScore([e("cycle_termine", true)])).toBe(5);
+    expect(calculerScore([e("cycle_termine", false)])).toBe(10);
+  });
+
+  it("retard, défaut et départ coûtent autant en cercle privé qu'en cercle ouvert", () => {
+    const base = Array.from({ length: 12 }, () => e("cotisation_a_temps", false));
+    for (const perte of ["cotisation_en_retard", "defaut", "depart"] as const) {
+      expect(calculerScore([...base, e(perte, true)])).toBe(calculerScore([...base, e(perte, false)]));
+    }
+    expect(calculerScore([...base, e("defaut", true)])).toBe(18);
+  });
+
+  it("un cycle privé de dix membres sans retard : 9 × 2 + 5 = 23, contre 46 en cercle ouvert", () => {
+    const cycle = (prive: boolean) => [
+      ...Array.from({ length: 9 }, () => e("cotisation_a_temps", prive)),
+      e("cycle_termine", prive),
+    ];
+    expect(calculerScore(cycle(true))).toBe(23);
+    expect(calculerScore(cycle(false))).toBe(46);
+  });
+});

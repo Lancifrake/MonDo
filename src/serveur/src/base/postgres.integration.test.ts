@@ -136,6 +136,12 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     expect([201, 400]).toContain(depart.status);
     expect((await app.get(PlanificateurService).examinerEcheances()).echecs).toBe(0);
 
+    // Cercles privés à moitié de points (migration 026) : l'insertion marque l'événement, la lecture le rend.
+    const scoreOrg = (await (await client.requete("GET", `/score/${org.id}`, undefined, org)).json()) as {
+      defauts: number;
+    };
+    expect(scoreOrg.defauts).toBeGreaterThanOrEqual(1);
+
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);

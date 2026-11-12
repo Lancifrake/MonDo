@@ -7,16 +7,20 @@ import type { EvenementScore, TypeEvenementScore } from "../../score/evenements.
 export class DepotEvenementsScore {
   constructor(@Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees) {}
 
+  /** L'événement est marqué « cercle privé » d'après ce que le module sait du cercle, au moment où il arrive. */
   async ajouter(membreId: string, e: EvenementScore): Promise<void> {
-    await this.base.requete("INSERT INTO score.evenements (membre_id, type, cercle_id, date) VALUES ($1, $2, $3, $4)", [
-      membreId,
-      e.type,
-      e.cercleId,
-      e.date,
-    ]);
+    await this.base.requete(
+      `INSERT INTO score.evenements (membre_id, type, cercle_id, date, cercle_prive)
+       VALUES ($1, $2, $3, $4, COALESCE((SELECT prive FROM score.cercles WHERE cercle_id::text = $3), false))`,
+      [membreId, e.type, e.cercleId, e.date],
+    );
   }
 
-  async ajouterMembre(cercleId: string, membreId: string): Promise<void> {
+  async ajouterMembre(cercleId: string, membreId: string, cerclePrive: boolean): Promise<void> {
+    await this.base.requete(
+      "INSERT INTO score.cercles (cercle_id, prive) VALUES ($1, $2) ON CONFLICT (cercle_id) DO NOTHING",
+      [cercleId, cerclePrive],
+    );
     await this.base.requete(
       "INSERT INTO score.membres_cercles (cercle_id, membre_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
       [cercleId, membreId],
@@ -33,10 +37,17 @@ export class DepotEvenementsScore {
   }
 
   async lister(membreId: string): Promise<EvenementScore[]> {
-    const lignes = await this.base.requete<{ type: TypeEvenementScore; cercle_id: string; date: Date | string }>(
-      "SELECT type, cercle_id, date FROM score.evenements WHERE membre_id = $1 ORDER BY id",
-      [membreId],
-    );
-    return lignes.map((l) => ({ type: l.type, cercleId: l.cercle_id, date: new Date(l.date).toISOString() }));
+    const lignes = await this.base.requete<{
+      type: TypeEvenementScore;
+      cercle_id: string;
+      date: Date | string;
+      cercle_prive: boolean;
+    }>("SELECT type, cercle_id, date, cercle_prive FROM score.evenements WHERE membre_id = $1 ORDER BY id", [membreId]);
+    return lignes.map((l) => ({
+      type: l.type,
+      cercleId: l.cercle_id,
+      date: new Date(l.date).toISOString(),
+      ...(l.cercle_prive ? { cerclePrive: true } : {}),
+    }));
   }
 }

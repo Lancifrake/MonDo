@@ -161,7 +161,8 @@ describe("décision de l'administrateur", () => {
       tranchePar: admin.id,
     });
     expect((await etat()).statut).toBe("confirmee");
-    expect((await score(payeur)).score).toBe(4);
+    // Cercle privé : une cotisation à temps rapporte 2 (moitié des gains, choix de David du 11/11).
+    expect((await score(payeur)).score).toBe(2);
     expect(await score(beneficiaire)).toEqual(avant);
     const vu = await json<Litige>(await client.requete("GET", `/litiges/${litige.id}`, undefined, payeur));
     expect(vu.decision).toBe("paiement_valide");
