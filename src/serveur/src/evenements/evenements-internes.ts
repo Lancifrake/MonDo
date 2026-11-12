@@ -18,6 +18,8 @@ export interface CercleComplet {
 export type EvenementInterne =
   | { type: "cotisation_confirmee"; cercleId: string; membreId: string; cotisationId: string; aTemps: boolean }
   | { type: "confirmation_manquante"; cercleId: string; membreId: string; cotisationId: string }
+  /** Paiement déclaré depuis 24 h ou 48 h, toujours pas confirmé ni en litige : le bénéficiaire est relancé. */
+  | { type: "confirmation_attendue"; cotisationId: string; palierHeures: 24 | 48 }
   | { type: "cercle_termine"; cercleId: string; termineLe: string }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }

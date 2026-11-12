@@ -12,6 +12,7 @@ import type { Action, EvenementCercle, Mode, Reglement as ReglementAgents } from
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { FileSms } from "../../sms/file-sms.js";
+import { fcfa } from "../../sms/montant.js";
 import { CerclesService, type Reglement } from "../cercles/cercles.service.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { CotisationsService } from "../cotisations/cotisations.service.js";
@@ -52,7 +53,6 @@ const versAction = (l: LigneAction): ActionJournal => ({
 });
 
 /** 10 000 FCFA, avec une espace ordinaire : les SMS restent dans l'alphabet GSM (160 caractères par message). */
-const fcfa = (montant: number) => `${String(montant).replace(/\B(?=(\d{3})+(?!\d))/g, " ")} FCFA`;
 
 /** Date au Cameroun (UTC+1), jour/mois/année. */
 const jour = (iso: string) =>
