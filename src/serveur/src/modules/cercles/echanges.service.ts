@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -21,6 +23,8 @@ import { CerclesService, messageEchange, type Cercle } from "./cercles.service.j
 
 /** Sans seconde signature, la proposition expire (flow 5, choix de David). */
 export const VALIDITE_ECHANGE_MS = 48 * 60 * 60 * 1000;
+/** Propositions par demandeur et par cercle sur 24 h : chaque proposition envoie un SMS au membre visé. */
+export const PROPOSITIONS_MAX_PAR_JOUR = 3;
 
 export interface EchangePlace {
   id: string;
@@ -95,6 +99,16 @@ export class EchangesService {
       throw new ForbiddenException("Signature de l'échange invalide");
     }
     await this.expirer(maintenant);
+    const [{ n }] = (await this.base.requete<{ n: string | number }>(
+      "SELECT count(*) AS n FROM cercles.echanges WHERE cercle_id = $1 AND demandeur_id = $2 AND propose_le > $3",
+      [cercleId, demandeurId, new Date(maintenant.getTime() - 24 * 60 * 60 * 1000).toISOString()],
+    )) as [{ n: string | number }];
+    if (Number(n) >= PROPOSITIONS_MAX_PAR_JOUR) {
+      throw new HttpException(
+        "Trop de propositions d'échange aujourd'hui dans ce cercle",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
     let ligne: LigneEchange;
     try {
       [ligne] = (await this.base.requete<LigneEchange>(

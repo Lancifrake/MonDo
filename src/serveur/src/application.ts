@@ -15,6 +15,14 @@ type RequeteBrute = IncomingMessage & { body?: unknown; _body?: boolean };
 function lireGrosCorpsJson(tailleMax: number) {
   return (req: RequeteBrute, res: ServerResponse, suite: Suite) => {
     if (req.method !== "POST" || !/^application\/json/i.test(req.headers["content-type"] ?? "")) return suite();
+    // Taille annoncée trop grande : refus immédiat, sans lire ni garder un seul octet du corps.
+    if (Number(req.headers["content-length"] ?? 0) > tailleMax) {
+      res.writeHead(413, { "content-type": "application/json" });
+      res.end(JSON.stringify({ statusCode: 413, message: "Corps trop volumineux" }));
+      // Ce que le client envoie encore est jeté au fur et à mesure, sans couper la connexion sous ses pieds.
+      req.resume();
+      return;
+    }
     const morceaux: Buffer[] = [];
     let taille = 0;
     let refuse = false;

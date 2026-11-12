@@ -218,6 +218,11 @@ export class RecuperationService {
     }
     if (l.statut !== "en_attente" || l.avec_contact)
       throw new BadRequestException("Aucune pièce attendue pour cette demande");
+    // Cette route n'est pas couverte par la garde : même anti-rejeu qu'une requête signée, sur le message signé.
+    const message = messagePiecesRecuperation(id, horodatage);
+    if (!(await this.comptes.marquerRequeteVue(`recuperation:${id}`, message, new Date(instant + FENETRE_MS)))) {
+      throw new ForbiddenException("Preuve déjà utilisée : signer un nouvel envoi");
+    }
     return this.identite.deposerPourRecuperation(l.compte_id, id, pieces, maintenant);
   }
 
