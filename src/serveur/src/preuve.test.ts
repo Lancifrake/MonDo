@@ -48,11 +48,17 @@ const dossier = (cercleId: string, debiteur: Identite, demandeur: Identite) =>
 
 describe("montant dû dans une mise en demeure", () => {
   it("cotisations non confirmées plus une pénalité de retard du règlement par cotisation", () => {
-    expect(calculerMontantDu([10000, 10000], 500)).toEqual({ cotisations: 20000, penalites: 1000, total: 21000 });
+    const lignes = [
+      { montant: 10000, penalite: 500 },
+      { montant: 10000, penalite: 500 },
+    ];
+    expect(calculerMontantDu(lignes)).toEqual({ cotisations: 20000, penalites: 1000, total: 21000 });
+    // Une cotisation échue mais encore dans son délai de grâce : réclamée sans pénalité.
+    expect(calculerMontantDu([lignes[0]!, { montant: 10000, penalite: 0 }])).toMatchObject({ penalites: 500 });
   });
 
   it("aucune cotisation due : rien à réclamer", () => {
-    expect(calculerMontantDu([], 500)).toEqual({ cotisations: 0, penalites: 0, total: 0 });
+    expect(calculerMontantDu([])).toEqual({ cotisations: 0, penalites: 0, total: 0 });
   });
 });
 

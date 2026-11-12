@@ -26,6 +26,12 @@ export interface Cotisation {
   declareeLe?: string;
   /** Litige ouvert : la déclaration est gelée et le bénéficiaire n'est plus relancé. */
   enLitige: boolean;
+  /** Pénalité de retard du règlement pour cette cotisation, due au bénéficiaire du tour (11/11). */
+  penalite: number;
+  /** Ce qui est effectivement dû : la pénalité si la fin de grâce est passée sans paiement, sinon 0. */
+  penaliteDue: number;
+  /** Fin de grâce à laquelle la pénalité est devenue due. Une seule fois, même si le paiement arrive ensuite. */
+  penaliteDueLe?: string;
   statut: "due" | "declaree" | "confirmee";
 }
 
@@ -49,6 +55,8 @@ interface LigneCotisation extends Record<string, unknown> {
   reference_transaction: string | null;
   declaree_le?: Date | string | null;
   en_litige?: boolean | null;
+  penalite?: string | number | null;
+  penalite_due_le?: Date | string | null;
   statut: Cotisation["statut"];
 }
 
@@ -64,6 +72,9 @@ const versCotisation = (l: LigneCotisation): Cotisation => ({
   ...(l.reference_transaction ? { referenceTransaction: l.reference_transaction } : {}),
   ...(l.declaree_le ? { declareeLe: new Date(l.declaree_le).toISOString() } : {}),
   enLitige: l.en_litige === true,
+  penalite: Number(l.penalite ?? 0),
+  penaliteDue: l.penalite_due_le ? Number(l.penalite ?? 0) : 0,
+  ...(l.penalite_due_le ? { penaliteDueLe: new Date(l.penalite_due_le).toISOString() } : {}),
   statut: l.statut,
 });
 
@@ -77,8 +88,21 @@ export class CotisationsService {
     @Inject(FileSms) private readonly sms: FileSms,
   ) {
     this.evenements.ecouter("cercle_complet", (e) => this.planifierTours(e));
+    this.evenements.ecouter("defaut_constate", (e) => this.rendrePenaliteDue(e.cercleId, e.membreId, e.tour));
     this.evenements.ecouter("compte_debloque", (e) => this.reporterEcheances(e.membreId, e.bloqueLe, e.debloqueLe));
     this.evenements.ecouter("confirmation_attendue", (e) => this.relancerBeneficiaire(e.cotisationId, e.palierHeures));
+  }
+
+  /**
+   * Défaut constaté : la pénalité du règlement devient due au bénéficiaire du tour, datée de la fin de grâce.
+   * Une seule fois par cotisation : un événement rejoué ne change rien, un paiement tardif ne l'efface pas.
+   */
+  private async rendrePenaliteDue(cercleId: string, payeurId: string, tour: number): Promise<void> {
+    await this.base.requete(
+      `UPDATE cotisations.cotisations SET penalite_due_le = fin_grace
+       WHERE cercle_id = $1 AND payeur_id = $2 AND tour = $3 AND statut <> 'confirmee' AND penalite_due_le IS NULL`,
+      [cercleId, payeurId, tour],
+    );
   }
 
   /**
@@ -140,9 +164,19 @@ export class CotisationsService {
         for (const payeurId of c.ordre.filter((m) => m !== t.beneficiaireId)) {
           await tx.requete(
             `INSERT INTO cotisations.cotisations
-               (id, cercle_id, payeur_id, beneficiaire_id, montant, tour, date_limite, fin_grace, statut)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'due')`,
-            [randomUUID(), c.cercleId, payeurId, t.beneficiaireId, c.montant, t.numero, t.dateLimite, finGrace],
+               (id, cercle_id, payeur_id, beneficiaire_id, montant, tour, date_limite, fin_grace, statut, penalite)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'due', $9)`,
+            [
+              randomUUID(),
+              c.cercleId,
+              payeurId,
+              t.beneficiaireId,
+              c.montant,
+              t.numero,
+              t.dateLimite,
+              finGrace,
+              c.penaliteRetard ?? 0,
+            ],
           );
         }
       }

@@ -5,6 +5,7 @@ import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
 import { BlocagesService } from "../modules/comptes/blocages.service.js";
+import { PlanificateurService } from "../modules/planificateur/planificateur.service.js";
 import { IdentiteService } from "../modules/comptes/identite.service.js";
 import { RecuperationService } from "../modules/comptes/recuperation.service.js";
 import { dossierIdentite } from "../testing/identite.js";
@@ -114,6 +115,20 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     }
     expect((await client.requete("GET", "/sommes-dues", undefined, org)).status).toBe(200);
     expect((await client.requete("GET", "/administration/sommes-dues", undefined, org)).status).toBe(403);
+
+    // Pénalité au bénéficiaire (migration 024) : colonne lue, puis posée par un défaut constaté.
+    const duesOrg = (await (
+      await client.requete("GET", `/cotisations?cercleId=${cercle.id}`, undefined, org)
+    ).json()) as { payeurId: string; tour: number; penalite: number; penaliteDue: number }[];
+    const uneDue = duesOrg.find((c) => c.payeurId === org.id)!;
+    expect(uneDue).toMatchObject({ penalite: 500, penaliteDue: 0 });
+    await app
+      .get(PlanificateurService)
+      .constaterDefaut(cercle.id, org.id, uneDue.tour, new Date(Date.now() + 90 * 24 * 3600 * 1000));
+    const apresDefaut = (await (
+      await client.requete("GET", `/cotisations?cercleId=${cercle.id}`, undefined, org)
+    ).json()) as { payeurId: string; tour: number; penaliteDue: number }[];
+    expect(apresDefaut.find((c) => c.payeurId === org.id && c.tour === uneDue.tour)!.penaliteDue).toBe(500);
 
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];

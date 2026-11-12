@@ -10,6 +10,8 @@ export interface CercleComplet {
   frequence: Frequence;
   periodeJours?: number;
   delaiGraceJours: number;
+  /** Pénalité de retard du règlement, due au bénéficiaire du tour à la fin de grâce. */
+  penaliteRetard?: number;
   datePremierTour: string;
   completLe: string;
   /** Frais du modèle A, calculés par Cercles à partir du barème signé. Absent pour un cercle d'avant le 11/11. */
