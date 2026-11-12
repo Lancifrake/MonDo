@@ -10,7 +10,8 @@ import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { ComptesService } from "../comptes/comptes.service.js";
-import type { Frequence } from "../cotisations/calendrier.js";
+import { periodeMinimaleJours, type Frequence } from "../cotisations/calendrier.js";
+import { CotisationsService } from "../cotisations/cotisations.service.js";
 import { ScoreService } from "../score/score.service.js";
 
 export interface Reglement {
@@ -49,7 +50,10 @@ export interface Cercle {
   organisateurId: string;
   reglement: Reglement;
   empreinteReglement: string;
+  /** Membres actuels, dans l'ordre d'inscription ; ceux qui sont partis sont dans `partis`. */
   membres: string[];
+  /** Membres qui ont quitté le cercle en cours de cycle. */
+  partis?: string[];
   /** terminé : fin de grâce du dernier tour passée ; défauts, litiges et dossier de preuve continuent. */
   statut: "en_attente" | "complet" | "termine";
   ordre?: PlaceOrdre[];
@@ -137,6 +141,7 @@ export class CerclesService {
     @Inject(EvenementsInternes) private readonly evenements: EvenementsInternes,
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(FileSms) private readonly sms: FileSms,
+    @Inject(CotisationsService) private readonly cotisations: CotisationsService,
   ) {
     this.evenements.ecouter("cercle_termine", (e) => this.terminer(e.cercleId, e.termineLe));
     this.evenements.ecouter("compte_bloque", (e) =>
@@ -163,8 +168,8 @@ export class CerclesService {
     const autres = await this.base.requete<{ membre_id: string }>(
       `SELECT DISTINCT b.membre_id FROM cercles.adhesions a
        JOIN cercles.cercles c ON c.id = a.cercle_id AND c.statut = 'complet'
-       JOIN cercles.adhesions b ON b.cercle_id = a.cercle_id AND b.membre_id <> a.membre_id
-       WHERE a.membre_id = $1`,
+       JOIN cercles.adhesions b ON b.cercle_id = a.cercle_id AND b.membre_id <> a.membre_id AND b.parti_le IS NULL
+       WHERE a.membre_id = $1 AND a.parti_le IS NULL`,
       [membreId],
     );
     for (const { membre_id } of autres) {
@@ -191,7 +196,7 @@ export class CerclesService {
   async aUnCercleEnCours(membreId: string): Promise<boolean> {
     const lignes = await this.base.requete(
       `SELECT 1 FROM cercles.adhesions a JOIN cercles.cercles c ON c.id = a.cercle_id
-       WHERE a.membre_id = $1 AND c.statut <> 'termine' LIMIT 1`,
+       WHERE a.membre_id = $1 AND a.parti_le IS NULL AND c.statut <> 'termine' LIMIT 1`,
       [membreId],
     );
     return lignes.length > 0;
@@ -305,16 +310,63 @@ export class CerclesService {
     return this.trouver(cercleId);
   }
 
+  /**
+   * Départ en cours de cycle (choix de David, 11/11) : libre tant que le membre n'a rien reçu de sa cagnotte,
+   * impossible après. Le module Cotisations vérifie et applique d'abord (tout ou rien) ; ensuite le départ est
+   * noté ici, inscrit au registre, publié (score −15) et annoncé aux autres membres.
+   */
+  async quitter(cercleId: string, membreId: string, maintenant: Date = new Date()) {
+    const cercle = await this.trouver(cercleId);
+    if (cercle.partis?.includes(membreId)) throw new BadRequestException("Vous avez déjà quitté ce cercle");
+    if (!cercle.membres.includes(membreId)) throw new ForbiddenException("Réservé aux membres du cercle");
+    if (cercle.statut !== "complet") {
+      throw new BadRequestException(
+        cercle.statut === "termine"
+          ? "Cercle terminé"
+          : "Le départ n'est prévu que pour un cercle complet, en cours de cycle",
+      );
+    }
+    const { frequence, periodeJours } = cercle.reglement;
+    const limite = new Date(maintenant.getTime() + periodeMinimaleJours(frequence, periodeJours) * 24 * 60 * 60 * 1000);
+    const { remboursements } = await this.cotisations.enregistrerDepart(cercleId, membreId, maintenant, limite);
+    const partiLe = maintenant.toISOString();
+    await this.base.requete(
+      "UPDATE cercles.adhesions SET parti_le = $3 WHERE cercle_id = $1 AND membre_id = $2 AND parti_le IS NULL",
+      [cercleId, membreId, partiLe],
+    );
+    await this.registre.enregistrer(canonique({ objet: "depart", cercleId, membreId, partiLe }));
+    await this.evenements.publier({ type: "depart_enregistre", cercleId, membreId, partiLe });
+    for (const autre of cercle.membres.filter((m) => m !== membreId)) {
+      const compte = await this.comptes.chercher(autre);
+      if (compte) {
+        await this.sms.mettreEnFile(
+          `depart:${cercleId}:${membreId}:${autre}`,
+          compte.numero,
+          "MonDo : un membre a quitté votre cercle avant son tour. Son tour est supprimé, ses cotisations à venir sont annulées. Le détail est dans l'application.",
+        );
+      }
+    }
+    this.sms.declencher();
+    return { cercleId, partiLe, remboursements };
+  }
+
   async trouver(id: string): Promise<Cercle> {
     if (!UUID.test(id)) throw new NotFoundException("Cercle introuvable");
     const [l] = await this.base.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1", [id]);
     if (!l) throw new NotFoundException("Cercle introuvable");
+    const partis = (
+      await this.base.requete<{ membre_id: string }>(
+        "SELECT membre_id FROM cercles.adhesions WHERE cercle_id = $1 AND parti_le IS NOT NULL ORDER BY parti_le",
+        [id],
+      )
+    ).map((x) => x.membre_id);
     return {
       id: l.id,
       organisateurId: l.organisateur_id,
       reglement: l.reglement,
       empreinteReglement: l.empreinte_reglement,
       membres: await this.membres(this.base, id),
+      ...(partis.length > 0 ? { partis } : {}),
       statut: l.statut,
       ...(l.ordre ? { ordre: l.ordre } : {}),
       ...(l.termine_le ? { termineLe: new Date(l.termine_le).toISOString() } : {}),
@@ -349,7 +401,9 @@ export class CerclesService {
    */
   async consulterPour(id: string, demandeurId: string): Promise<Cercle | CerclePourNonMembre> {
     const { membres, ordre, ...cercle } = await this.trouver(id);
-    const placesRestantes = Math.max(0, cercle.reglement.nombreMembres - membres.length);
+    // Les places libérées par un départ ne se reprennent pas : le remplacement n'est pas prévu.
+    const placesRestantes =
+      cercle.statut === "en_attente" ? Math.max(0, cercle.reglement.nombreMembres - membres.length) : 0;
     if (membres.includes(demandeurId)) return { ...cercle, membres, ...(ordre ? { ordre } : {}), placesRestantes };
     const { ordreFixe, ...reglementSansOrdre } = cercle.reglement;
     if (ordreFixe) {
@@ -411,7 +465,7 @@ export class CerclesService {
 
   private async membres(ex: Executeur, cercleId: string): Promise<string[]> {
     const lignes = await ex.requete<{ membre_id: string }>(
-      "SELECT membre_id FROM cercles.adhesions WHERE cercle_id = $1 ORDER BY rang",
+      "SELECT membre_id FROM cercles.adhesions WHERE cercle_id = $1 AND parti_le IS NULL ORDER BY rang",
       [cercleId],
     );
     return lignes.map((l) => l.membre_id);

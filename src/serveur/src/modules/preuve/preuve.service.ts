@@ -89,7 +89,7 @@ export class PreuveService implements OnModuleInit {
     constateLe: Date = new Date(),
   ): Promise<MiseEnDemeure | undefined> {
     const dues = (await this.cotisations.listerPour(cercleId, membreId)).filter(
-      (c) => c.statut !== "confirmee" && Date.parse(c.dateLimite) <= constateLe.getTime(),
+      (c) => (c.statut === "due" || c.statut === "declaree") && Date.parse(c.dateLimite) <= constateLe.getTime(),
     );
     // La pénalité n'est due qu'à la fin de grâce de la cotisation, pas dès la date limite.
     const lignes: LigneReclamee[] = dues.map((c) => ({
