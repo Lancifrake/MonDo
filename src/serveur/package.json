@@ -15,25 +15,25 @@
     "qualite": "eslint . && tsc --noEmit && prettier --check . && vitest run --coverage"
   },
   "devDependencies": {
-    "@nestjs/testing": "^12.3.2",
+    "@nestjs/testing": "^12.4.2",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
-    "@vitest/coverage-v8": "^5.0.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "eslint": "^10.14.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.5.14",
-    "@nestjs/common": "^12.3.2",
-    "@nestjs/core": "^12.3.2",
-    "@nestjs/platform-express": "^12.3.2",
+    "@electric-sql/pglite": "^0.5.15",
+    "@nestjs/common": "^12.4.2",
+    "@nestjs/core": "^12.4.2",
+    "@nestjs/platform-express": "^12.4.2",
     "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "viem": "2.57.14",
+    "viem": "2.57.17",
     "zod": "^4.6.7"
   }
 }
