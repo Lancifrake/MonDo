@@ -1,6 +1,8 @@
 import {
   type CanActivate,
   type ExecutionContext,
+  HttpException,
+  HttpStatus,
   Inject,
   Injectable,
   SetMetadata,
@@ -8,16 +10,17 @@ import {
   createParamDecorator,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { BlocagesService } from "../modules/comptes/blocages.service.js";
 import { ComptesService } from "../modules/comptes/comptes.service.js";
 import { verifierSignature } from "../signature/signature.js";
+import { FENETRE_MS } from "./fenetre.js";
 import { messageRequete } from "./messages.js";
 
 const CLE_PUBLIC = "mondo:public";
 /** Route accessible sans requête signée (seulement l'inscription). */
 export const Public = () => SetMetadata(CLE_PUBLIC, true);
 
-/** Une requête signée n'est valable que 5 minutes, et une seule fois. */
-export const FENETRE_MS = 5 * 60 * 1000;
+export { FENETRE_MS };
 
 interface RequeteHttp {
   method: string;
@@ -37,6 +40,7 @@ export class GardeAuthentification implements CanActivate {
   constructor(
     @Inject(Reflector) private readonly reflector: Reflector,
     @Inject(ComptesService) private readonly comptes: ComptesService,
+    @Inject(BlocagesService) private readonly blocages: BlocagesService,
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
@@ -63,6 +67,10 @@ export class GardeAuthentification implements CanActivate {
     // Après la vérification : on ne laisse pas un inconnu remplir la table des signatures.
     if (!(await this.comptes.marquerRequeteVue(membreId, message, new Date(instant + FENETRE_MS)))) {
       throw new UnauthorizedException("Requête déjà utilisée");
+    }
+    // Compte bloqué (essais ratés ou récupération contestée) : plus aucune action, même bien signée.
+    if (await this.blocages.estBloque(membreId)) {
+      throw new HttpException("Compte bloqué : vos échéances sont suspendues jusqu'au déblocage", HttpStatus.LOCKED);
     }
     req.membreId = membreId;
     return true;

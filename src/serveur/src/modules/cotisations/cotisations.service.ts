@@ -76,7 +76,25 @@ export class CotisationsService {
     @Inject(FileSms) private readonly sms: FileSms,
   ) {
     this.evenements.ecouter("cercle_complet", (e) => this.planifierTours(e));
+    this.evenements.ecouter("compte_debloque", (e) => this.reporterEcheances(e.membreId, e.bloqueLe, e.debloqueLe));
     this.evenements.ecouter("confirmation_attendue", (e) => this.relancerBeneficiaire(e.cotisationId, e.palierHeures));
+  }
+
+  /**
+   * Compte débloqué (règle du 03/11) : les dates limites et les fins de grâce des cotisations que le membre
+   * devait encore, et dont la fin de grâce n'était pas passée au début du blocage, reculent de la durée du
+   * blocage. Le temps bloqué ne compte ni comme retard ni comme défaut.
+   */
+  private async reporterEcheances(membreId: string, bloqueLe: string, debloqueLe: string): Promise<void> {
+    const dureeMs = Date.parse(debloqueLe) - Date.parse(bloqueLe);
+    if (!(dureeMs > 0)) return;
+    await this.base.requete(
+      `UPDATE cotisations.cotisations
+       SET date_limite = date_limite + ($3 * interval '1 millisecond'),
+           fin_grace = fin_grace + ($3 * interval '1 millisecond')
+       WHERE payeur_id = $1 AND statut = 'due' AND tour > 0 AND fin_grace > $2`,
+      [membreId, bloqueLe, dureeMs],
+    );
   }
 
   /**

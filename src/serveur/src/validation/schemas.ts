@@ -40,6 +40,28 @@ export const schemaDecisionIdentite = z.strictObject({
   motif: z.string().trim().min(1).max(500),
 });
 
+export const schemaCodeSecret = z.strictObject({
+  code: z.string().regex(/^\d{4,8}$/, "Code secret de 4 à 8 chiffres"),
+});
+export const schemaDemandeRecuperation = z.strictObject({
+  numero: schemaNumero,
+  clePublique: schemaClePublique,
+  preuve: z.string().min(1).max(200),
+  codeOtp: z.string().regex(/^\d{6}$/, "Code SMS à 6 chiffres"),
+  codeSecret: z
+    .string()
+    .regex(/^\d{4,8}$/)
+    .optional(),
+});
+export const schemaPiecesRecuperation = schemaDepotIdentite.extend({
+  horodatage: z.iso.datetime(),
+  preuve: z.string().min(1).max(200),
+});
+export const schemaDecisionRecuperation = z.strictObject({
+  decision: z.enum(["titulaire_confirme", "recuperation_acceptee"]),
+  motif: z.string().trim().min(1).max(500),
+});
+
 export const schemaInscription = z.strictObject({
   numero: schemaNumero,
   nom: z.string().trim().min(1).max(100),

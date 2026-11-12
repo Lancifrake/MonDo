@@ -4,7 +4,9 @@ import type { INestApplication } from "@nestjs/common";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
+import { BlocagesService } from "../modules/comptes/blocages.service.js";
 import { IdentiteService } from "../modules/comptes/identite.service.js";
+import { RecuperationService } from "../modules/comptes/recuperation.service.js";
 import { dossierIdentite } from "../testing/identite.js";
 import {
   CerclesService,
@@ -116,6 +118,19 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     const depot = await client.requete("POST", "/comptes/moi/identite", dossierIdentite(), org);
     expect(depot.status).toBe(403);
     expect((await client.requete("GET", "/comptes/moi/identite", undefined, org)).status).toBe(404);
+    // Récupération et blocage (migration 022) : demande refusée proprement, blocage posé puis levé, dates décalées.
+    const blocages = app.get(BlocagesService);
+    await blocages.bloquer(org.id, "essais_rates", new Date(Date.now() - 48 * 3600 * 1000));
+    await blocages.bloquer(org.id, "opposition");
+    expect((await client.requete("GET", "/comptes/moi", undefined, org)).status).toBe(200);
+    expect(await blocages.leverEchus()).toBe(1);
+    expect((await blocages.comptesBloques()).size).toBe(0);
+    await blocages.bloquer(org.id, "opposition");
+    expect((await client.requete("GET", "/comptes/moi", undefined, org)).status).toBe(423);
+    await blocages.lever(org.id);
+    expect(await app.get(RecuperationService).finaliser()).toBe(0);
+    expect(await app.get(RecuperationService).enRecuperation(org.id)).toBe(false);
+    expect((await client.requete("POST", "/comptes/moi/code-secret", { code: "482615" }, org)).status).toBe(201);
     await app.get(IdentiteService).noterFinDeCercle(org.id, new Date());
     expect(
       await app.get(IdentiteService).purger(new Date(), (id) => app.get(CerclesService).aUnCercleEnCours(id)),

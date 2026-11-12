@@ -58,6 +58,7 @@ beforeEach(() => {
     registre,
     { purger },
     { aUnCercleEnCours: async () => false },
+    { finaliser: async () => 1 },
   );
 });
 afterEach(async () => {

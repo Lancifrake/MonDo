@@ -82,6 +82,36 @@ export class ComptesService {
     return ligne && versCompte(ligne);
   }
 
+  async chercherParNumero(numero: string): Promise<Compte | undefined> {
+    const [ligne] = await this.base.requete<LigneCompte>("SELECT * FROM comptes.comptes WHERE numero = $1", [numero]);
+    return ligne && versCompte(ligne);
+  }
+
+  /**
+   * Récupération acceptée : la nouvelle clé remplace l'ancienne, qui est gardée comme clé révoquée. Les
+   * documents signés avant restent vérifiables avec elle (dossier de preuve).
+   */
+  async remplacerCle(id: string, nouvelleCle: JsonWebKey, maintenant: Date = new Date()): Promise<void> {
+    await this.base.transaction(async (tx) => {
+      const [avant] = await tx.requete<LigneCompte>("SELECT * FROM comptes.comptes WHERE id = $1 FOR UPDATE", [id]);
+      if (!avant) throw new NotFoundException("Compte introuvable");
+      await tx.requete(
+        "INSERT INTO comptes.cles_revoquees (compte_id, cle_publique, revoquee_le) VALUES ($1, $2, $3)",
+        [id, JSON.stringify(avant.cle_publique), maintenant.toISOString()],
+      );
+      await tx.requete("UPDATE comptes.comptes SET cle_publique = $2 WHERE id = $1", [id, JSON.stringify(nouvelleCle)]);
+    });
+  }
+
+  /** Clés remplacées lors d'une récupération, de la plus ancienne à la plus récente. */
+  async clesRevoquees(id: string): Promise<{ clePublique: JsonWebKey; revoqueeLe: string }[]> {
+    const lignes = await this.base.requete<{ cle_publique: JsonWebKey; revoquee_le: Date | string }>(
+      "SELECT cle_publique, revoquee_le FROM comptes.cles_revoquees WHERE compte_id = $1 ORDER BY revoquee_le, id",
+      [id],
+    );
+    return lignes.map((l) => ({ clePublique: l.cle_publique, revoqueeLe: new Date(l.revoquee_le).toISOString() }));
+  }
+
   async trouver(id: string): Promise<Compte> {
     const compte = await this.chercher(id);
     if (!compte) throw new NotFoundException("Compte introuvable");

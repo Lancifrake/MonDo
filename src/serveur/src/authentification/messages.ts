@@ -11,3 +11,11 @@ export const messageRequete = (methode: string, chemin: string, horodatage: stri
 /** À l'inscription, le téléphone prouve qu'il détient la clé privée de la clé publique envoyée. */
 export const messageInscription = (d: { numero: string; nom: string; clePublique: JsonWebKey }): string =>
   canonique({ objet: "inscription", numero: d.numero, nom: d.nom, clePublique: d.clePublique });
+
+/** Récupération : le nouveau téléphone prouve qu'il détient la clé privée de la nouvelle clé publique. */
+export const messageRecuperation = (d: { numero: string; clePublique: JsonWebKey }): string =>
+  canonique({ objet: "recuperation", numero: d.numero, clePublique: d.clePublique });
+
+/** Dépôt des pièces d'une récupération sans contact : signé par la nouvelle clé, valable 5 minutes. */
+export const messagePiecesRecuperation = (recuperationId: string, horodatage: string): string =>
+  canonique({ objet: "pieces_recuperation", recuperationId, horodatage });
