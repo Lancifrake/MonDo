@@ -420,6 +420,21 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       );
       ALTER TABLE cercles.adhesions ADD COLUMN parti_le timestamptz`,
   },
+  {
+    // Cercles privés à moitié de points (choix de David, 11/11). Le module Score retient quels cercles sont
+    // privés (événement adhesion_enregistree) et marque chaque événement. Reprise unique de l'existant.
+    nom: "026_score_cercles_prives",
+    sql: `
+      CREATE TABLE score.cercles (
+        cercle_id uuid PRIMARY KEY,
+        prive boolean NOT NULL
+      );
+      INSERT INTO score.cercles (cercle_id, prive)
+        SELECT id, COALESCE(reglement->>'ouvert', 'false') <> 'true' FROM cercles.cercles;
+      ALTER TABLE score.evenements ADD COLUMN cercle_prive boolean NOT NULL DEFAULT false;
+      UPDATE score.evenements e SET cercle_prive = true
+        FROM score.cercles c WHERE c.cercle_id::text = e.cercle_id AND c.prive`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

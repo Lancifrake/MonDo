@@ -239,7 +239,12 @@ export class CerclesService {
         [id, d.organisateurId, d.signature, d.placeSouhaitee],
       );
     });
-    await this.evenements.publier({ type: "adhesion_enregistree", cercleId: id, membreId: d.organisateurId });
+    await this.evenements.publier({
+      type: "adhesion_enregistree",
+      cercleId: id,
+      membreId: d.organisateurId,
+      cerclePrive: !d.reglement.ouvert,
+    });
     return this.trouver(id);
   }
 
@@ -279,7 +284,12 @@ export class CerclesService {
     });
 
     await this.registre.enregistrer(message);
-    await this.evenements.publier({ type: "adhesion_enregistree", cercleId, membreId: d.membreId });
+    await this.evenements.publier({
+      type: "adhesion_enregistree",
+      cercleId,
+      membreId: d.membreId,
+      cerclePrive: !cercle.reglement.ouvert,
+    });
     if (complet) {
       const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);

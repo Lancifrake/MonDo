@@ -1,4 +1,4 @@
-import { POINTS, SCORE_MAX, SCORE_MIN, type EvenementScore } from "./evenements.js";
+import { SCORE_MAX, SCORE_MIN, pointsDe, type EvenementScore } from "./evenements.js";
 
 /**
  * Le score n'est jamais écrit à la main : c'est le rejeu, dans l'ordre, des événements.
@@ -7,7 +7,7 @@ import { POINTS, SCORE_MAX, SCORE_MIN, type EvenementScore } from "./evenements.
 export function calculerScore(evenements: readonly EvenementScore[]): number {
   let score = SCORE_MIN;
   for (const e of evenements) {
-    score = Math.min(SCORE_MAX, Math.max(SCORE_MIN, score + POINTS[e.type]));
+    score = Math.min(SCORE_MAX, Math.max(SCORE_MIN, score + pointsDe(e)));
   }
   return score;
 }

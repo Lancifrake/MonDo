@@ -44,10 +44,10 @@ const score = async (qui: Identite) =>
   };
 
 describe("Cotisations -> Score, par événements seulement", () => {
-  it("une cotisation confirmée à temps donne +4 au payeur", async () => {
+  it("une cotisation confirmée à temps donne +2 au payeur en cercle privé (moitié des gains, 11/11)", async () => {
     const { payeur, beneficiaire, id } = await cotisationDeclaree();
     expect((await client.requete("POST", `/cotisations/${id}/confirmation`, undefined, beneficiaire)).status).toBe(201);
-    expect((await score(payeur)).score).toBe(4);
+    expect((await score(payeur)).score).toBe(2);
   });
 
   it("le payeur ne peut pas confirmer à la place du bénéficiaire", async () => {
