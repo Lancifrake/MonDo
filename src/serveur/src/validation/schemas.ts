@@ -89,6 +89,18 @@ export const schemaReglement = z
      * membres du premier au dernier. Chacun signe le règlement en connaissant cet ordre.
      */
     ordreFixe: z.array(z.uuid()).min(3).max(50).optional(),
+    /** Frais du modèle A en francs, place par place ; l'exactitude est contrôlée par le service. */
+    bareme: z
+      .array(
+        z.strictObject({
+          place: z.number().int().min(1).max(16),
+          frais: z.number().int().min(0),
+          partMonDo: z.number().int().min(0),
+          remiseParPlaceDeFin: z.number().int().min(0),
+        }),
+      )
+      .max(16)
+      .optional(),
   })
   .superRefine((r, ctx) => {
     if ((r.frequence === "jours") !== (r.periodeJours !== undefined)) {

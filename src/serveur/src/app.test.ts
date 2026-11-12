@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { AppModule } from "./app.module.js";
 import { messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
-import { cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
+import { avecBareme, cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
 import { creerClient, type Identite } from "./testing/client.js";
 
 let app: INestApplication;
@@ -70,7 +70,7 @@ describe("Cotisations -> Score, par événements seulement", () => {
 
   it("un défaut constaté fait baisser le score, une seule fois même si le planificateur est rejoué", async () => {
     const luc = await client.inscrire();
-    const r: Reglement = {
+    const r: Reglement = avecBareme({
       montant: 1000,
       frequence: "mensuelle",
       nombreMembres: 3,
@@ -78,7 +78,7 @@ describe("Cotisations -> Score, par événements seulement", () => {
       delaiGraceJours: 2,
       ouvert: false,
       datePremierTour: dansJours(7),
-    };
+    });
     const cercle = (await (
       await client.requete(
         "POST",

@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { messageEngagement, messageReglement, type Cercle, type Reglement } from "./modules/cercles/cercles.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { dansJours } from "./testing/cercles.js";
+import { avecBareme, dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -17,16 +17,17 @@ beforeAll(async () => {
 });
 afterAll(async () => app.close());
 
-const reglement = (extra: Partial<Reglement> = {}): Reglement => ({
-  montant: 10000,
-  frequence: "hebdomadaire",
-  nombreMembres: 3,
-  penaliteRetard: 500,
-  delaiGraceJours: 2,
-  ouvert: false,
-  datePremierTour: dansJours(7),
-  ...extra,
-});
+const reglement = (extra: Partial<Reglement> = {}): Reglement =>
+  avecBareme({
+    montant: 10000,
+    frequence: "hebdomadaire",
+    nombreMembres: 3,
+    penaliteRetard: 500,
+    delaiGraceJours: 2,
+    ouvert: false,
+    datePremierTour: dansJours(7),
+    ...extra,
+  });
 
 async function creerCercle(org: Identite, r: Reglement) {
   return client.requete(

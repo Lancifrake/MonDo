@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees, type Executeur } from "../../base/base-de-donnees.js";
-import { EvenementsInternes } from "../../evenements/evenements-internes.js";
+import { EvenementsInternes, type FraisDeTour } from "../../evenements/evenements-internes.js";
 import { RegistreService } from "../../registre/registre.service.js";
 import { attribuerLesPlaces, premierePlaceAutorisee, zoneDe } from "../../score/attribution-des-places.js";
+import { baremeExact, taillesDesZones, type LigneBareme } from "../../score/frais.js";
 import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
@@ -26,6 +27,11 @@ export interface Reglement {
   rappelsAvantEcheanceJours?: number[];
   /** Date limite des cotisations du premier tour ; décalée d'une période si le cercle n'est pas complet à temps. */
   datePremierTour: string;
+  /**
+   * Frais du modèle A (choix de David, 11/11), en francs, place par place : chaque membre signe des montants.
+   * Obligatoire à la création, et égal au calcul de `calculerBareme`. Absent des cercles d'avant.
+   */
+  bareme?: LigneBareme[];
   /** Cercle privé : ordre de passage fixé par l'organisateur, identifiants du premier au dernier (11/11). */
   ordreFixe?: string[];
 }
@@ -111,6 +117,17 @@ export const messageEngagement = (
 
 const UUID = /^[0-9a-f-]{36}$/i;
 
+/** Barème signé et ordre figé : qui doit quoi à qui. La remise va à chaque membre d'une place de fin. */
+function fraisParTour(bareme: readonly LigneBareme[], ordre: readonly string[]): FraisDeTour[] {
+  const { fin, premierePlaceDeFin } = taillesDesZones(ordre.length);
+  const placesDeFin = ordre.slice(premierePlaceDeFin - 1, premierePlaceDeFin - 1 + fin);
+  return bareme.map((l) => ({
+    tour: l.place,
+    partMonDo: l.partMonDo,
+    remises: placesDeFin.map((creancierId) => ({ creancierId, montant: l.remiseParPlaceDeFin })),
+  }));
+}
+
 @Injectable()
 export class CerclesService {
   constructor(
@@ -187,6 +204,11 @@ export class CerclesService {
     if (Date.parse(d.reglement.datePremierTour) <= maintenant.getTime()) {
       throw new BadRequestException("La date du premier tour doit être dans le futur");
     }
+    if (!baremeExact(d.reglement.bareme, d.reglement.nombreMembres, d.reglement.montant)) {
+      throw new BadRequestException(
+        "Barème des frais absent ou inexact : le demander par GET /cercles/bareme et l'écrire dans le règlement",
+      );
+    }
     const organisateur = await this.comptes.trouver(d.organisateurId);
     if (d.reglement.ordreFixe) {
       for (const id of d.reglement.ordreFixe) {
@@ -257,7 +279,7 @@ export class CerclesService {
       const completLe = new Date().toISOString();
       const ordre = await this.figerOrdre(cercleId, complet);
       await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
-      const { montant, frequence, periodeJours, delaiGraceJours, datePremierTour } = cercle.reglement;
+      const { montant, frequence, periodeJours, delaiGraceJours, datePremierTour, bareme } = cercle.reglement;
       await this.evenements.publier({
         type: "cercle_complet",
         cercleId,
@@ -268,6 +290,14 @@ export class CerclesService {
         delaiGraceJours,
         datePremierTour,
         completLe,
+        ...(bareme
+          ? {
+              frais: fraisParTour(
+                bareme,
+                ordre.map((p) => p.membreId),
+              ),
+            }
+          : {}),
       });
     }
     return this.trouver(cercleId);

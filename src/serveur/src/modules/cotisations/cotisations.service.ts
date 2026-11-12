@@ -6,6 +6,7 @@ import { FileSms } from "../../sms/file-sms.js";
 import { fcfa } from "../../sms/montant.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { calendrierDesTours } from "./calendrier.js";
+import type { NatureSomme } from "./sommes-dues.service.js";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
@@ -142,6 +143,36 @@ export class CotisationsService {
                (id, cercle_id, payeur_id, beneficiaire_id, montant, tour, date_limite, fin_grace, statut)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'due')`,
             [randomUUID(), c.cercleId, payeurId, t.beneficiaireId, c.montant, t.numero, t.dateLimite, finGrace],
+          );
+        }
+      }
+      // Frais du modèle A : le bénéficiaire d'un tour du début doit sa part à MonDo et une remise à chaque
+      // membre d'une place de fin. Exigibles le jour de sa cagnotte, à régler avant le tour suivant.
+      for (const f of c.frais ?? []) {
+        const tour = tours[f.tour - 1];
+        const suivant = tours[f.tour];
+        if (!tour || !suivant) continue;
+        const creances: [string | null, NatureSomme, number][] = [
+          [null, "frais_mondo", f.partMonDo],
+          ...f.remises.map((r): [string, NatureSomme, number] => [r.creancierId, "remise", r.montant]),
+        ];
+        for (const [creancierId, nature, montant] of creances) {
+          if (montant <= 0) continue;
+          await tx.requete(
+            `INSERT INTO cotisations.sommes_dues
+               (id, cercle_id, nature, debiteur_id, creancier_id, montant, tour, exigible_le, date_limite, statut)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'due')`,
+            [
+              randomUUID(),
+              c.cercleId,
+              nature,
+              tour.beneficiaireId,
+              creancierId,
+              montant,
+              tour.numero,
+              tour.dateLimite,
+              suivant.dateLimite,
+            ],
           );
         }
       }

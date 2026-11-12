@@ -10,7 +10,7 @@ type RequeteBrute = IncomingMessage & { body?: unknown; _body?: boolean };
 
 /**
  * Lit un corps JSON plus gros que la limite ordinaire (100 ko), pour une seule route. Écrit sans dépendance
- * nouvelle. Au-delà de la taille permise, la lecture s'arrête et la requête est refusée (413).
+ * nouvelle. Au-delà de la taille permise, la requête est refusée (413) et plus rien n'est gardé en mémoire.
  */
 function lireGrosCorpsJson(tailleMax: number) {
   return (req: RequeteBrute, res: ServerResponse, suite: Suite) => {
@@ -22,8 +22,11 @@ function lireGrosCorpsJson(tailleMax: number) {
       if (refuse) return;
       taille += morceau.length;
       if (taille > tailleMax) {
+        // On répond tout de suite et on ne garde plus rien en mémoire ; le reste de l'envoi est ignoré sans
+        // couper la connexion, pour que le client lise bien le refus.
         refuse = true;
-        res.writeHead(413, { "content-type": "application/json", connection: "close" });
+        morceaux.length = 0;
+        res.writeHead(413, { "content-type": "application/json" });
         res.end(JSON.stringify({ statusCode: 413, message: "Corps trop volumineux" }));
         return;
       }

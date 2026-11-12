@@ -7,7 +7,7 @@ import { messageEngagement, messageReglement, type Cercle, type Reglement } from
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import type { DossierDePreuve } from "./modules/preuve/preuve.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { cotisationsDe, dansJours } from "./testing/cercles.js";
+import { avecBareme, cotisationsDe, dansJours } from "./testing/cercles.js";
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 
@@ -28,16 +28,17 @@ interface ActionJournal {
   issue: string;
 }
 
-const reglementDe = (extra: Partial<Reglement> = {}): Reglement => ({
-  montant: 10000,
-  frequence: "hebdomadaire",
-  nombreMembres: 3,
-  penaliteRetard: 500,
-  delaiGraceJours: 2,
-  ouvert: false,
-  datePremierTour: dansJours(7),
-  ...extra,
-});
+const reglementDe = (extra: Partial<Reglement> = {}): Reglement =>
+  avecBareme({
+    montant: 10000,
+    frequence: "hebdomadaire",
+    nombreMembres: 3,
+    penaliteRetard: 500,
+    delaiGraceJours: 2,
+    ouvert: false,
+    datePremierTour: dansJours(7),
+    ...extra,
+  });
 
 async function cercleComplet(r: Reglement = reglementDe()) {
   const [org, a, b] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];

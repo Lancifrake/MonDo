@@ -11,7 +11,7 @@ import { RegistreService } from "./registre/registre.service.js";
 import { verifierPreuve } from "./registre/merkle.js";
 import { verifierSignature } from "./signature/signature.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
+import { avecBareme, cercleComplet, cotisationsDe, dansJours } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -23,7 +23,7 @@ beforeAll(async () => {
 });
 afterAll(async () => app.close());
 
-const reglement: Reglement = {
+const reglement: Reglement = avecBareme({
   montant: 10000,
   frequence: "hebdomadaire",
   nombreMembres: 3,
@@ -31,7 +31,7 @@ const reglement: Reglement = {
   delaiGraceJours: 2,
   ouvert: false,
   datePremierTour: dansJours(7),
-};
+});
 
 /** Un cercle complet de trois, où « defaillant » doit ses deux cotisations générées (une par autre membre). */
 async function scenarioDefaut() {

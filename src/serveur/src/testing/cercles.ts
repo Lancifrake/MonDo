@@ -5,6 +5,7 @@ import {
   type Cercle,
   type Reglement,
 } from "../modules/cercles/cercles.service.js";
+import { calculerBareme } from "../score/frais.js";
 import type { creerClient, Identite } from "./client.js";
 
 type Client = Awaited<ReturnType<typeof creerClient>>;
@@ -14,15 +15,22 @@ const JOUR_MS = 24 * 60 * 60 * 1000;
 export const dansJours = (jours: number, depuis = Date.now()) => new Date(depuis + jours * JOUR_MS).toISOString();
 
 /** Règlement fictif de test : trois membres, hebdomadaire, premier tour dans une semaine. */
-export const reglementDeTest = (extra: Partial<Reglement> = {}): Reglement => ({
-  montant: 10000,
-  frequence: "hebdomadaire",
-  nombreMembres: 3,
-  penaliteRetard: 500,
-  delaiGraceJours: 2,
-  ouvert: false,
-  datePremierTour: dansJours(7),
-  ...extra,
+export const reglementDeTest = (extra: Partial<Reglement> = {}): Reglement =>
+  avecBareme({
+    montant: 10000,
+    frequence: "hebdomadaire",
+    nombreMembres: 3,
+    penaliteRetard: 500,
+    delaiGraceJours: 2,
+    ouvert: false,
+    datePremierTour: dansJours(7),
+    ...extra,
+  });
+
+/** Ajoute le barème des frais du modèle A, obligatoire dans un règlement, sauf s'il est déjà fourni. */
+export const avecBareme = (r: Reglement): Reglement => ({
+  ...r,
+  bareme: r.bareme ?? calculerBareme(r.nombreMembres, r.montant),
 });
 
 /** Place souhaitée par défaut : la dernière, toujours permise quel que soit le score. */
