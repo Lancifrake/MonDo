@@ -2,7 +2,7 @@
 
 Date : 04/11/2026, mis à jour le 11/11/2026 (décisions de David du 11/11, voir la section 12). Modèle du domaine validé par David le 03/11 (score comme historique d'événements, Administrateur classe séparée, classes V2 incluses en gris), complété par ce que le code contient (`src/serveur`). Le diagramme se dessine dans Visual Paradigm à partir de ce texte ; une fois dessiné, le fichier VP fait foi et ce texte sert de référence.
 
-Version PlantUML à importer dans Visual Paradigm (11/11, à jour) : [`classes/mondo-diagramme-de-classes.puml`](classes/mondo-diagramme-de-classes.puml). Dans Visual Paradigm Online, coller le texte dans l'import PlantUML (langage PlantUML) puis OK : classes, paquetages, énumérations et relations sont créés. C'est une aide tirée de ce texte, pas une source.
+Version PlantUML à importer dans Visual Paradigm (12/11, à jour) : [`classes/mondo-diagramme-de-classes.puml`](classes/mondo-diagramme-de-classes.puml). Dans Visual Paradigm Online, coller le texte dans l'import PlantUML (langage PlantUML) puis OK : classes, paquetages, énumérations et relations sont créés. C'est une aide tirée de ce texte, pas une source.
 
 Version draw.io (04/11, périmée) : [`classes/mondo-diagramme-de-classes.drawio`](classes/mondo-diagramme-de-classes.drawio). Elle ne contient ni les tours, ni les litiges, ni la place souhaitée ; garder la version PlantUML.
 
@@ -176,14 +176,16 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 - EchangePlace : gratuit, plus d'attribut frais.
 - Les stéréotypes «calculé» restent sur Score et DossierDePreuve.
 
-## Écarts entre le modèle et le code (11/11)
+## Écarts entre le modèle et le code (12/11)
 | Dans le modèle | Dans le code |
 |---|---|
-| CleSignature, classe à part | attribut `clePublique` du compte ; une seule clé, pas encore de rotation |
+| CleSignature, classe à part | attribut `clePublique` du compte ; les clés remplacées lors d'une récupération sont gardées dans `comptes.cles_revoquees` |
 | DocumentSigne | la signature est stockée sur l'adhésion |
-| VerificationIdentite, PieceIdentite, AccesPiece, ContactConfiance, DemandeRecuperation, BlocageCompte | pas encore codés |
-| LigneBareme, ordreFixe, SommeDue, Depart, EchangePlace, pénalité de la cotisation, cerclePrive | pas encore codés |
+| LigneBareme | champ `bareme` du règlement (JSON signé), pas de table |
+| Depart | `parti_le` sur l'adhésion (Cercles) et `cotisations.departs` (Cotisations) |
+| ContactConfiance | codé, avec en plus le code d'accord haché et le plafond de désignations |
+| DemandeRecuperation | codée ; le code secret du flow 2 est en plus dans `comptes.codes_secrets` |
 | Administrateur | prototype : comptes membres listés dans `MONDO_ADMINISTRATEURS`, pas de classe à part |
 | Reconnaissance de dette | volontairement absente : créancier et montant non tranchés (recours-legaux.md, section 5) |
 
-Ces écarts sont la liste des prochains travaux du serveur, pas des erreurs du modèle. La version PlantUML (`classes/mondo-diagramme-de-classes.puml`) date d'avant le 11/11 : elle ne contient pas encore les classes de la section 12.
+VerificationIdentite, PieceIdentite, AccesPiece, BlocageCompte, SommeDue, EchangePlace, la pénalité de la cotisation, `cerclePrive` et `ordreFixe` sont codés comme dans le modèle. Les écarts restants sont des choix de stockage, pas des travaux à faire. La version PlantUML (`classes/mondo-diagramme-de-classes.puml`) contient les classes de la section 12 depuis le 12/11.
