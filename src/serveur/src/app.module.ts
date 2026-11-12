@@ -14,11 +14,13 @@ import { ScoreModule } from "./modules/score/score.module.js";
 import { RegistreModule } from "./registre/registre.module.js";
 import { SanteController } from "./sante/sante.controller.js";
 import { SmsModule } from "./sms/sms.module.js";
+import { StockageModule } from "./stockage/stockage.module.js";
 
 @Module({
   imports: [
     BaseModule,
     SmsModule,
+    StockageModule,
     EvenementsModule,
     RegistreModule,
     ComptesModule,

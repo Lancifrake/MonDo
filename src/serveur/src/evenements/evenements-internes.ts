@@ -20,6 +20,8 @@ export type EvenementInterne =
   | { type: "confirmation_manquante"; cercleId: string; membreId: string; cotisationId: string }
   /** Paiement déclaré depuis 24 h ou 48 h, toujours pas confirmé ni en litige : le bénéficiaire est relancé. */
   | { type: "confirmation_attendue"; cotisationId: string; palierHeures: 24 | 48 }
+  /** Publié par Cercles pour chaque membre d'un cercle qui se termine (conservation de la pièce d'identité). */
+  | { type: "fin_de_cercle_pour_membre"; cercleId: string; membreId: string; termineLe: string }
   | { type: "cercle_termine"; cercleId: string; termineLe: string }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }

@@ -32,6 +32,8 @@ let registre: {
   fermerLot: ReturnType<typeof vi.fn<() => Promise<undefined>>>;
 };
 
+let purger: ReturnType<typeof vi.fn<(d: Date, f: (id: string) => Promise<boolean>) => Promise<number>>>;
+
 beforeEach(() => {
   vi.useFakeTimers();
   f = planificateurFactice();
@@ -49,7 +51,14 @@ beforeEach(() => {
       return undefined;
     }),
   };
-  declencheur = new DeclencheurPlanificateur(f as unknown as PlanificateurService, sms, registre);
+  purger = vi.fn(async (_d: Date, enCours: (id: string) => Promise<boolean>) => ((await enCours("m")) ? 0 : 2));
+  declencheur = new DeclencheurPlanificateur(
+    f as unknown as PlanificateurService,
+    sms,
+    registre,
+    { purger },
+    { aUnCercleEnCours: async () => false },
+  );
 });
 afterEach(async () => {
   await declencheur.arreter();

@@ -1,4 +1,6 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
+import { CerclesService } from "../cercles/cercles.service.js";
+import { IdentiteService } from "../comptes/identite.service.js";
 import { RegistreService } from "../../registre/registre.service.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { PlanificateurService } from "./planificateur.service.js";
@@ -21,7 +23,7 @@ export function intervallePlanificateur(env: NodeJS.ProcessEnv): number | undefi
 }
 
 /**
- * À chaque passage : `examinerEcheances`, puis la file des SMS, puis le registre (lots en échec réinscrits, puis
+ * À chaque passage : `examinerEcheances`, puis la file des SMS, puis le registre, puis la conservation des pièces (lots en échec réinscrits, puis
  * le lot en cours fermé et sa racine inscrite sur la chaîne). Au démarrage (rattrapage après un arrêt) puis à
  * intervalle régulier. Jamais deux passages en même temps. Chaque étape est indépendante : une étape qui échoue
  * est journalisée, les suivantes ont lieu quand même, et elle est reprise au passage suivant.
@@ -37,6 +39,8 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
     @Inject(PlanificateurService) private readonly planificateur: PlanificateurService,
     @Inject(FileSms) private readonly sms: Pick<FileSms, "vider">,
     @Inject(RegistreService) private readonly registre: Pick<RegistreService, "reprendreInscriptions" | "fermerLot">,
+    @Inject(IdentiteService) private readonly identite: Pick<IdentiteService, "purger">,
+    @Inject(CerclesService) private readonly cercles: Pick<CerclesService, "aUnCercleEnCours">,
   ) {}
 
   demarrer(intervalleMs: number): void {
@@ -73,6 +77,11 @@ export class DeclencheurPlanificateur implements OnModuleDestroy {
           const lot = await this.registre.fermerLot();
           if (lot)
             this.journal.log(`Lot de ${lot.empreintes.length} empreinte(s) inscrit : ${lot.referenceInscription}`);
+        });
+        // Pièces d'identité : suppressions à reprendre, cartes arrivées au bout de leur durée de conservation.
+        await this.etape("Conservation", async () => {
+          const supprimees = await this.identite.purger(new Date(), (id) => this.cercles.aUnCercleEnCours(id));
+          if (supprimees > 0) this.journal.log(`${supprimees} image(s) d'identité supprimée(s)`);
         });
       } finally {
         this.enCours = undefined;

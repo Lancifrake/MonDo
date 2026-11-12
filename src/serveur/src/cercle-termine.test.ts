@@ -3,7 +3,8 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
-import type { Cercle } from "./modules/cercles/cercles.service.js";
+import { EvenementsInternes } from "./evenements/evenements-internes.js";
+import { CerclesService, type Cercle } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
 import { cercleComplet, cotisationsDe, reglementDeTest } from "./testing/cercles.js";
@@ -52,5 +53,19 @@ describe("cercle terminé à la fin de grâce du dernier tour", () => {
     await planificateur.examinerEcheances(new Date(finDernierTour + HEURE_MS));
     await planificateur.examinerEcheances(new Date(finDernierTour + 30 * HEURE_MS));
     expect(await lire()).toMatchObject({ statut: "termine", termineLe: new Date(finDernierTour).toISOString() });
+  });
+
+  it("chaque membre est prévenu de la fin (conservation de sa pièce), et n'a plus de cercle en cours", async () => {
+    const { membres, cercle, finDernierTour, planificateur } = await cercleSansPaiement();
+    const cercles = app.get(CerclesService);
+    const prevenus: string[] = [];
+    app.get(EvenementsInternes).ecouter("fin_de_cercle_pour_membre", (e) => {
+      if (e.cercleId === cercle.id) prevenus.push(e.membreId);
+    });
+    expect(await cercles.aUnCercleEnCours(membres[0]!.id)).toBe(true);
+    await planificateur.examinerEcheances(new Date(finDernierTour + HEURE_MS));
+    await planificateur.examinerEcheances(new Date(finDernierTour + 2 * HEURE_MS));
+    expect(prevenus.sort()).toEqual(membres.map((m) => m.id).sort());
+    expect(await cercles.aUnCercleEnCours(membres[0]!.id)).toBe(false);
   });
 });

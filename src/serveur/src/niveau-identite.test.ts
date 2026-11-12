@@ -25,12 +25,12 @@ describe("vérification d'identité (niveau 2) simulée", () => {
     expect(await r.json()).toMatchObject({ niveau: 2 });
   });
 
-  it("en production : refusée, personne ne peut se déclarer vérifié sans prestataire", async () => {
+  it("en production : refusée, le niveau 2 passe par le dépôt des pièces et un administrateur", async () => {
     const m = await client.inscrire();
     vi.stubEnv("NODE_ENV", "production");
     const r = await m.niveau2();
     expect(r.status).toBe(403);
-    expect(((await r.json()) as { message: string }).message).toMatch(/prestataire/);
+    expect(((await r.json()) as { message: string }).message).toMatch(/administrateur/);
     expect((await app.get(ComptesService).trouver(m.id)).niveau).toBe(1);
   });
 });

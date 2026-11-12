@@ -42,6 +42,8 @@ corepack pnpm essai-demarrage  # démarre dist/, vérifie /sante et l'arrêt pro
 | `src/signature`             | vérification ECDSA P-256, JSON canonique                       |
 | `src/score`                 | règles pures : points, ordre de passage                        |
 | `src/assistant`             | assistant multi-agents (décision 04)                           |
+| `src/stockage`              | stockage d'objets chiffré (pièces d'identité)                  |
+| `src/administration`        | qui est Administrateur (prototype : variable d'environnement)  |
 
 ## Règles
 
@@ -60,7 +62,7 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 
 **Lecture pour l'application** (requêtes signées, chacun ne lit que ce qui le concerne) : `GET /comptes/moi` (mon compte, sans la clé publique), `GET /cercles` (mes cercles : règlement, statut, nombre d'inscrits, ma place une fois l'ordre figé, jamais la liste des membres), `GET /litiges/miens` (les litiges où je suis payeur ou bénéficiaire).
 
-**Identité** : niveau 1 à l'inscription (numéro vérifié par OTP, nom) ; niveau 2 exigé pour adhérer à un cercle ouvert à des inconnus. Au prototype, `POST /comptes/:id/niveau2` accorde le niveau 2 sans contrôler aucune pièce : cette route est refusée en production (403) tant qu'un prestataire de vérification d'identité n'est pas branché (vision, V2).
+**Identité** : niveau 1 à l'inscription (numéro vérifié par OTP, nom) ; niveau 2 exigé pour adhérer à un cercle ouvert à des inconnus. Le niveau 2 s'obtient par la vérification d'identité interne ci-dessous. `POST /comptes/:id/niveau2` reste un raccourci de démonstration et de test, qui n'examine aucune pièce : il est refusé en production (403).
 
 **Contact de confiance** (choix de David, 11/11) : exigé au niveau 2, facultatif au niveau 1, aucun engagement financier. `POST /comptes/moi/contact-de-confiance` (nom, numéro) envoie au contact un SMS, par la file, avec un code à 6 chiffres ; s'il accepte, il donne le code au membre, qui le saisit par `POST /comptes/moi/contact-de-confiance/accord`. `GET /comptes/moi/contact-de-confiance` rend l'état (`en_attente` ou `accepte`). Code gardé haché, 5 essais, valable 48 h ; au plus 3 désignations par compte sur 24 h ; désigner un autre contact annule l'accord du précédent. Ces valeurs de sécurité sont des choix prudents, sans règle métier écrite. Limite : le contact ne peut pas retirer son accord lui-même (pas de SMS entrant).
 
@@ -78,6 +80,20 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 **Fin de cycle** (choix de David, 05/11) : bonus « cycle terminé » (+10) pour un membre quand la fin de grâce du dernier tour est passée, qu'il n'a eu aucun défaut dans ce cercle (même régularisé ensuite) et que le bénéficiaire a confirmé toutes ses cotisations. S'il manque une confirmation, le bonus arrive au passage qui suit. Une seule fois par membre et par cercle.
 
 **Cercle terminé** (choix de David, 05/11) : à la fin de grâce du dernier tour, le planificateur passe le cercle au statut `termine` (date `termineLe` = cette fin de grâce), une seule fois, impayés ou non. Défauts, mises en demeure, litiges et dossier de preuve continuent après. La fin est inscrite au registre ; plus aucune adhésion.
+
+## Vérification d'identité (niveau 2)
+
+Faite en interne, sans prestataire (choix de David, 08/11 et 11/11).
+
+1. Le membre a un contact de confiance qui a donné son accord (sinon 403).
+2. `GET /comptes/moi/identite/consentement` rend le texte de consentement et sa version. `POST /comptes/moi/identite` dépose `typePiece` (`cni` ou `passeport`), `recto`, `verso`, `selfie` (JPEG ou PNG en base64, 2 Mo chacun au plus), avec `consentement: true` et `versionConsentement`. Le consentement est daté et gardé avec le dossier. Un seul dossier en attente par compte, 3 dépôts par jour au plus.
+3. Un Administrateur (`MONDO_ADMINISTRATEURS`) consulte la file `GET /administration/identites`, ouvre une pièce par `GET /administration/identites/:id/pieces/:nature` (chaque ouverture est journalisée dans `comptes.acces_pieces`) et décide par `POST /administration/identites/:id/decision` (`validee` ou `refusee`, avec un motif). Il ne traite jamais son propre dossier.
+4. Décision `validee` : niveau 2, selfie supprimé tout de suite, carte gardée chiffrée. Décision `refusee` : toutes les images sont supprimées, le motif est rendu au membre par `GET /comptes/moi/identite`, un nouveau dépôt est possible. La décision est inscrite au registre (empreinte, sans le motif) et le membre est prévenu par SMS.
+5. Conservation : la carte est supprimée 5 ans après la décision ou la fin du dernier cercle du membre, jamais tant qu'il a un cercle en cours (durée provisoire, à valider par un juriste). Le planificateur fait cette purge à chaque passage et reprend une suppression manquée.
+
+**Stockage des images** : derrière l'interface `StockageObjets` (`src/stockage`), jamais en base ni dans les journaux. Au prototype, un fichier par image, chiffré en AES-256-GCM, dans `MONDO_STOCKAGE_DOSSIER`, avec la clé `MONDO_STOCKAGE_CLE` (32 octets en base64, par exemple `openssl rand -base64 32`). Sans ces deux variables, hors production, la clé et le dossier sont temporaires ; en production, le serveur refuse de démarrer. Perdre la clé rend les pièces illisibles : elle se sauvegarde à part.
+
+Le corps des requêtes reste limité à 100 ko, sauf pour le dépôt des pièces (9 Mo), lu par `src/application.ts`.
 
 ## Litiges
 

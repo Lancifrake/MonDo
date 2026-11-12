@@ -4,11 +4,13 @@ import {
   schemaAccordContact,
   schemaContactConfiance,
   schemaDemandeOtp,
+  schemaDepotIdentite,
   schemaInscription,
 } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
 import { ComptesService } from "./comptes.service.js";
 import { ContactConfianceService } from "./contact-confiance.service.js";
+import { IdentiteService, TEXTE_CONSENTEMENT, VERSION_CONSENTEMENT } from "./identite.service.js";
 import { OtpService } from "./otp.service.js";
 
 @Controller("comptes")
@@ -17,6 +19,7 @@ export class ComptesController {
     @Inject(ComptesService) private readonly comptes: ComptesService,
     @Inject(OtpService) private readonly otp: OtpService,
     @Inject(ContactConfianceService) private readonly contacts: ContactConfianceService,
+    @Inject(IdentiteService) private readonly identite: IdentiteService,
   ) {}
 
   @Public()
@@ -60,14 +63,35 @@ export class ComptesController {
     return this.contacts.enregistrerAccord(membreId, corps.code);
   }
 
+  /** Texte de consentement en vigueur, à afficher avant le dépôt des pièces. */
+  @Get("moi/identite/consentement")
+  consentement() {
+    return { version: VERSION_CONSENTEMENT, texte: TEXTE_CONSENTEMENT };
+  }
+
+  /** Mon dossier de vérification d'identité, sans aucune image. */
+  @Get("moi/identite")
+  monIdentite(@MembreAuthentifie() membreId: string) {
+    return this.identite.consulterLeMien(membreId);
+  }
+
+  /** Dépôt du recto, du verso et du selfie, avec consentement explicite. Décision par un Administrateur. */
+  @Post("moi/identite")
+  deposerIdentite(
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaDepotIdentite)) corps: (typeof schemaDepotIdentite)["_output"],
+  ) {
+    return this.identite.deposer(membreId, corps);
+  }
+
   @Post(":id/niveau2")
   async niveau2(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
     if (id !== membreId) throw new ForbiddenException("On ne vérifie que sa propre identité");
-    // Prototype : aucune pièce n'est contrôlée. En production, personne ne doit pouvoir se déclarer vérifié
-    // tant qu'un prestataire de vérification d'identité n'est pas branché (vision, V2).
+    // Raccourci de démonstration et de test : aucune pièce n'est contrôlée. En production, le niveau 2 ne
+    // s'obtient que par le dépôt des pièces et la décision d'un Administrateur.
     if (process.env.NODE_ENV === "production") {
       throw new ForbiddenException(
-        "Vérification d'identité simulée, désactivée en production : brancher un prestataire de vérification",
+        "Raccourci désactivé en production : déposer ses pièces par POST /comptes/moi/identite (vérification par un administrateur)",
       );
     }
     return this.comptes.passerAuNiveau2(id);

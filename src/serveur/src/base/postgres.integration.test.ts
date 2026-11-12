@@ -4,7 +4,10 @@ import type { INestApplication } from "@nestjs/common";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
+import { IdentiteService } from "../modules/comptes/identite.service.js";
+import { dossierIdentite } from "../testing/identite.js";
 import {
+  CerclesService,
   messageEngagement,
   messageReglement,
   type Cercle,
@@ -107,5 +110,15 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     expect(
       (await client.requete("POST", "/comptes/moi/contact-de-confiance/accord", { code: "000000" }, org)).status,
     ).toBeGreaterThanOrEqual(201);
+
+    // Vérification d'identité : sans accord du contact le dépôt est refusé (403) ; la purge et la lecture du
+    // dossier exercent les requêtes de la migration 021.
+    const depot = await client.requete("POST", "/comptes/moi/identite", dossierIdentite(), org);
+    expect(depot.status).toBe(403);
+    expect((await client.requete("GET", "/comptes/moi/identite", undefined, org)).status).toBe(404);
+    await app.get(IdentiteService).noterFinDeCercle(org.id, new Date());
+    expect(
+      await app.get(IdentiteService).purger(new Date(), (id) => app.get(CerclesService).aUnCercleEnCours(id)),
+    ).toBe(0);
   });
 });

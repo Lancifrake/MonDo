@@ -20,6 +20,26 @@ export const schemaContactConfiance = z.strictObject({
 });
 export const schemaAccordContact = z.strictObject({ code: z.string().regex(/^\d{6}$/, "Code à 6 chiffres") });
 
+/** Image en base64 ; la taille et le format réels sont contrôlés par le service, sur les octets décodés. */
+const schemaImage = z
+  .string()
+  .min(1)
+  .max(2_900_000)
+  .regex(/^[A-Za-z0-9+/]+={0,2}$/, "Image en base64");
+export const schemaDepotIdentite = z.strictObject({
+  typePiece: z.enum(["cni", "passeport"]),
+  /** Consentement explicite : la valeur vraie, rien d'autre. */
+  consentement: z.literal(true),
+  versionConsentement: z.string().min(1).max(20),
+  recto: schemaImage,
+  verso: schemaImage,
+  selfie: schemaImage,
+});
+export const schemaDecisionIdentite = z.strictObject({
+  decision: z.enum(["validee", "refusee"]),
+  motif: z.string().trim().min(1).max(500),
+});
+
 export const schemaInscription = z.strictObject({
   numero: schemaNumero,
   nom: z.string().trim().min(1).max(100),
