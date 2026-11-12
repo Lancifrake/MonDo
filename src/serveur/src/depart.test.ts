@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { Cercle } from "./modules/cercles/cercles.service.js";
+import { CotisationsService } from "./modules/cotisations/cotisations.service.js";
 import type { SommeDue } from "./modules/cotisations/sommes-dues.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import { CONNECTEUR_SMS, type ConnecteurSmsSimule } from "./sms/connecteur-sms.js";
@@ -183,6 +184,23 @@ describe("départ en cours de cycle, avant d'avoir reçu la cagnotte", () => {
       );
     for (const m of restants) expect(await score(m)).toMatchObject({ cyclesTermines: 1, defauts: 0 });
     expect(await score(partant)).toMatchObject({ cyclesTermines: 0, defauts: 0 });
+  });
+
+  it("départ interrompu après l'annulation des cotisations : la demande rejouée le termine, un seul −15", async () => {
+    const { cercle, p, partir, lire } = await cercle4();
+    const [, , troisieme, partant] = p;
+    // Panne simulée : le module Cotisations a enregistré le départ, le reste n'a pas eu lieu.
+    await app
+      .get(CotisationsService)
+      .enregistrerDepart(cercle.id, partant.id, new Date(), new Date(Date.now() + 7 * 24 * HEURE_MS));
+    expect((await lire(troisieme)).membres).toContain(partant.id);
+    expect((await partir(partant)).status).toBe(201);
+    expect((await lire(troisieme)).partis).toEqual([partant.id]);
+    expect((await partir(partant)).status).toBe(400);
+    const evenements = await base.requete("SELECT 1 FROM score.evenements WHERE membre_id = $1 AND type = 'depart'", [
+      partant.id,
+    ]);
+    expect(evenements).toHaveLength(1);
   });
 
   it("deux demandes de départ simultanées : une seule passe", async () => {

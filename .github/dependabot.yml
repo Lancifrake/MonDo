@@ -1,0 +1,22 @@
+# Mises à jour proposées par Dependabot. Les alertes et les correctifs de sécurité sont activés dans les
+# réglages du dépôt ; ce fichier ajoute des mises à jour de version, groupées pour limiter le bruit.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      dependances:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    commit-message:
+      prefix: chore
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore

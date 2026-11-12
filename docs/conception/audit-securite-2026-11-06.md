@@ -54,3 +54,60 @@ Reste à faire chez l'hébergeur : une limite par adresse IP (un attaquant peut 
 - Clé du compte inscripteur du registre : portefeuille dédié, peu d'ETH, rôle retirable par l'administrateur.
 - Vrai prestataire de vérification d'identité et stockage chiffré des pièces (SECURITY.md, règle 7).
 - Dépendances de développement : deux alertes (minimatch par ESLint, zod par Hardhat), sans effet sur le serveur en production ; à suivre lors des mises à jour.
+
+## Passe du 12/11/2026 sur les ajouts des 11 et 12/11
+Relecture de ce qui a été ajouté depuis le 06/11 (PR 27 à 38) : routes de lecture, relance du bénéficiaire, contact de confiance, vérification d'identité interne et stockage chiffré, récupération de compte et compte bloqué, ordre fixé, frais et sommes dues, pénalité, départ, demi-points, échange de places, image Docker. Même limite que ci-dessus : audit interne, qui ne remplace ni un test d'intrusion ni un audit indépendant.
+
+### Corrigé pendant cette passe
+1. **Gros corps de requête refusé trop tard (moyenne).** Les deux routes qui acceptent 9 Mo (dépôt des pièces) lisaient le corps avant de le refuser. Une taille annoncée au-delà de la limite est maintenant refusée (413) sans lire un octet ; un corps qui dépasse en cours de route n'est plus gardé en mémoire.
+2. **Rejeu du dépôt de pièces d'une récupération (faible).** Cette route n'est pas couverte par la garde, puisque l'ancienne clé est perdue : sa preuve, signée par la nouvelle clé et valable 5 minutes, pouvait être renvoyée. Elle passe désormais par le même anti-rejeu que les requêtes signées.
+3. **Propositions d'échange en série (faible).** Chaque proposition envoie un SMS au membre visé, et rien ne limitait le cycle proposer, refuser, proposer. Plafond de 3 propositions par demandeur et par cercle sur 24 h.
+4. **Départ interrompu (faible, fiabilité).** Une panne entre l'annulation des cotisations et la note du départ laissait le membre coincé : cotisations annulées, mais toujours membre, et toute nouvelle demande refusée. La demande rejouée termine maintenant le départ, avec un seul retrait de points.
+
+### Droits de chaque nouvelle route (tous couverts par un test « qui a le droit, qui ne l'a pas »)
+| Route | Qui |
+|---|---|
+| `GET /comptes/moi`, `GET /cercles`, `GET /litiges/miens`, `GET /sommes-dues` | le membre, pour ses propres données seulement |
+| `/comptes/moi/contact-de-confiance` (lecture, désignation, accord) | le membre, pour son propre contact |
+| `POST /comptes/moi/identite`, `GET /comptes/moi/identite` | le membre, pour son propre dossier ; contact consentant exigé |
+| `/administration/identites` (file, pièce, décision) | Administrateur, jamais pour son propre dossier ; chaque ouverture de pièce est journalisée |
+| `POST /comptes/moi/code-secret`, `GET /comptes/moi/recuperation`, `POST /comptes/moi/recuperation/opposition` | le titulaire, avec sa clé actuelle |
+| `POST /comptes/recuperation` | sans signature : code SMS du numéro, code secret, preuve de détention de la nouvelle clé |
+| `POST /comptes/recuperation/:id/pieces` | sans signature : preuve signée par la nouvelle clé de cette demande, 5 minutes, usage unique |
+| `/administration/recuperations` (file, décision) | Administrateur, jamais pour son propre compte |
+| `GET /cercles/bareme` | tout membre authentifié (calcul public) |
+| `POST /sommes-dues/:id/paiement` | celui qui doit la somme, pas avant l'exigibilité |
+| `POST /sommes-dues/:id/confirmation` | celui qui la reçoit ; pour la part de MonDo, un Administrateur qui n'est pas le débiteur |
+| `GET /administration/sommes-dues` | Administrateur |
+| `POST /cercles/:id/depart` | un membre actuel du cercle, pour lui-même |
+| `/cercles/:id/echanges` (liste, proposition) | un membre actuel du cercle ; chacun ne liste que ses échanges |
+| `/cercles/:id/echanges/:id/acceptation` et `/refus` | le membre visé seulement, avec sa signature du même message |
+
+Toute requête d'un compte bloqué reçoit 423. Les corps passent par un schéma Zod strict. Les deux seules routes ajoutées sans signature sont celles de la récupération.
+
+### Concurrence vérifiée par des tests
+Décision d'identité, confirmation d'une somme due, départ, acceptation d'un échange : deux requêtes simultanées, une seule passe (mise à jour conditionnelle ou ligne unique). Un seul dossier d'identité en attente, une seule récupération en cours, un seul blocage en cours, une seule proposition d'échange en cours : garantis par des index uniques. Désignation d'un contact et compteur d'échecs du code secret : contrôle et écriture en une instruction.
+
+### Fuites vérifiées
+- Images d'identité : jamais en base, jamais dans les journaux, jamais dans une réponse sauf à l'Administrateur qui ouvre une pièce en attente. Nom de fichier sans rapport avec le contenu, chiffrement lié au nom de l'objet.
+- Registre : décisions d'identité, récupérations, départs et échanges y entrent par leur empreinte ; les clés par leur empreinte ; aucun motif, aucun numéro.
+- SMS : relance, blocage, départ et échange ne nomment pas les autres membres ; aucune référence de transaction.
+- La récupération répond pareil que le numéro existe ou non. Un non-membre ne voit pas l'ordre fixé d'un cercle privé.
+- Image Docker : utilisateur non root, contexte de construction réduit au serveur, aucun secret dans l'image.
+
+### Limites connues, non corrigées
+1. **Carte SIM volée ou réattribuée.** Le SMS qui prévient le titulaire d'une récupération part sur le numéro, que l'attaquant contrôle alors. Les vraies protections sont le code secret, le délai, le contact de confiance et, sans contact, la validation des pièces par un Administrateur. Il manque une alerte dans l'application de l'ancien téléphone (notification), qui dépend du client mobile.
+2. **Blocage répété.** Qui détient la carte SIM d'un membre peut bloquer son compte 24 h en donnant 5 codes secrets faux, et recommencer. Ses échéances sont suspendues pendant ce temps, donc sans perte pour lui, mais le cercle attend.
+3. **Code d'accord du contact de confiance** : il est en clair dans la file d'envoi des SMS (`sms.envois`) le temps de l'envoi et après. Un accès en lecture à la base permettrait d'enregistrer un accord à la place du contact. À traiter avec la purge de la file.
+4. **Mémoire sous charge.** 9 Mo par dépôt de pièces, avant toute authentification sur la route de récupération : une limite par adresse IP chez l'hébergeur reste nécessaire, comme pour les codes SMS.
+5. **Pas de boîte d'envoi transactionnelle.** Un arrêt du serveur entre deux étapes d'une action qui touche plusieurs modules (échange accepté puis tours permutés, départ noté puis événement de score) peut laisser un état partiel. Les étapes sont ordonnées pour que l'argent suivi reste cohérent et que la reprise soit possible, mais ce n'est pas atomique. Défaut connu depuis le 03/11.
+6. **Clé du stockage** : une seule clé, sans rotation ; la perdre rend les pièces illisibles, la laisser fuir les expose toutes.
+7. **Administrateurs** : toujours des comptes membres listés dans une variable d'environnement, sans double validation ni journal de toutes leurs actions (seules les ouvertures de pièces et les décisions sont tracées).
+8. Les requêtes nouvelles du plafond d'échanges n'ont été exercées que sur la base embarquée ; le reste a tourné sur un vrai PostgreSQL local.
+
+### Hors code, en plus de la liste du 06/11
+- Fait le 12/11 : réglages GitHub de la liste du 06/11 (protection de `main`, Dependabot, CodeQL, alertes de secrets avec blocage au push, signalement privé). Détail dans SECURITY.md.
+- Avis d'un juriste sur les données personnelles avant tout membre réel (`docs/juridique/protection-des-donnees.md`).
+- Sauvegarde séparée de `MONDO_STOCKAGE_CLE` et du dossier des pièces.
+- Limite par adresse IP sur `POST /comptes/recuperation` et sur les deux routes de dépôt.
+

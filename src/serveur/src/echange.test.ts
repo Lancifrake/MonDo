@@ -226,6 +226,15 @@ describe("échange de places après complétion (gratuit, choix de David du 11/1
     expect((await json<{ message: string }>(r)).message).toMatch(/ordre fixé/);
   });
 
+  it("au plus trois propositions par jour et par cercle : pas de SMS en série au même membre", async () => {
+    const { ancien, premier, proposer, refuser } = await cercle();
+    for (let i = 0; i < 3; i++) {
+      const e = await json<EchangePlace>(await proposer(ancien, premier));
+      expect((await refuser(e, premier)).status).toBe(201);
+    }
+    expect((await proposer(ancien, premier)).status).toBe(429);
+  });
+
   it("deux acceptations simultanées : un seul échange", async () => {
     const { c, ancien, premier, place, lire, proposer, accepter } = await cercle();
     const echange = await json<EchangePlace>(await proposer(ancien, premier));

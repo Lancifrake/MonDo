@@ -172,7 +172,22 @@ describe("récupération sans contact : 72 h, carte d'identité et selfie", () =
     };
     // Seul le téléphone qui a fait la demande dépose les pièces.
     expect((await deposer(await client.inscrire())).status).toBe(403);
-    expect((await deposer(nouveau)).status).toBe(201);
+    const horodatage = new Date().toISOString();
+    const corps = {
+      ...dossierIdentite(),
+      horodatage,
+      preuve: await nouveau.signer(messagePiecesRecuperation(demande!.id, horodatage)),
+    };
+    const chemin = `/comptes/recuperation/${demande!.id}/pieces`;
+    expect((await client.requete("POST", chemin, corps)).status).toBe(201);
+    // Le même envoi intercepté et rejoué est refusé, même si le premier dossier a été écarté entre-temps.
+    await base.requete("UPDATE comptes.verifications_identite SET statut = 'refusee' WHERE recuperation_id = $1", [
+      demande!.id,
+    ]);
+    expect((await client.requete("POST", chemin, corps)).status).toBe(403);
+    await base.requete("UPDATE comptes.verifications_identite SET statut = 'en_attente' WHERE recuperation_id = $1", [
+      demande!.id,
+    ]);
     await finaliser(73);
     expect((await moi(nouveau)).status).toBe(401);
 

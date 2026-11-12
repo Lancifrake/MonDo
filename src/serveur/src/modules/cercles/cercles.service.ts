@@ -349,10 +349,13 @@ export class CerclesService {
     const limite = new Date(maintenant.getTime() + periodeMinimaleJours(frequence, periodeJours) * 24 * 60 * 60 * 1000);
     const { remboursements } = await this.cotisations.enregistrerDepart(cercleId, membreId, maintenant, limite);
     const partiLe = maintenant.toISOString();
-    await this.base.requete(
-      "UPDATE cercles.adhesions SET parti_le = $3 WHERE cercle_id = $1 AND membre_id = $2 AND parti_le IS NULL",
+    // Une seule demande note le départ ici : la suite (registre, score, SMS) n'a lieu qu'une fois, y compris
+    // quand une demande est rejouée après une panne survenue juste après l'étape des cotisations.
+    const note = await this.base.requete(
+      "UPDATE cercles.adhesions SET parti_le = $3 WHERE cercle_id = $1 AND membre_id = $2 AND parti_le IS NULL RETURNING membre_id",
       [cercleId, membreId, partiLe],
     );
+    if (note.length === 0) throw new BadRequestException("Vous avez déjà quitté ce cercle");
     await this.registre.enregistrer(canonique({ objet: "depart", cercleId, membreId, partiLe }));
     await this.evenements.publier({ type: "depart_enregistre", cercleId, membreId, partiLe });
     for (const autre of cercle.membres.filter((m) => m !== membreId)) {

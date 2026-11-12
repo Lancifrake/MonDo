@@ -1,5 +1,5 @@
 @startuml
-' MonDo, diagramme de classes (PlantUML), tiré de docs/conception/diagramme-de-classes.md (11/11/2026).
+' MonDo, diagramme de classes (PlantUML), tiré de docs/conception/diagramme-de-classes.md (12/11/2026).
 ' À coller dans Visual Paradigm Online : Diagram > Import > PlantUML (langage PlantUML), puis OK.
 ' Un paquetage par module du serveur (décision 02). Les liens entre paquetages passent par identifiant.
 
@@ -38,20 +38,41 @@ package "1 Comptes et identité" {
     - envois : Integer
     - fenetreDebut : DateTime
   }
+  class VerificationIdentite {
+    - id : UUID
+    - typePiece : String
+    - consentementLe : DateTime
+    - versionConsentement : String
+    - deposeeLe : DateTime
+    - statut : StatutVerification
+    - motifDecision : String [0..1]
+    - decideeLe : DateTime [0..1]
+    - conserverJusquAu : DateTime [0..1]
+  }
   class PieceIdentite {
-    - type : String
-    - empreinteRecto : String
-    - empreinteVerso : String
-    - empreinteSelfie : String
-    - verifieeLe : DateTime [0..1]
+    - nature : NaturePiece
+    - cleStockage : String
+    - empreinte : String
+    - supprimeeLe : DateTime [0..1]
+  }
+  class AccesPiece {
+    - consulteeLe : DateTime
+  }
+  class BlocageCompte {
+    - motif : MotifBlocage
+    - bloqueLe : DateTime
+    - finLe : DateTime [0..1]
+    - leveLe : DateTime [0..1]
   }
   class ContactConfiance {
     - nom : String
     - numero : String
+    - demandeLe : DateTime
     - consentementLe : DateTime [0..1]
   }
   class DemandeRecuperation {
     - id : UUID
+    - nouvelleClePublique : JWK
     - demandeeLe : DateTime
     - finDelaiLe : DateTime
     - avecContact : Boolean
@@ -80,12 +101,20 @@ package "2 Cercles et règlement" {
     - ouvert : Boolean
     - rappelsAvantEcheanceJours : Integer [0..5]
     - datePremierTour : DateTime
+    - ordreFixe : UUID [0..50]
     - empreinte : String
+  }
+  class LigneBareme {
+    - place : Integer
+    - frais : Integer
+    - partMonDo : Integer
+    - remiseParPlaceDeFin : Integer
   }
   class Adhesion {
     - rang : Integer
     - placeSouhaitee : Integer
     - adhereLe : DateTime
+    - partiLe : DateTime [0..1]
   }
   class DocumentSigne {
     - type : TypeDocument
@@ -100,9 +129,10 @@ package "2 Cercles et règlement" {
   }
   class EchangePlace {
     - id : UUID
-    - frais : Integer
     - proposeLe : DateTime
     - expireLe : DateTime
+    - signatureDemandeur : String
+    - signatureCedant : String [0..1]
     - statut : StatutEchange
   }
 }
@@ -120,7 +150,22 @@ package "3 Cotisations" {
     - referenceTransaction : String [0..1]
     - declareeLe : DateTime [0..1]
     - enLitige : Boolean
+    - penalite : Integer
+    - penaliteDueLe : DateTime [0..1]
     - statut : StatutCotisation
+  }
+  class SommeDue {
+    - id : UUID
+    - nature : NatureSomme
+    - montant : Integer
+    - exigibleLe : DateTime
+    - dateLimite : DateTime
+    - referenceTransaction : String [0..1]
+    - declareeLe : DateTime [0..1]
+    - statut : StatutSomme
+  }
+  class Depart {
+    - partiLe : DateTime
   }
 }
 
@@ -128,6 +173,7 @@ package "4 Score et ordre de passage" {
   class EvenementScore {
     - type : TypeEvenementScore
     - date : DateTime
+    - cerclePrive : Boolean
   }
   class Score <<calculé>> {
     - valeur : Integer
@@ -252,6 +298,7 @@ package "11 Types" {
   enum StatutEchange {
     propose
     signe
+    refuse
     expire
     suspendu
   }
@@ -259,6 +306,32 @@ package "11 Types" {
     due
     declaree
     confirmee
+    annulee
+  }
+  enum NatureSomme {
+    frais_mondo
+    remise
+    remboursement_depart
+  }
+  enum StatutSomme {
+    due
+    declaree
+    confirmee
+    annulee
+  }
+  enum StatutVerification {
+    en_attente
+    validee
+    refusee
+  }
+  enum NaturePiece {
+    recto
+    verso
+    selfie
+  }
+  enum MotifBlocage {
+    essais_rates
+    opposition
   }
   enum TypeEvenementScore {
     cotisation_a_temps
@@ -295,7 +368,8 @@ package "11 Types" {
     en_attente
     opposee
     acceptee
-    bloquee
+    refusee
+    expiree
   }
   enum ModeAssistant {
     autonome
@@ -327,7 +401,12 @@ package "11 Types" {
 
 ' 1 Comptes et identité : les satellites au-dessus de Utilisateur
 CleSignature "1..*" -down-* "1" Utilisateur
-PieceIdentite "0..1" -down- "1" Utilisateur
+VerificationIdentite "0..*" -down- "1" Utilisateur
+PieceIdentite "0..3" -down-* "1" VerificationIdentite
+AccesPiece "0..*" -down-* "1" PieceIdentite
+Administrateur "1" -right- "0..*" AccesPiece
+Administrateur "0..1" -down- "0..*" VerificationIdentite : décide >
+BlocageCompte "0..*" -down- "1" Utilisateur
 ContactConfiance "0..1" -down- "1" Utilisateur
 DemandeRecuperation "0..*" -down- "1" Utilisateur
 DemandeRecuperation "0..*" -left- "0..1" Administrateur : < tranche
@@ -335,6 +414,7 @@ DemandeRecuperation "0..*" -left- "0..1" Administrateur : < tranche
 ' 2 Cercles et règlement : Cercle à gauche de Utilisateur
 Utilisateur "1" -right- "0..*" Cercle : < organisateur
 Cercle "1" *-down- "1" Reglement
+Reglement "1" *-down- "0..*" LigneBareme
 Cercle "1" *-down- "1..50" Adhesion
 Cercle "1" *-down- "0..*" PlaceOrdre
 Adhesion "1" *-down- "1..*" DocumentSigne
@@ -349,6 +429,11 @@ Cercle "1" *-down- "1..*" Tour
 Tour "1" *-down- "0..*" Cotisation
 Utilisateur "1" -down- "0..*" Tour : < bénéficiaire
 Utilisateur "1" -down- "0..*" Cotisation : < payeur
+Cercle "1" -down- "0..*" SommeDue
+Utilisateur "1" -down- "0..*" SommeDue : < débiteur
+Utilisateur "0..1" -down- "0..*" SommeDue : < créancier
+Cercle "1" -down- "0..*" Depart
+Utilisateur "1" -down- "0..*" Depart
 
 ' 4 Score et ordre de passage : sous Utilisateur
 Utilisateur "1" -down- "1" Score
@@ -409,6 +494,11 @@ EtatEnvoi -[hidden]right- StatutLitige
 StatutLitige -[hidden]right- OrigineLitige
 StatutCotisation -[hidden]down- DecisionLitige
 DecisionLitige -[hidden]right- StatutRecuperation
+DecisionLitige -[hidden]down- NatureSomme
+NatureSomme -[hidden]right- StatutSomme
+StatutSomme -[hidden]right- StatutVerification
+StatutVerification -[hidden]right- NaturePiece
+NaturePiece -[hidden]right- MotifBlocage
 StatutRecuperation -[hidden]right- ModeAssistant
 ModeAssistant -[hidden]right- TypeAction
 TypeAction -[hidden]right- IssueAction

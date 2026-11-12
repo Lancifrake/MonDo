@@ -293,7 +293,7 @@ export class CotisationsService {
     membreId: string,
     maintenant: Date,
     limiteRemboursement: Date,
-  ): Promise<{ remboursements: number }> {
+  ): Promise<{ remboursements: number; dejaEnregistre?: true }> {
     return this.base.transaction(async (tx) => {
       // La ligne de départ sert de verrou : une seconde demande simultanée s'arrête ici.
       const pris = await tx.requete(
@@ -301,7 +301,8 @@ export class CotisationsService {
          ON CONFLICT DO NOTHING RETURNING membre_id`,
         [cercleId, membreId, maintenant.toISOString()],
       );
-      if (pris.length === 0) throw new BadRequestException("Départ déjà enregistré");
+      // Déjà enregistré ici : l'appelant termine alors ce qui restait à faire chez lui (reprise après une panne).
+      if (pris.length === 0) return { remboursements: 0, dejaEnregistre: true as const };
       const lignes = await tx.requete<LigneCotisation>(
         `SELECT * FROM cotisations.cotisations
          WHERE cercle_id = $1 AND tour > 0 AND (payeur_id = $2 OR beneficiaire_id = $2) FOR UPDATE`,

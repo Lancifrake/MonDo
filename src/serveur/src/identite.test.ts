@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import { request as requeteHttp } from "node:http";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppModule } from "./app.module.js";
 import { configurerApplication } from "./application.js";
@@ -139,6 +140,22 @@ describe("taille des corps de requête", () => {
   it("le dépôt des pièces refuse plus de 9 Mo, et un JSON invalide, avant toute autre vérification", async () => {
     expect((await poster(DEPOT, JSON.stringify({ recto: "A".repeat(10 * 1024 * 1024) }))).status).toBe(413);
     expect((await poster(DEPOT, "{pas du json")).status).toBe(400);
+  });
+
+  it("une taille annoncée trop grande est refusée sans lire le corps", async () => {
+    const url = new URL((await app.getUrl()) + DEPOT);
+    const statut = await new Promise<number>((resoudre, rejeter) => {
+      const req = requeteHttp(
+        { host: url.hostname.replace(/^\[|\]$/g, ""), port: url.port, path: url.pathname, method: "POST" },
+        (res) => resoudre(res.statusCode ?? 0),
+      );
+      req.on("error", rejeter);
+      req.setHeader("content-type", "application/json");
+      req.setHeader("content-length", String(50 * 1024 * 1024));
+      // Seuls les en-têtes partent : le serveur doit répondre sans attendre les 50 Mo annoncés.
+      req.flushHeaders();
+    });
+    expect(statut).toBe(413);
   });
 
   it("partout ailleurs, la limite ordinaire de 100 ko reste en place", async () => {
