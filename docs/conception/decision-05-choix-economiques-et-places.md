@@ -186,8 +186,8 @@ Parades possibles, cumulables :
 
 ## Choix techniques encore ouverts
 Ils ne touchent pas aux règles, mais bloquent un pilote réel :
-- **Hébergeur** du serveur et de la base (gratuit ou crédits étudiants, décision 03). Le serveur se lance déjà (`pnpm build` puis `pnpm start`), avec une route de santé.
-- **Fournisseur SMS** réel, derrière la file d'envoi déjà en place.
+- **Hébergeur** du serveur et de la base (gratuit ou crédits étudiants, décision 03). Le serveur a son image Docker (`src/serveur/Dockerfile`). Comparatif et recommandation : `comparatif-hebergeur-et-sms.md`.
+- **Fournisseur SMS** réel, derrière la file d'envoi déjà en place. Même comparatif.
 - **Déploiement du registre** sur Base Sepolia, prévu plus tard, avec David.
 
 ## Ordre proposé pour décider

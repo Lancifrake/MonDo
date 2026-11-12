@@ -26,6 +26,17 @@ corepack pnpm essai-demarrage  # démarre dist/, vérifie /sante et l'arrêt pro
 - Sans `DATABASE_URL`, `start` utilise la base embarquée en mémoire : pratique pour essayer, données perdues à l'arrêt.
 - L'intégration continue compile le serveur et lance l'essai de démarrage après `pnpm qualite`.
 
+## Image Docker
+
+```bash
+# depuis la racine du dépôt
+docker build -f src/serveur/Dockerfile -t mondo-serveur .
+# essai local avec les simulateurs (hors production) :
+docker run --rm -e NODE_ENV=demonstration -p 3000:3000 mondo-serveur
+```
+
+Image en deux étapes (construction, puis exécution avec les seules dépendances de production), utilisateur `node` sans droit d'écriture sur le code, contrôle de santé sur `/sante`. Par défaut `NODE_ENV=production` : le serveur refuse alors de démarrer sans `MONDO_STOCKAGE_CLE` et `MONDO_STOCKAGE_DOSSIER`, sans vrai fournisseur SMS et sans registre réel. C'est voulu : aucun simulateur en production. Le `.dockerignore` de la racine ne laisse entrer dans la construction que le serveur et les fichiers du monorepo. L'intégration continue construit l'image et vérifie `/sante` (job `image`). Choix de l'hébergeur et du fournisseur SMS : `docs/conception/comparatif-hebergeur-et-sms.md`.
+
 ## Structure
 
 | Dossier                     | Rôle                                                           |
