@@ -28,7 +28,7 @@ function zones(n: number) {
   return { finDuDebut: debut, finDuMilieu: debut + milieu };
 }
 
-const zoneDe = (position: number, n: number): Zone => {
+export const zoneDe = (position: number, n: number): Zone => {
   const { finDuDebut, finDuMilieu } = zones(n);
   return position <= finDuDebut ? "debut" : position <= finDuMilieu ? "milieu" : "fin";
 };
