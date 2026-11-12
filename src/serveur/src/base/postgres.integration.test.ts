@@ -97,5 +97,15 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);
     expect((await client.requete("GET", "/comptes/moi", undefined, org)).status).toBe(200);
     expect(await (await client.requete("GET", "/litiges/miens", undefined, org)).json()).toEqual([]);
+
+    // Contact de confiance : désignation (upsert plafonné) puis lecture.
+    const contact = { nom: "Contact Fictif", numero: "+237900000001" };
+    expect((await client.requete("POST", "/comptes/moi/contact-de-confiance", contact, org)).status).toBe(201);
+    expect((await client.requete("POST", "/comptes/moi/contact-de-confiance", contact, org)).status).toBe(201);
+    const lu = await client.requete("GET", "/comptes/moi/contact-de-confiance", undefined, org);
+    expect(await lu.json()).toMatchObject({ statut: "en_attente" });
+    expect(
+      (await client.requete("POST", "/comptes/moi/contact-de-confiance/accord", { code: "000000" }, org)).status,
+    ).toBeGreaterThanOrEqual(201);
   });
 });
