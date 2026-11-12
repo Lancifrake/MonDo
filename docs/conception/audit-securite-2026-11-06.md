@@ -106,6 +106,7 @@ Décision d'identité, confirmation d'une somme due, départ, acceptation d'un �
 8. Les requêtes nouvelles du plafond d'échanges n'ont été exercées que sur la base embarquée ; le reste a tourné sur un vrai PostgreSQL local.
 
 ### Hors code, en plus de la liste du 06/11
+- Fait le 12/11 : réglages GitHub de la liste du 06/11 (protection de `main`, Dependabot, CodeQL, alertes de secrets avec blocage au push, signalement privé). Détail dans SECURITY.md.
 - Avis d'un juriste sur les données personnelles avant tout membre réel (`docs/juridique/protection-des-donnees.md`).
 - Sauvegarde séparée de `MONDO_STOCKAGE_CLE` et du dossier des pièces.
 - Limite par adresse IP sur `POST /comptes/recuperation` et sur les deux routes de dépôt.

@@ -7,7 +7,7 @@ MonDo manipule des données sensibles (identité, numéros de téléphone, engag
 
 Utiliser le signalement privé de GitHub : onglet **Security**, puis **Report a vulnerability**. Indiquer ce qui est touché, comment le reproduire et l'effet possible. Nous accusons réception sous 7 jours et tenons le signalant informé jusqu'à la correction.
 
-Pour que ce canal fonctionne, un administrateur du dépôt doit activer « Private vulnerability reporting » dans Settings > Code security.
+Ce canal est activé sur le dépôt depuis le 12/11/2026.
 
 ## Statut du projet
 MonDo est en conception, sans code en production. Aucune version n'est « supportée » : seule la branche `main` est à jour. Le projet n'est pas encore utilisé avec de vrais fonds ni de vraies personnes.
@@ -24,8 +24,12 @@ MonDo est en conception, sans code en production. Aucune version n'est « suppor
 9. **Contrats Solidity** : bibliothèques éprouvées (OpenZeppelin), tests, relecture à deux. **Aucun contrat n'est déployé avec de vrais fonds ou sur un réseau réel sans audit.** Les clés de déploiement ne sont jamais dans le code : variables d'environnement seulement. Le contrat `src/contrat/contracts/RegistreMonDo.sol` n'est pas audité ; l'analyse statique Slither tourne à chaque pull request, mais elle ne remplace pas un audit.
 10. **Décisions de l'Administrateur** : il ne déplace jamais d'argent et ne modifie jamais un score à la main ; ses décisions sont inscrites au registre.
 
-## À mettre en place avec le code
-Activation de l'analyse des dépendances et des alertes de secrets de GitHub, protection de la branche `main`, vérification automatique à chaque pull request.
+## Réglages du dépôt (en place depuis le 12/11/2026)
+- Branche `main` protégée : pull request obligatoire, jobs `serveur`, `contrat` et `slither` requis, pas de poussée forcée ni de suppression, règle appliquée aussi aux administrateurs. Aucune relecture obligatoire : l'auteur fusionne lui-même (CONTRIBUTING.md).
+- Alertes Dependabot et correctifs de sécurité automatiques ; mises à jour de version mensuelles (`.github/dependabot.yml`).
+- Analyse CodeQL (configuration par défaut de GitHub).
+- Détection des secrets, avec blocage au moment de pousser.
+- Signalement privé des failles.
 
 ## Limite
 Ce document est une politique d'équipe, pas un avis juridique ni un audit. Avant tout pilote réel, une revue de sécurité et un avis juridique sont nécessaires.
