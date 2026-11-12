@@ -42,6 +42,12 @@ export class CerclesController {
     return this.cercles.rejoindre(id, { membreId, placeSouhaitee: corps.placeSouhaitee, signature: corps.signature });
   }
 
+  /** Quitter un cercle en cours de cycle, avant d'avoir reçu sa cagnotte (score −15). */
+  @Post(":id/depart")
+  quitter(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
+    return this.cercles.quitter(id, membreId);
+  }
+
   @Get(":id")
   consulter(@Param("id") id: string, @MembreAuthentifie() demandeurId: string) {
     return this.cercles.consulterPour(id, demandeurId);

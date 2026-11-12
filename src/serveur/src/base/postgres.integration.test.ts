@@ -130,6 +130,12 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     ).json()) as { payeurId: string; tour: number; penaliteDue: number }[];
     expect(apresDefaut.find((c) => c.payeurId === org.id && c.tour === uneDue.tour)!.penaliteDue).toBe(500);
 
+    // Départ (migration 025) : refusé ici pour l'organisateur, qui a un défaut constaté donc une échéance
+    // impayée ; les requêtes de contrôle et le verrou tournent sur un vrai serveur. Puis bilans de cycle.
+    const depart = await client.requete("POST", `/cercles/${cercle.id}/depart`, undefined, org);
+    expect([201, 400]).toContain(depart.status);
+    expect((await app.get(PlanificateurService).examinerEcheances()).echecs).toBe(0);
+
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);

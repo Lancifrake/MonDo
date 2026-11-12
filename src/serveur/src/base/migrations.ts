@@ -405,6 +405,21 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       UPDATE cotisations.cotisations c SET penalite = (x.reglement->>'penaliteRetard')::bigint
         FROM cercles.cercles x WHERE x.id::text = c.cercle_id AND c.tour > 0`,
   },
+  {
+    // Départ en cours de cycle (choix de David, 11/11) : cotisations annulées, départ tracé dans chaque module.
+    nom: "025_depart",
+    sql: `
+      ALTER TABLE cotisations.cotisations DROP CONSTRAINT cotisations_statut_check;
+      ALTER TABLE cotisations.cotisations ADD CONSTRAINT cotisations_statut_check
+        CHECK (statut IN ('due', 'declaree', 'confirmee', 'annulee'));
+      CREATE TABLE cotisations.departs (
+        cercle_id text NOT NULL,
+        membre_id uuid NOT NULL,
+        parti_le timestamptz NOT NULL,
+        PRIMARY KEY (cercle_id, membre_id)
+      );
+      ALTER TABLE cercles.adhesions ADD COLUMN parti_le timestamptz`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

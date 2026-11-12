@@ -37,6 +37,8 @@ export type EvenementInterne =
   /** Compte bloqué puis débloqué (règle du 03/11) : échéances suspendues, autres membres prévenus. */
   | { type: "compte_bloque"; membreId: string; bloqueLe: string }
   | { type: "compte_debloque"; membreId: string; bloqueLe: string; debloqueLe: string }
+  /** Un membre a quitté un cercle en cours, avant d'avoir reçu sa cagnotte (score −15). */
+  | { type: "depart_enregistre"; cercleId: string; membreId: string; partiLe: string }
   | { type: "cercle_termine"; cercleId: string; termineLe: string }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }

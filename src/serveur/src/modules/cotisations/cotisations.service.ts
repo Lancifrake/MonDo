@@ -32,7 +32,8 @@ export interface Cotisation {
   penaliteDue: number;
   /** Fin de grâce à laquelle la pénalité est devenue due. Une seule fois, même si le paiement arrive ensuite. */
   penaliteDueLe?: string;
-  statut: "due" | "declaree" | "confirmee";
+  /** annulee : un membre a quitté le cercle, cette cotisation n'est plus due. */
+  statut: "due" | "declaree" | "confirmee" | "annulee";
 }
 
 export interface BilanDeCycle {
@@ -100,7 +101,7 @@ export class CotisationsService {
   private async rendrePenaliteDue(cercleId: string, payeurId: string, tour: number): Promise<void> {
     await this.base.requete(
       `UPDATE cotisations.cotisations SET penalite_due_le = fin_grace
-       WHERE cercle_id = $1 AND payeur_id = $2 AND tour = $3 AND statut <> 'confirmee' AND penalite_due_le IS NULL`,
+       WHERE cercle_id = $1 AND payeur_id = $2 AND tour = $3 AND statut IN ('due', 'declaree') AND penalite_due_le IS NULL`,
       [cercleId, payeurId, tour],
     );
   }
@@ -219,14 +220,16 @@ export class CotisationsService {
     // Pendant un litige ouvert, la déclaration est gelée : l'administrateur tranche sur la pièce d'origine.
     const [l] = await this.base.requete<LigneCotisation>(
       `UPDATE cotisations.cotisations SET reference_transaction = $2, statut = 'declaree', declaree_le = now()
-       WHERE id = $1 AND statut <> 'confirmee' AND NOT en_litige RETURNING *`,
+       WHERE id = $1 AND statut IN ('due', 'declaree') AND NOT en_litige RETURNING *`,
       [id, referenceTransaction],
     );
     if (!l) {
       throw new BadRequestException(
         c.statut === "confirmee"
           ? "Cotisation déjà confirmée"
-          : "Litige en cours : la déclaration est gelée jusqu'à la décision de l'administrateur",
+          : c.statut === "annulee"
+            ? "Cotisation annulée après le départ d'un membre"
+            : "Litige en cours : la déclaration est gelée jusqu'à la décision de l'administrateur",
       );
     }
     return versCotisation(l);
@@ -278,6 +281,101 @@ export class CotisationsService {
     return versCotisation(l);
   }
 
+  /**
+   * Départ d'un membre en cours de cycle (décision 05, règle détaillée). Tout ou rien, dans une transaction :
+   * refusé s'il a déjà reçu quelque chose de sa cagnotte ou s'il n'est pas à jour ; sinon son tour et ses
+   * cotisations futures sont annulés, et chaque bénéficiaire déjà servi lui doit le remboursement de ce qu'il a
+   * versé. Frais du modèle A : les sommes non réglées qui le concernent sont annulées, une remise qu'il a déjà
+   * reçue est à rembourser. Une seule fois par membre et par cercle.
+   */
+  async enregistrerDepart(
+    cercleId: string,
+    membreId: string,
+    maintenant: Date,
+    limiteRemboursement: Date,
+  ): Promise<{ remboursements: number }> {
+    return this.base.transaction(async (tx) => {
+      // La ligne de départ sert de verrou : une seconde demande simultanée s'arrête ici.
+      const pris = await tx.requete(
+        `INSERT INTO cotisations.departs (cercle_id, membre_id, parti_le) VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING RETURNING membre_id`,
+        [cercleId, membreId, maintenant.toISOString()],
+      );
+      if (pris.length === 0) throw new BadRequestException("Départ déjà enregistré");
+      const lignes = await tx.requete<LigneCotisation>(
+        `SELECT * FROM cotisations.cotisations
+         WHERE cercle_id = $1 AND tour > 0 AND (payeur_id = $2 OR beneficiaire_id = $2) FOR UPDATE`,
+        [cercleId, membreId],
+      );
+      const siennes = lignes.map(versCotisation);
+      if (siennes.some((c) => c.beneficiaireId === membreId && c.statut !== "due")) {
+        throw new BadRequestException(
+          "Départ impossible : vous avez commencé à recevoir votre cagnotte, arrêter maintenant serait un défaut",
+        );
+      }
+      const aPayer = siennes.filter((c) => c.payeurId === membreId);
+      const sommes = await tx.requete<{
+        id: string;
+        nature: string;
+        debiteur_id: string;
+        creancier_id: string | null;
+        montant: string | number;
+        statut: string;
+      }>(
+        `SELECT id, nature, debiteur_id, creancier_id, montant, statut FROM cotisations.sommes_dues
+         WHERE cercle_id = $1 AND (debiteur_id = $2 OR creancier_id = $2) FOR UPDATE`,
+        [cercleId, membreId],
+      );
+      const pasAJour =
+        aPayer.some((c) => c.statut === "declaree" || c.enLitige) ||
+        aPayer.some((c) => c.statut === "due" && Date.parse(c.dateLimite) <= maintenant.getTime()) ||
+        sommes.some((s) => s.statut === "declaree");
+      if (pasAJour) {
+        throw new BadRequestException(
+          "Départ impossible pour le moment : une cotisation échue, un paiement en attente de confirmation ou un litige est en cours",
+        );
+      }
+      await tx.requete(
+        `UPDATE cotisations.cotisations SET statut = 'annulee'
+         WHERE cercle_id = $1 AND tour > 0 AND statut = 'due' AND (payeur_id = $2 OR beneficiaire_id = $2)`,
+        [cercleId, membreId],
+      );
+      await tx.requete(
+        `UPDATE cotisations.sommes_dues SET statut = 'annulee'
+         WHERE cercle_id = $1 AND statut = 'due' AND (debiteur_id = $2 OR creancier_id = $2)`,
+        [cercleId, membreId],
+      );
+      // Remboursements : ce qu'il a versé aux bénéficiaires déjà servis, et les remises qu'il a déjà reçues.
+      const aRembourser: [debiteur: string, creancier: string, montant: number, tour: number, origine: string][] = [
+        ...aPayer
+          .filter((c) => c.statut === "confirmee")
+          .map((c): [string, string, number, number, string] => [c.beneficiaireId, membreId, c.montant, c.tour, c.id]),
+        ...sommes
+          .filter((s) => s.statut === "confirmee" && s.nature === "remise" && s.creancier_id === membreId)
+          .map((s): [string, string, number, number, string] => [membreId, s.debiteur_id, Number(s.montant), 0, s.id]),
+      ];
+      for (const [debiteur, creancier, montant, tour, origine] of aRembourser) {
+        await tx.requete(
+          `INSERT INTO cotisations.sommes_dues
+             (id, cercle_id, nature, debiteur_id, creancier_id, montant, tour, exigible_le, date_limite, origine_id, statut)
+           VALUES ($1, $2, 'remboursement_depart', $3, $4, $5, $6, $7, $8, $9, 'due')`,
+          [
+            randomUUID(),
+            cercleId,
+            debiteur,
+            creancier,
+            montant,
+            tour,
+            maintenant.toISOString(),
+            limiteRemboursement.toISOString(),
+            origine,
+          ],
+        );
+      }
+      return { remboursements: aRembourser.length };
+    });
+  }
+
   async consulter(id: string): Promise<Cotisation> {
     return this.trouver(id);
   }
@@ -311,10 +409,12 @@ export class CotisationsService {
       tout_confirme: boolean;
       fin_cycle: Date | string;
     }>(
-      `SELECT cercle_id, payeur_id, bool_and(statut = 'confirmee') AS tout_confirme,
-              max(max(fin_grace)) OVER (PARTITION BY cercle_id) AS fin_cycle
-       FROM cotisations.cotisations WHERE tour > 0
-       GROUP BY cercle_id, payeur_id ORDER BY cercle_id, payeur_id`,
+      `SELECT c.cercle_id, c.payeur_id, bool_and(c.statut IN ('confirmee', 'annulee')) AS tout_confirme,
+              max(max(c.fin_grace)) OVER (PARTITION BY c.cercle_id) AS fin_cycle
+       FROM cotisations.cotisations c
+       WHERE c.tour > 0 AND NOT EXISTS (
+         SELECT 1 FROM cotisations.departs d WHERE d.cercle_id = c.cercle_id AND d.membre_id = c.payeur_id)
+       GROUP BY c.cercle_id, c.payeur_id ORDER BY c.cercle_id, c.payeur_id`,
     );
     return lignes.map((l) => ({
       cercleId: l.cercle_id,
