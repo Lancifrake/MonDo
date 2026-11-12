@@ -1,6 +1,6 @@
 # Décision 05 : frais, places et règles encore à trancher
 
-Date : 05/11/2026. Statut : **à trancher en équipe**. Rien dans ce document n'est validé, sauf ce qui est marqué « décidé ». Les recommandations sont les miennes : elles servent de point de départ à la discussion, pas de décision.
+Date : 05/11/2026, mis à jour le 11/11/2026. Statut : **tranché par David le 11/11, à confirmer en équipe**, sauf la question 10 (reconnaissance de dette), qui attend un juriste. La section « Tranché le 11/11 » fait foi ; les sections 1 à 11 gardent les options discutées, pour mémoire.
 
 ## Pourquoi ce document
 Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création, ordre de passage par score, tours, rappels, défauts, litiges, bonus de fin de cycle et clôture. La suite du code dépend de choix économiques et de règles de places qui ne sont pas encore pris. Ce document les rassemble, avec les options, une recommandation et ce que chaque choix débloque.
@@ -21,7 +21,59 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
   6. modalités choisies par David le 08/11 et codées : attribution à la complétion (chacun signe sa place souhaitée et la règle), en cas de conflit la place libre la plus proche permise, plutôt après ; chacun voit sa place définitive avant le premier tour.
   Les frais en tête et la remise en fin (question 1) équilibreraient naturellement les choix ; c'est aussi la pratique de MoneyFellows, où la place se choisit à l'adhésion et où les premières places se débloquent par l'évaluation du membre.
 
-## Résumé
+## Tranché par David le 11/11 (à confirmer en équipe)
+| N° | Question | Décision |
+|---|---|---|
+| 1 | Modèle de frais | **A** : les places de la zone de début paient des frais sur la cagnotte, 8 % pour la place 1, dégressif jusqu'à 0 % à la première place du milieu ; le milieu ne paie rien ; les places de fin reçoivent une remise |
+| 2 | Partage | moitié MonDo, moitié places de fin |
+| 3 | Encaissement | MonDo ne touche jamais l'argent des membres : après réception de sa cagnotte, le bénéficiaire paie sa part à MonDo par Mobile Money, suivie comme une cotisation (due, déclarée, confirmée) |
+| 4 | Plafond pour les nouveaux | **pas de plafond** de cagnotte |
+| 5 | Reculer, échanger | échange de places après complétion : gratuit au prototype, signé par les deux, expire à 48 h, jamais plus tôt que ce que permet le score, suspendu si un des comptes est en récupération |
+| 6 | Mode d'ordre | « le score ouvre, le membre choisit » partout ; en cercle privé, l'organisateur peut fixer l'ordre lui-même dans le règlement, chacun le signe en le connaissant ; pas de tirage au sort |
+| 8 | Pénalité de retard | au bénéficiaire du tour, une fois par cotisation, due à la fin de grâce, au montant du règlement |
+| 9 | Départ en cours de cycle | libre avant d'avoir reçu la cagnotte (score −15) ; impossible après (tout arrêt est un défaut) |
+| 11 | Score gonflé | les cercles privés rapportent moitié moins de points ; les pertes (retard, défaut, départ) restent entières |
+
+Autres décisions du 11/11, hors de ce document : vérification d'identité faite en interne (recto, verso, selfie, validation par un Administrateur), récupération de compte en 48 h avec contact de confiance et 72 h avec carte et selfie sans contact, contact de confiance exigé au niveau 2. Elles sont décrites dans `src/serveur/README.md` et dans `diagramme-de-classes.md`.
+
+### Règle détaillée des frais (modèle A)
+Notations : N membres, montant M par cotisation, cagnotte nominale C = (N − 1) × M (le bénéficiaire ne se paie pas lui-même), d = partie entière de N / 3. Les places 1 à d forment le début, les d dernières la fin, le reste le milieu (mêmes zones que pour le choix de la place).
+
+1. **Taux par place.** La place p du début paie 8 % × (d + 1 − p) / d de la cagnotte nominale. À 10 membres (d = 3) : place 1, 8 % ; place 2, 5,33 % ; place 3, 2,67 % ; place 4 et suivantes, rien.
+2. **Montants entiers, arrondis en faveur de celui qui paie.** Part de MonDo = partie entière de la moitié des frais. Remise versée à chaque place de fin = partie entière de (moitié des frais / d). Les frais réellement dus sont la somme de ces parts : l'arrondi ne les augmente jamais.
+3. **Chiffrés dans le règlement signé.** Le règlement porte le barème en francs, place par place (frais, part de MonDo, remise par place de fin). Le serveur refuse un règlement dont le barème ne correspond pas au calcul. Chaque membre signe donc des montants, pas une formule. Les cercles créés avant cette règle, sans barème, n'ont pas de frais.
+4. **Qui paie quoi.** Proposition appliquée, à confirmer : la remise est répartie à parts égales entre les places de fin, et chaque bénéficiaire de tête la verse directement à chacun des membres concernés. Le bénéficiaire de la place p doit donc d + 1 sommes : une à MonDo, une à chaque membre d'une place de fin.
+5. **Quand.** Les sommes sont créées quand le cercle est complet. Elles sont exigibles à la date limite du tour du bénéficiaire (le jour de sa cagnotte) et à régler au plus tard à la date limite du tour suivant.
+6. **Suivi.** Chaque somme suit les états d'une cotisation : due, déclarée par celui qui paie (référence Mobile Money), confirmée par celui qui reçoit. Un Administrateur confirme la part de MonDo, sans jamais être celui qui la doit.
+7. **Ce que MonDo ne fait pas.** MonDo ne retient rien, ne prélève rien et ne détient rien : il suit des paiements faits hors de lui. Sa propre part arrive sur son compte Mobile Money marchand comme un paiement de service.
+
+Choix prudents faits en codant, à valider :
+- les frais s'appliquent à tous les cercles, privés comme ouverts, et aux cercles privés à ordre fixé ;
+- les frais sont calculés sur la cagnotte nominale du règlement, même si un membre fait défaut ensuite (question ouverte ci-dessous) ;
+- une somme non réglée n'entraîne au prototype ni défaut, ni perte de score, ni mise en demeure : elle reste visible comme due. Le traitement d'un impayé de frais reste à décider.
+
+### Règle détaillée du départ en cours de cycle
+Proposition appliquée, à confirmer.
+
+1. **Qui peut partir.** Un membre d'un cercle complet et non terminé, tant qu'il n'a rien reçu de sa cagnotte : aucune cotisation de son tour n'est déclarée ni confirmée. Après, le départ est refusé : arrêter de payer est un défaut.
+2. **Être à jour.** Le départ est refusé si le membre a une cotisation échue non confirmée (date limite passée), un paiement déclaré en attente de confirmation ou un litige ouvert. Sinon, partir servirait à éviter un défaut.
+3. **Son tour est supprimé.** Les cotisations que les autres lui devaient sont annulées. Les dates des autres tours ne bougent pas : la période de son tour reste vide.
+4. **Ses cotisations futures sont annulées.** Les bénéficiaires suivants reçoivent une cagnotte diminuée de sa part.
+5. **Ce qu'il a déjà versé lui est remboursé** par ceux qui l'ont reçu : chaque bénéficiaire déjà servi lui doit le montant de la cotisation confirmée. Le remboursement est suivi comme une cotisation (due, déclarée, confirmée), à régler avant une période entière à compter du départ. Ainsi chaque membre restant cotise et reçoit N − 2 fois.
+6. **Score.** −15 pour le membre qui part, entier même en cercle privé. Il ne reçoit pas le bonus de fin de cycle.
+7. **Trace.** Le départ est inscrit au registre (empreinte) et les autres membres sont prévenus par SMS.
+8. **Frais du modèle A.** Les sommes de frais non réglées qui le concernent (frais qu'il devait, remises qu'on lui devait) sont annulées ; une remise qu'il a déjà reçue est à rembourser à celui qui l'a versée, avec le même suivi. Les frais des autres membres ne sont pas recalculés.
+
+Non couvert, donc non codé : quitter un cercle qui n'est pas encore complet, remplacer le membre parti par un nouveau, départ de l'organisateur avant complétion.
+
+### Questions ouvertes après le 11/11
+1. Si un membre fait défaut envers un bénéficiaire de tête, celui-ci doit-il ses frais sur la cagnotte nominale ou sur ce qu'il a réellement reçu ?
+2. Que risque un bénéficiaire qui ne paie pas ses frais ou sa remise (défaut, score, mise en demeure) ?
+3. Après un départ, les frais et remises des autres membres doivent-ils être recalculés sur la cagnotte réduite ?
+4. Le membre parti peut-il être remplacé, et peut-on quitter un cercle avant qu'il soit complet ?
+5. La durée de conservation de la carte d'identité (5 ans après le dernier cercle, provisoire) et le taux de 8 % sont à faire valider par un juriste, avec le risque de requalification des frais en intérêts.
+
+## Résumé des questions d'origine (05/11)
 | N° | Question | Recommandation | Qui décide | Débloque |
 |---|---|---|---|---|
 | 1 | Les premières places se paient-elles toujours, ou seulement pour un échange ? | A : elles se paient toujours | équipe, puis juriste | les frais dans le règlement et l'ordre |
