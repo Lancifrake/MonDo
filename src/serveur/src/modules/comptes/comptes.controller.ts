@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Inject, Param, Post } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Inject, Param, Post } from "@nestjs/common";
 import { MembreAuthentifie, Public } from "../../authentification/garde.js";
 import { schemaDemandeOtp, schemaInscription } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
@@ -22,6 +22,13 @@ export class ComptesController {
   @Post()
   inscrire(@Body(new ValidationSchema(schemaInscription)) corps: (typeof schemaInscription)["_output"]) {
     return this.comptes.inscrire(corps);
+  }
+
+  /** Mon compte, pour l'application. La clé publique ne sert qu'au serveur : elle n'est pas renvoyée. */
+  @Get("moi")
+  async moi(@MembreAuthentifie() membreId: string) {
+    const { clePublique: _clePublique, ...compte } = await this.comptes.trouver(membreId);
+    return compte;
   }
 
   @Post(":id/niveau2")

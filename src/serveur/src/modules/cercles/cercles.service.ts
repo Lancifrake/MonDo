@@ -54,6 +54,18 @@ export type CerclePourNonMembre = Omit<Cercle, "membres" | "ordre"> & {
   premierePlaceAutorisee: number;
 };
 
+/** Résumé d'un cercle pour l'un de ses membres : de quoi afficher sa liste de cercles. */
+export interface ResumeCercle {
+  id: string;
+  organisateur: boolean;
+  reglement: Reglement;
+  statut: Cercle["statut"];
+  nombreInscrits: number;
+  /** Ma place dans l'ordre de passage, dès que le cercle est complet. */
+  maPlace?: number;
+  termineLe?: string;
+}
+
 interface LigneCercle extends Record<string, unknown> {
   id: string;
   organisateur_id: string;
@@ -215,6 +227,28 @@ export class CerclesService {
       ...(l.ordre ? { ordre: l.ordre } : {}),
       ...(l.termine_le ? { termineLe: new Date(l.termine_le).toISOString() } : {}),
     };
+  }
+
+  /** Cercles où le membre a adhéré, du plus récent au plus ancien. Rien sur les autres membres. */
+  async listerPour(membreId: string): Promise<ResumeCercle[]> {
+    const lignes = await this.base.requete<LigneCercle & { inscrits: number | string }>(
+      `SELECT c.*, (SELECT count(*) FROM cercles.adhesions x WHERE x.cercle_id = c.id) AS inscrits
+       FROM cercles.cercles c JOIN cercles.adhesions a ON a.cercle_id = c.id
+       WHERE a.membre_id = $1 ORDER BY c.cree_le DESC, c.id`,
+      [membreId],
+    );
+    return lignes.map((l) => {
+      const maPlace = l.ordre?.find((p) => p.membreId === membreId)?.position;
+      return {
+        id: l.id,
+        organisateur: l.organisateur_id === membreId,
+        reglement: l.reglement,
+        statut: l.statut,
+        nombreInscrits: Number(l.inscrits),
+        ...(maPlace ? { maPlace } : {}),
+        ...(l.termine_le ? { termineLe: new Date(l.termine_le).toISOString() } : {}),
+      };
+    });
   }
 
   /**

@@ -16,6 +16,12 @@ export class CerclesController {
     return this.cercles.creer({ organisateurId, ...corps });
   }
 
+  /** Mes cercles, pour l'application : un résumé par cercle, sans la liste des membres. */
+  @Get()
+  mesCercles(@MembreAuthentifie() membreId: string) {
+    return this.cercles.listerPour(membreId);
+  }
+
   @Post(":id/adhesions")
   rejoindre(
     @Param("id") id: string,

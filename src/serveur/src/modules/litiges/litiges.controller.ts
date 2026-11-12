@@ -22,6 +22,12 @@ export class LitigesController {
     return this.litiges.listerOuverts(membreId);
   }
 
+  /** Mes litiges, ouverts ou non, pour l'application : ceux où je suis payeur ou bénéficiaire. */
+  @Get("miens")
+  miens(@MembreAuthentifie() membreId: string) {
+    return this.litiges.listerPour(membreId);
+  }
+
   @Get(":id")
   consulter(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
     return this.litiges.consulter(id, membreId);

@@ -91,5 +91,11 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     const final = (await (await client.requete("GET", `/cercles/${cercle.id}`, undefined, org)).json()) as Cercle;
     expect(final.membres).toHaveLength(3);
     expect(final.ordre).toHaveLength(3);
+
+    // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
+    const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
+    expect(miens.map((c) => c.id)).toEqual([cercle.id]);
+    expect((await client.requete("GET", "/comptes/moi", undefined, org)).status).toBe(200);
+    expect(await (await client.requete("GET", "/litiges/miens", undefined, org)).json()).toEqual([]);
   });
 });
