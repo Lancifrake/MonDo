@@ -98,7 +98,8 @@ describe("échange de places après complétion (gratuit, choix de David du 11/1
     expect(place(ancien, apres)).toBe(1);
     expect(place(premier, apres)).toBe(3);
     expect(place(deuxieme, apres)).toBe(2);
-    expect((await base.requete("SELECT id FROM registre.empreintes")).length).toBe(avantRegistre + 1);
+    // Deux inscriptions : l'échange signé par les deux, puis le nouvel ordre de passage.
+    expect((await base.requete("SELECT id FROM registre.empreintes")).length).toBe(avantRegistre + 2);
 
     // Tours et cotisations : « ancien » reçoit au tour 1 et paie aux tours 2 et 3 ; l'autre l'inverse.
     const deAncien = await cotisationsDe(client, c.id, ancien);
@@ -114,6 +115,12 @@ describe("échange de places après complétion (gratuit, choix de David du 11/1
     );
     expect(lignes).toHaveLength(6);
     for (const l of lignes) expect(l.payeur_id).not.toBe(l.beneficiaire_id);
+
+    // Le nouvel ordre est inscrit au registre : la vérification d'intégrité le reconnaît.
+    const registre = await json<{ documents: { objet: string; conforme: boolean }[] }>(
+      await client.requete("GET", `/cercles/${c.id}/registre`, undefined, ancien),
+    );
+    expect(registre.documents).toContainEqual({ objet: "ordre", conforme: true });
 
     // Frais du modèle A : ils suivent la place, pas la personne.
     const sommes = await json<SommeDue[]>(

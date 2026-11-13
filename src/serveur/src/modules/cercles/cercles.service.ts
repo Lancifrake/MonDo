@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees, type Executeur } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type FraisDeTour } from "../../evenements/evenements-internes.js";
-import { RegistreService } from "../../registre/registre.service.js";
+import { RegistreService, type RegistreDuCercle } from "../../registre/registre.service.js";
 import { attribuerLesPlaces, premierePlaceAutorisee, zoneDe } from "../../score/attribution-des-places.js";
 import { baremeExact, taillesDesZones, type LigneBareme } from "../../score/frais.js";
 import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
@@ -235,8 +235,8 @@ export class CerclesService {
     if (!verifierSignature(organisateur.clePublique, message, d.signature)) {
       throw new ForbiddenException("Signature du règlement invalide");
     }
-    const empreinte = await this.registre.enregistrer(message);
     const id = randomUUID();
+    const empreinte = await this.registre.enregistrer(message, { cercleId: id });
     await this.base.transaction(async (tx) => {
       await tx.requete(
         `INSERT INTO cercles.cercles (id, organisateur_id, reglement, empreinte_reglement, statut)
@@ -374,13 +374,70 @@ export class CerclesService {
 
   /** Échange signé par les deux : leurs places sont permutées dans l'ordre figé, sous verrou de la ligne. */
   async echangerPlaces(cercleId: string, a: string, b: string): Promise<void> {
-    await this.base.transaction(async (tx) => {
+    const ordre = await this.base.transaction(async (tx) => {
       const [l] = await tx.requete<LigneCercle>("SELECT * FROM cercles.cercles WHERE id = $1 FOR UPDATE", [cercleId]);
-      const ordre = (l?.ordre ?? []).map((p) =>
+      const nouvel = (l?.ordre ?? []).map((p) =>
         p.membreId === a ? { ...p, membreId: b } : p.membreId === b ? { ...p, membreId: a } : p,
       );
-      await tx.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(ordre)]);
+      await tx.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(nouvel)]);
+      return nouvel;
     });
+    // Le nouvel ordre est inscrit à son tour : la vérification du registre le reconnaît comme légitime.
+    await this.registre.enregistrer(canonique({ objet: "ordre", cercleId, ordre }));
+  }
+
+  /**
+   * Registre du cercle, pour ses membres : chaque événement avec son empreinte, son lot et sa preuve, et la
+   * vérification que le règlement, l'ordre et les engagements en base sont bien ceux qui ont été inscrits.
+   */
+  async registreDuCercle(cercleId: string, demandeurId: string): Promise<RegistreDuCercle> {
+    const cercle = await this.trouver(cercleId);
+    if (![...cercle.membres, ...(cercle.partis ?? [])].includes(demandeurId)) {
+      throw new ForbiddenException("Registre réservé aux membres du cercle");
+    }
+    const evenements = await this.registre.consulterCercle(cercleId);
+    const adhesions = await this.base.requete<{ membre_id: string; rang: number; place_souhaitee: number | null }>(
+      "SELECT membre_id, rang, place_souhaitee FROM cercles.adhesions WHERE cercle_id = $1 ORDER BY rang",
+      [cercleId],
+    );
+    const placeOrg = adhesions.find((a) => a.rang === 1)?.place_souhaitee ?? undefined;
+    const documents = [
+      {
+        objet: "reglement",
+        conforme: await this.registre.contientPour(
+          cercleId,
+          messageReglement(cercle.organisateurId, cercle.reglement, placeOrg),
+        ),
+      },
+      ...(cercle.ordre
+        ? [
+            {
+              objet: "ordre",
+              conforme: await this.registre.contientPour(
+                cercleId,
+                canonique({ objet: "ordre", cercleId, ordre: cercle.ordre }),
+              ),
+            },
+          ]
+        : []),
+      {
+        objet: "engagements",
+        conforme: (
+          await Promise.all(
+            adhesions
+              .filter((a) => a.rang > 1)
+              .map((a) =>
+                this.registre.contientPour(
+                  cercleId,
+                  messageEngagement(cercleId, cercle.empreinteReglement, a.membre_id, a.place_souhaitee ?? undefined),
+                ),
+              ),
+          )
+        ).every(Boolean),
+      },
+    ];
+    const integre = documents.every((d) => d.conforme) && evenements.every((e) => e.statut !== "alteree");
+    return { cercleId, evenements, documents, integre };
   }
 
   async trouver(id: string): Promise<Cercle> {

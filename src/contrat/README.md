@@ -25,6 +25,16 @@ slither contracts/RegistreMonDo.sol
 ```
 Constat justifié (04/11) : `horodatageDe[racine] == 0` dans `verifierInclusion` (détecteurs `incorrect-equality` et `timestamp`). Le 0 signifie « racine jamais inscrite », ce n'est ni une comparaison temporelle manipulable ni une égalité de solde. Slither n'est pas un audit : le contrat reste à faire auditer.
 
+## Chaîne locale pour la démonstration
+
+```bash
+corepack pnpm chaine-locale
+```
+
+Démarre un nœud Hardhat sur l'ordinateur (port 8545), y déploie `RegistreMonDo` et affiche la ligne de commande qui lance le serveur branché dessus (`MONDO_REGISTRE_RESEAU=local`, adresse du contrat, clé du compte inscripteur). Les comptes viennent de la phrase de test publique de Hardhat : aucune valeur, aucun réseau public. La chaîne vit en mémoire : Ctrl+C l'arrête et l'efface. Le serveur refuse la chaîne locale en production.
+
+Vérifié le 13/11/2026 : un cercle créé par un client qui signe, complété, voit son lot inscrit par une vraie transaction ; `GET /cercles/:id/registre` relit la racine sur le contrat, et `verifierInclusion` du contrat confirme chaque événement avec la preuve donnée par le serveur, et refuse une empreinte inventée.
+
 ## Déployer sur Base Sepolia (réseau de test)
 Non fait : il faut une clé de déploiement financée en ETH de test, qui ne doit jamais entrer dans le dépôt.
 ```bash

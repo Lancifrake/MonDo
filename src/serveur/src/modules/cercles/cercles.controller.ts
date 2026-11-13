@@ -48,6 +48,12 @@ export class CerclesController {
     return this.cercles.quitter(id, membreId);
   }
 
+  /** Registre du cercle et vérification d'intégrité, pour ses membres (cahier des charges, M10). */
+  @Get(":id/registre")
+  registre(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
+    return this.cercles.registreDuCercle(id, membreId);
+  }
+
   @Get(":id")
   consulter(@Param("id") id: string, @MembreAuthentifie() demandeurId: string) {
     return this.cercles.consulterPour(id, demandeurId);
