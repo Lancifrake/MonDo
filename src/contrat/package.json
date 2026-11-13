@@ -15,7 +15,7 @@
     "@nomicfoundation/hardhat-viem-assertions": "^3.1.5",
     "@types/node": "^26.6.6",
     "hardhat": "3.21.2",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "viem": "^2.57.14"
   },
   "dependencies": {
