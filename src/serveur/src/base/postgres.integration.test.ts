@@ -153,6 +153,10 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
         .catch((e: unknown) => expect(String(e)).toMatch(/Échange impossible/));
     }
 
+    // Démonstration : l'avance du temps décale tours, cotisations et sommes dues sur un vrai serveur.
+    const avance = await client.requete("POST", `/demonstration/cercles/${cercle.id}/avance`, { jours: 1 }, org);
+    expect(avance.status).toBe(201);
+
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);

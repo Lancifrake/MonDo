@@ -448,6 +448,34 @@ export class CotisationsService {
     });
   }
 
+  /**
+   * Démonstration seulement, refusée en production : les dates du cercle reculent, ce qui revient à faire
+   * avancer le temps pour lui. Tours, cotisations ouvertes et sommes dues non réglées bougent ensemble.
+   */
+  async reculerDatesPourDemonstration(cercleId: string, dureeMs: number): Promise<void> {
+    if (process.env.NODE_ENV === "production") throw new ForbiddenException("Interdit en production");
+    const intervalle = "($2 * interval '1 millisecond')";
+    await this.base.transaction(async (tx) => {
+      await tx.requete(`UPDATE cotisations.tours SET date_limite = date_limite - ${intervalle} WHERE cercle_id = $1`, [
+        cercleId,
+        dureeMs,
+      ]);
+      await tx.requete(
+        `UPDATE cotisations.cotisations
+         SET date_limite = date_limite - ${intervalle}, fin_grace = fin_grace - ${intervalle},
+             declaree_le = declaree_le - ${intervalle}
+         WHERE cercle_id = $1 AND tour > 0`,
+        [cercleId, dureeMs],
+      );
+      await tx.requete(
+        `UPDATE cotisations.sommes_dues
+         SET exigible_le = exigible_le - ${intervalle}, date_limite = date_limite - ${intervalle}
+         WHERE cercle_id = $1 AND statut IN ('due', 'declaree')`,
+        [cercleId, dureeMs],
+      );
+    });
+  }
+
   async consulter(id: string): Promise<Cotisation> {
     return this.trouver(id);
   }
