@@ -478,6 +478,11 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         PRIMARY KEY (cercle_id, empreinte_numero)
       )`,
   },
+  {
+    // Cycle suivant (cahier des charges, M2 et S3) : un cercle terminé relancé par son organisateur.
+    nom: "030_cycle_suivant",
+    sql: `ALTER TABLE cercles.cercles ADD COLUMN cercle_precedent_id uuid REFERENCES cercles.cercles (id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

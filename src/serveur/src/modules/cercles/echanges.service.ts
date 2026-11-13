@@ -262,8 +262,10 @@ export class EchangesService {
     // Celui qui avance doit y avoir droit par son score ; reculer est toujours permis.
     const [quiAvance, vers] =
       places.demandeur > places.cedant ? [demandeurId, places.cedant] : [cedantId, places.demandeur];
-    const { score } = await this.score.consulter(quiAvance);
-    const plusTot = premierePlaceAutorisee(score, cercle.reglement.nombreMembres);
+    const { score, premieresPlacesFermees } = await this.score.consulter(quiAvance);
+    const plusTot = premierePlaceAutorisee(score, cercle.reglement.nombreMembres, {
+      exclusDuDebut: premieresPlacesFermees,
+    });
     if (vers < plusTot) {
       throw new BadRequestException(
         `Échange refusé : le score de celui qui avance permet une place à partir de la ${plusTot}e, pas la ${vers}e`,

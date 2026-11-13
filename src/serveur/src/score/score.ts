@@ -76,6 +76,23 @@ export function expliquerScore(evenements: readonly EvenementScore[]): string[] 
   if (evenements.some((e) => e.cerclePrive && POINTS[e.type] > 0)) {
     phrases.push("Dans les cercles privés, les gains comptent moitié moins ; les pertes comptent en entier.");
   }
-  if (defauts > 0) phrases.push("Après un défaut, les premières places sont fermées pendant un temps.");
+  if (premieresPlacesFermees(evenements)) {
+    phrases.push(
+      "Les premières places sont fermées jusqu'à deux cycles terminés sans défaut depuis le dernier défaut.",
+    );
+  }
   return phrases;
+}
+
+/** Cycles terminés sans défaut à accomplir, après un défaut, avant de retrouver les premières places. */
+export const CYCLES_POUR_ROUVRIR = 2;
+
+/**
+ * Après un défaut, les premières places sont fermées (cahier des charges, scénario S3 : « surveillé pendant
+ * 2 cycles ») jusqu'à deux cycles terminés sans défaut depuis le dernier défaut.
+ */
+export function premieresPlacesFermees(evenements: readonly EvenementScore[]): boolean {
+  const dernierDefaut = evenements.map((e) => e.type).lastIndexOf("defaut");
+  if (dernierDefaut < 0) return false;
+  return evenements.slice(dernierDefaut + 1).filter((e) => e.type === "cycle_termine").length < CYCLES_POUR_ROUVRIR;
 }

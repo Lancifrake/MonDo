@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EvenementScore, TypeEvenementScore } from "./evenements.js";
 import { calculerOrdreDePassage, type MembreCercle } from "./ordre-de-passage.js";
-import { calculerScore, expliquerScore, resumerHistorique, retracerScore } from "./score.js";
+import { calculerScore, expliquerScore, premieresPlacesFermees, resumerHistorique, retracerScore } from "./score.js";
 
 const ev = (...types: TypeEvenementScore[]): EvenementScore[] =>
   types.map((type) => ({ type, cercleId: "c1", date: "2026-11-03" }));
@@ -179,5 +179,21 @@ describe("historique et explication du score (cahier des charges, M6)", () => {
   it("le score expliqué est bien celui calculé", () => {
     const h = [e("cotisation_a_temps"), e("cycle_termine")];
     expect(expliquerScore(h)[0]).toContain(`${calculerScore(h)} sur 100`);
+  });
+});
+
+describe("premières places fermées après un défaut (cahier des charges, S3)", () => {
+  const e = (...types: TypeEvenementScore[]): EvenementScore[] =>
+    types.map((type) => ({ type, cercleId: "c", date: "d" }));
+
+  it("fermées dès un défaut, rouvertes après deux cycles terminés sans défaut depuis", () => {
+    expect(premieresPlacesFermees(e())).toBe(false);
+    expect(premieresPlacesFermees(e("cotisation_a_temps", "cycle_termine"))).toBe(false);
+    expect(premieresPlacesFermees(e("defaut"))).toBe(true);
+    expect(premieresPlacesFermees(e("defaut", "cycle_termine"))).toBe(true);
+    expect(premieresPlacesFermees(e("defaut", "cycle_termine", "cycle_termine"))).toBe(false);
+    expect(premieresPlacesFermees(e("defaut", "cycle_termine", "cycle_termine", "defaut"))).toBe(true);
+    // Les cycles d'avant le défaut ne comptent pas.
+    expect(premieresPlacesFermees(e("cycle_termine", "cycle_termine", "defaut"))).toBe(true);
   });
 });
