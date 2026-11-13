@@ -1,6 +1,12 @@
 import { ForbiddenException, Inject, Injectable, type OnModuleInit } from "@nestjs/common";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
-import { calculerScore, expliquerScore, resumerHistorique, retracerScore } from "../../score/score.js";
+import {
+  calculerScore,
+  expliquerScore,
+  premieresPlacesFermees,
+  resumerHistorique,
+  retracerScore,
+} from "../../score/score.js";
 import { DepotEvenementsScore } from "./depot-evenements-score.js";
 
 @Injectable()
@@ -40,7 +46,12 @@ export class ScoreService implements OnModuleInit {
       throw new ForbiddenException("Score visible par le membre et par les membres de ses cercles");
     }
     const evenements = await this.depot.lister(membreId);
-    const resume = { membreId, score: calculerScore(evenements), ...resumerHistorique(evenements) };
+    const resume = {
+      membreId,
+      score: calculerScore(evenements),
+      ...resumerHistorique(evenements),
+      premieresPlacesFermees: premieresPlacesFermees(evenements),
+    };
     // L'explication est visible de ceux qui voient le score ; le détail événement par événement, qui nomme
     // les cercles du membre, reste à lui seul.
     return {
@@ -52,6 +63,11 @@ export class ScoreService implements OnModuleInit {
 
   async consulter(membreId: string) {
     const historique = await this.depot.lister(membreId);
-    return { membreId, score: calculerScore(historique), ...resumerHistorique(historique) };
+    return {
+      membreId,
+      score: calculerScore(historique),
+      ...resumerHistorique(historique),
+      premieresPlacesFermees: premieresPlacesFermees(historique),
+    };
   }
 }

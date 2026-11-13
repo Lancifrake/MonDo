@@ -233,5 +233,18 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       org,
     );
     expect(invitation.status).toBe(201);
+    // Cycle suivant (migration 030) : refusé tant que le cercle n'est pas terminé.
+    const relance = await client.requete(
+      "POST",
+      "/cercles",
+      {
+        reglement: r,
+        placeSouhaitee: r.nombreMembres,
+        cerclePrecedentId: cercle.id,
+        signature: await org.signer(messageReglement(org.id, r, r.nombreMembres)),
+      },
+      org,
+    );
+    expect(relance.status).toBe(400);
   });
 });

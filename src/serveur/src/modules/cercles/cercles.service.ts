@@ -61,6 +61,8 @@ export interface Cercle {
   organisateurId: string;
   reglement: Reglement;
   empreinteReglement: string;
+  /** Cercle terminé dont celui-ci est le cycle suivant. */
+  cerclePrecedentId?: string;
   /** Membres actuels, dans l'ordre d'inscription ; ceux qui sont partis sont dans `partis`. */
   membres: string[];
   /** Membres qui ont quitté le cercle en cours de cycle. */
@@ -117,6 +119,7 @@ interface LigneCercle extends Record<string, unknown> {
   statut: Cercle["statut"];
   ordre: PlaceOrdre[] | null;
   termine_le?: Date | string | null;
+  cercle_precedent_id?: string | null;
 }
 
 /**
@@ -238,9 +241,23 @@ export class CerclesService {
   }
 
   async creer(
-    d: { organisateurId: string; reglement: Reglement; placeSouhaitee: number; signature: string },
+    d: {
+      organisateurId: string;
+      reglement: Reglement;
+      placeSouhaitee: number;
+      signature: string;
+      /** Cycle suivant d'un cercle terminé, relancé par son organisateur. */
+      cerclePrecedentId?: string;
+    },
     maintenant: Date = new Date(),
   ): Promise<Cercle> {
+    const precedent = d.cerclePrecedentId ? await this.trouver(d.cerclePrecedentId) : undefined;
+    if (precedent && precedent.organisateurId !== d.organisateurId) {
+      throw new ForbiddenException("Seul l'organisateur relance son cercle");
+    }
+    if (precedent && precedent.statut !== "termine") {
+      throw new BadRequestException("Un cercle ne se relance qu'une fois terminé");
+    }
     if (Date.parse(d.reglement.datePremierTour) <= maintenant.getTime()) {
       throw new BadRequestException("La date du premier tour doit être dans le futur");
     }
@@ -265,9 +282,9 @@ export class CerclesService {
     const empreinte = await this.registre.enregistrer(message, { cercleId: id });
     await this.base.transaction(async (tx) => {
       await tx.requete(
-        `INSERT INTO cercles.cercles (id, organisateur_id, reglement, empreinte_reglement, statut)
-         VALUES ($1, $2, $3, $4, 'en_attente')`,
-        [id, d.organisateurId, JSON.stringify(d.reglement), empreinte],
+        `INSERT INTO cercles.cercles (id, organisateur_id, reglement, empreinte_reglement, statut, cercle_precedent_id)
+         VALUES ($1, $2, $3, $4, 'en_attente', $5)`,
+        [id, d.organisateurId, JSON.stringify(d.reglement), empreinte, precedent?.id ?? null],
       );
       await tx.requete(
         "INSERT INTO cercles.adhesions (cercle_id, membre_id, rang, signature, place_souhaitee) VALUES ($1, $2, 1, $3, $4)",
@@ -280,6 +297,20 @@ export class CerclesService {
       membreId: d.organisateurId,
       cerclePrive: !d.reglement.ouvert,
     });
+    if (precedent) {
+      // Les anciens membres sont invités : chacun signera de nouveau, en connaissant le nouveau règlement.
+      for (const ancien of precedent.membres.filter((m) => m !== d.organisateurId)) {
+        const compte = await this.comptes.chercher(ancien);
+        if (!compte) continue;
+        await this.sms.mettreEnFile(
+          `relance:${id}:${ancien}`,
+          compte.numero,
+          `MonDo : votre cercle repart pour un nouveau cycle (${fcfa(d.reglement.montant)}). ` +
+            `Pour y entrer, ouvrez MonDo et saisissez l'identifiant ${id}.`,
+        );
+      }
+      this.sms.declencher();
+    }
     return this.trouver(id);
   }
 
@@ -489,6 +520,7 @@ export class CerclesService {
       organisateurId: l.organisateur_id,
       reglement: l.reglement,
       empreinteReglement: l.empreinte_reglement,
+      ...(l.cercle_precedent_id ? { cerclePrecedentId: l.cercle_precedent_id } : {}),
       membres: await this.membres(this.base, id),
       ...(partis.length > 0 ? { partis } : {}),
       statut: l.statut,
@@ -530,7 +562,7 @@ export class CerclesService {
       cercle.statut === "en_attente" ? Math.max(0, cercle.reglement.nombreMembres - membres.length) : 0;
     if (membres.includes(demandeurId)) return { ...cercle, membres, ...(ordre ? { ordre } : {}), placesRestantes };
     const { ordreFixe, ...reglementSansOrdre } = cercle.reglement;
-    const { score } = await this.score.consulter(demandeurId);
+    const { score, premieresPlacesFermees } = await this.score.consulter(demandeurId);
     const scoreSuffisant = score >= (cercle.reglement.scoreMinimum ?? 0);
     if (ordreFixe) {
       // Un membre prévu lit l'ordre qu'il va signer ; un inconnu qui a le lien ne voit pas qui est attendu.
@@ -542,7 +574,9 @@ export class CerclesService {
     return {
       ...cercle,
       placesRestantes,
-      premierePlaceAutorisee: premierePlaceAutorisee(score, cercle.reglement.nombreMembres),
+      premierePlaceAutorisee: premierePlaceAutorisee(score, cercle.reglement.nombreMembres, {
+        exclusDuDebut: premieresPlacesFermees,
+      }),
       scoreSuffisant,
     };
   }
@@ -572,13 +606,15 @@ export class CerclesService {
         filtres.nombreMembresMax ?? null,
       ],
     );
-    const { score } = await this.score.consulter(demandeurId);
+    const { score, premieresPlacesFermees } = await this.score.consulter(demandeurId);
     return lignes.map((l) => ({
       id: l.id,
       reglement: l.reglement,
       statut: l.statut,
       placesRestantes: Math.max(0, l.reglement.nombreMembres - Number(l.inscrits)),
-      premierePlaceAutorisee: premierePlaceAutorisee(score, l.reglement.nombreMembres),
+      premierePlaceAutorisee: premierePlaceAutorisee(score, l.reglement.nombreMembres, {
+        exclusDuDebut: premieresPlacesFermees,
+      }),
       scoreSuffisant: score >= (l.reglement.scoreMinimum ?? 0),
     }));
   }
@@ -664,11 +700,13 @@ export class CerclesService {
       }
       return;
     }
-    const { score } = await this.score.consulter(membreId);
-    const plusTot = premierePlaceAutorisee(score, nombreMembres);
+    const { score, premieresPlacesFermees } = await this.score.consulter(membreId);
+    const plusTot = premierePlaceAutorisee(score, nombreMembres, { exclusDuDebut: premieresPlacesFermees });
     if (place < plusTot) {
       throw new BadRequestException(
-        `Votre score permet une place à partir de la ${plusTot}e (une place plus tardive reste possible)`,
+        premieresPlacesFermees
+          ? `Après un défaut, les premières places sont fermées jusqu'à deux cycles terminés sans défaut : place à partir de la ${plusTot}e`
+          : `Votre score permet une place à partir de la ${plusTot}e (une place plus tardive reste possible)`,
       );
     }
   }
@@ -707,6 +745,7 @@ export class CerclesService {
               id,
               score: scores[i]!.score,
               rangInscription: i + 1,
+              exclusDuDebut: scores[i]!.premieresPlacesFermees,
               placeSouhaitee: souhait.get(id)!,
             })),
           ).map((p) => ({
@@ -715,9 +754,14 @@ export class CerclesService {
             membreId: p.membre.id,
             placeSouhaitee: p.membre.placeSouhaitee,
           }))
-        : calculerOrdreDePassage(membres.map((id, i) => ({ id, score: scores[i]!.score, rangInscription: i + 1 }))).map(
-            (p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }),
-          );
+        : calculerOrdreDePassage(
+            membres.map((id, i) => ({
+              id,
+              score: scores[i]!.score,
+              rangInscription: i + 1,
+              exclusDuDebut: scores[i]!.premieresPlacesFermees,
+            })),
+          ).map((p) => ({ position: p.position, zone: p.zone, membreId: p.membre.id }));
     await this.base.requete("UPDATE cercles.cercles SET ordre = $2 WHERE id = $1", [cercleId, JSON.stringify(ordre)]);
     return ordre;
   }

@@ -139,6 +139,8 @@ export const schemaCreationCercle = z.strictObject({
   reglement: schemaReglement,
   placeSouhaitee: schemaPlace,
   signature: z.string().min(1),
+  /** Cycle suivant d'un cercle terminé, relancé par son organisateur. */
+  cerclePrecedentId: z.uuid().optional(),
 });
 export const schemaAdhesion = z.strictObject({ placeSouhaitee: schemaPlace, signature: z.string().min(1) });
 

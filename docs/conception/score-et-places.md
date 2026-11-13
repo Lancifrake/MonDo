@@ -16,6 +16,8 @@ Entre 0 et 100, visible par tous les membres du cercle. On gagne des points en p
 
 Le score ne descend jamais sous 0 ni ne dépasse 100.
 
+**Après un défaut** (cahier des charges, S3 ; durée choisie par prudence le 13/11, à valider) : les premières places sont fermées jusqu'à deux cycles terminés sans défaut depuis le dernier défaut, même si le score est assez haut.
+
 **Cercles privés** (choix de David, 11/11) : dans un cercle privé, les gains comptent moitié moins (+2 pour une cotisation à temps, +5 pour un cycle terminé). Les pertes restent entières (−1, −30, −15). Le score sert à juger des inconnus : des amis qui se cotisent entre eux ne doivent pas ouvrir trop vite les premières places d'un cercle ouvert.
 
 **Départ en cours de cycle** (choix de David, 11/11) : libre tant que le membre n'a rien reçu de sa cagnotte, −15 ; impossible après. Règle détaillée dans `decision-05-choix-economiques-et-places.md`.
