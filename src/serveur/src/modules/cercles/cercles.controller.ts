@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Inject, Param, Post, Query } from "@nestjs/common";
 import { MembreAuthentifie } from "../../authentification/garde.js";
-import { schemaAdhesion, schemaCreationCercle } from "../../validation/schemas.js";
+import { schemaAdhesion, schemaCreationCercle, schemaInvitation } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
 import { calculerBareme } from "../../score/frais.js";
 import { CerclesService } from "./cercles.service.js";
@@ -31,6 +31,43 @@ export class CerclesController {
       throw new BadRequestException("Préciser nombreMembres (3 à 50) et montant (entier positif)");
     }
     return calculerBareme(n, m);
+  }
+
+  /** Cercles ouverts qui cherchent des membres, filtrés (US7). */
+  @Get("catalogue")
+  catalogue(
+    @MembreAuthentifie() membreId: string,
+    @Query("montantMin") montantMin?: string,
+    @Query("montantMax") montantMax?: string,
+    @Query("frequence") frequence?: string,
+    @Query("nombreMembresMax") nombreMembresMax?: string,
+  ) {
+    const entier = (v: string | undefined, nom: string) => {
+      if (v === undefined) return undefined;
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0 || n > 100_000_000)
+        throw new BadRequestException(`${nom} : entier positif attendu`);
+      return n;
+    };
+    if (frequence !== undefined && !["hebdomadaire", "mensuelle", "jours"].includes(frequence)) {
+      throw new BadRequestException("frequence : hebdomadaire, mensuelle ou jours");
+    }
+    return this.cercles.catalogue(membreId, {
+      montantMin: entier(montantMin, "montantMin"),
+      montantMax: entier(montantMax, "montantMax"),
+      nombreMembresMax: entier(nombreMembresMax, "nombreMembresMax"),
+      ...(frequence ? { frequence } : {}),
+    });
+  }
+
+  /** Invitation par numéro, envoyée par SMS (US4). Organisateur seulement. */
+  @Post(":id/invitations")
+  inviter(
+    @Param("id") id: string,
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaInvitation)) corps: (typeof schemaInvitation)["_output"],
+  ) {
+    return this.cercles.inviter(id, membreId, corps.numero);
   }
 
   @Post(":id/adhesions")

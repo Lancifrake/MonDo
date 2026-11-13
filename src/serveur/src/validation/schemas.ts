@@ -89,6 +89,8 @@ export const schemaReglement = z
      * membres du premier au dernier. Chacun signe le règlement en connaissant cet ordre.
      */
     ordreFixe: z.array(z.uuid()).min(3).max(50).optional(),
+    /** Score minimum pour rejoindre le cercle, fixé par l'organisateur (cahier des charges, M3). */
+    scoreMinimum: z.number().int().min(0).max(100).optional(),
     /** Frais du modèle A en francs, place par place ; l'exactitude est contrôlée par le service. */
     bareme: z
       .array(
@@ -147,6 +149,8 @@ export const schemaPropositionEchange = z.strictObject({
 export const schemaAcceptationEchange = z.strictObject({ signature: z.string().min(1).max(200) });
 
 export const schemaAvanceDemonstration = z.strictObject({ jours: z.number().int().min(1).max(400) });
+
+export const schemaInvitation = z.strictObject({ numero: schemaNumero });
 
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
