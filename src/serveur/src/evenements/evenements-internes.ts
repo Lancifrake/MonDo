@@ -39,6 +39,8 @@ export type EvenementInterne =
   | { type: "compte_debloque"; membreId: string; bloqueLe: string; debloqueLe: string }
   /** Un membre a quitté un cercle en cours, avant d'avoir reçu sa cagnotte (score −15). */
   | { type: "depart_enregistre"; cercleId: string; membreId: string; partiLe: string }
+  /** Le filleul d'un parrain a terminé un cycle sans défaut : +2 pour le parrain. */
+  | { type: "parrainage_reussi"; parrainId: string; filleulId: string; cercleId: string }
   | { type: "cercle_termine"; cercleId: string; termineLe: string }
   | { type: "defaut_constate"; cercleId: string; membreId: string; tour: number; constateLe: string }
   | { type: "cycle_termine"; cercleId: string; membreId: string }

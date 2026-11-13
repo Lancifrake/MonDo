@@ -4,6 +4,7 @@ import type { INestApplication } from "@nestjs/common";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "../app.module.js";
+import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base-de-donnees.js";
 import { BlocagesService } from "../modules/comptes/blocages.service.js";
 import { CotisationsService } from "../modules/cotisations/cotisations.service.js";
 import { PlanificateurService } from "../modules/planificateur/planificateur.service.js";
@@ -275,5 +276,29 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     const boite = (await (await client.requete("GET", "/notifications", undefined, org)).json()) as { nonLues: number };
     expect(boite.nonLues).toBeGreaterThanOrEqual(0);
     expect((await client.requete("POST", "/notifications/lues", undefined, org)).status).toBe(201);
+    // Parrainage (migration 033) : refusé à un parrain au score trop bas, lecture des siens.
+    const filleulPossible = await client.inscrire();
+    expect(
+      (await client.requete("POST", "/comptes/moi/parrainages", { filleulId: filleulPossible.id }, filleulPossible))
+        .status,
+    ).toBe(400);
+    expect((await client.requete("GET", "/comptes/moi/parrainages", undefined, org)).status).toBe(200);
+    // Un parrain fiable (événements de score fictifs) : la proposition plafonnée passe sur un vrai serveur.
+    const parrainFiable = await client.inscrire();
+    for (let i = 0; i < 10; i++) {
+      await app
+        .get<BaseDeDonnees>(BASE_DE_DONNEES)
+        .requete(
+          "INSERT INTO score.evenements (membre_id, type, cercle_id, date) VALUES ($1, 'cotisation_a_temps', $2, now())",
+          [parrainFiable.id, `00000000-0000-4000-8000-00000000000${i}`],
+        );
+    }
+    const proposition = await client.requete(
+      "POST",
+      "/comptes/moi/parrainages",
+      { filleulId: filleulPossible.id },
+      parrainFiable,
+    );
+    expect(proposition.status).toBe(201);
   });
 });

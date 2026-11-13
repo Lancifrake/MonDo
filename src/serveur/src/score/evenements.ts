@@ -1,4 +1,5 @@
-export type TypeEvenementScore = "cotisation_a_temps" | "cotisation_en_retard" | "defaut" | "cycle_termine" | "depart";
+export type TypeEvenementScore =
+  "cotisation_a_temps" | "cotisation_en_retard" | "defaut" | "cycle_termine" | "depart" | "parrainage_reussi";
 
 export interface EvenementScore {
   type: TypeEvenementScore;
@@ -15,6 +16,8 @@ export const POINTS: Record<TypeEvenementScore, number> = {
   defaut: -30,
   cycle_termine: 10,
   depart: -15,
+  /** Le filleul a terminé un cycle sans défaut (cahier des charges, section 7). */
+  parrainage_reussi: 2,
 };
 
 export const SCORE_MIN = 0;

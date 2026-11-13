@@ -8,6 +8,7 @@ import {
   schemaDemandeOtp,
   schemaDepotIdentite,
   schemaInscription,
+  schemaParrainage,
   schemaPiecesRecuperation,
 } from "../../validation/schemas.js";
 import { ValidationSchema } from "../../validation/validation.js";
@@ -15,6 +16,7 @@ import { ComptesService } from "./comptes.service.js";
 import { ContactConfianceService } from "./contact-confiance.service.js";
 import { IdentiteService, TEXTE_CONSENTEMENT, VERSION_CONSENTEMENT } from "./identite.service.js";
 import { OtpService } from "./otp.service.js";
+import { ParrainagesService } from "./parrainages.service.js";
 import { RecuperationService } from "./recuperation.service.js";
 
 @Controller("comptes")
@@ -25,6 +27,7 @@ export class ComptesController {
     @Inject(ContactConfianceService) private readonly contacts: ContactConfianceService,
     @Inject(IdentiteService) private readonly identite: IdentiteService,
     @Inject(RecuperationService) private readonly recuperation: RecuperationService,
+    @Inject(ParrainagesService) private readonly parrainages: ParrainagesService,
   ) {}
 
   @Public()
@@ -131,6 +134,30 @@ export class ComptesController {
   @Post("moi/recuperation/opposition")
   opposition(@MembreAuthentifie() membreId: string) {
     return this.recuperation.sOpposer(membreId);
+  }
+
+  /** Parrainage (US6) : proposé par un membre fiable, accepté ou refusé par le filleul. Jamais une caution. */
+  @Get("moi/parrainages")
+  mesParrainages(@MembreAuthentifie() membreId: string) {
+    return this.parrainages.lesMiens(membreId);
+  }
+
+  @Post("moi/parrainages")
+  proposerParrainage(
+    @MembreAuthentifie() membreId: string,
+    @Body(new ValidationSchema(schemaParrainage)) corps: (typeof schemaParrainage)["_output"],
+  ) {
+    return this.parrainages.proposer(membreId, corps.filleulId);
+  }
+
+  @Post("moi/parrainages/:id/acceptation")
+  accepterParrainage(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
+    return this.parrainages.repondre(id, membreId, "accepte");
+  }
+
+  @Post("moi/parrainages/:id/refus")
+  refuserParrainage(@Param("id") id: string, @MembreAuthentifie() membreId: string) {
+    return this.parrainages.repondre(id, membreId, "refuse");
   }
 
   @Post(":id/niveau2")

@@ -91,6 +91,8 @@ export const schemaReglement = z
     ordreFixe: z.array(z.uuid()).min(3).max(50).optional(),
     /** Score minimum pour rejoindre le cercle, fixé par l'organisateur (cahier des charges, M3). */
     scoreMinimum: z.number().int().min(0).max(100).optional(),
+    /** Un filleul peut entrer sous le seuil si son parrain est membre du cercle (choix de l'organisateur, signé). */
+    parrainageAccepte: z.boolean().optional(),
     /** Frais du modèle A en francs, place par place ; l'exactitude est contrôlée par le service. */
     bareme: z
       .array(
@@ -153,6 +155,8 @@ export const schemaAcceptationEchange = z.strictObject({ signature: z.string().m
 export const schemaAvanceDemonstration = z.strictObject({ jours: z.number().int().min(1).max(400) });
 
 export const schemaInvitation = z.strictObject({ numero: schemaNumero });
+
+export const schemaParrainage = z.strictObject({ filleulId: z.uuid() });
 
 export const schemaPaiementSimule = z.strictObject({
   operateur: z.enum(["orange_money", "mtn_momo"]),

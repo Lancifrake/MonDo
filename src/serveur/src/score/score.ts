@@ -65,6 +65,8 @@ export function expliquerScore(evenements: readonly EvenementScore[]): string[] 
   const gains = [
     aTemps && `${pluriel(aTemps, "cotisation payée à temps", "cotisations payées à temps")} (+4 chacune)`,
     cycles && `${pluriel(cycles, "cycle terminé sans défaut", "cycles terminés sans défaut")} (+10 chacun)`,
+    compter("parrainage_reussi") &&
+      `${pluriel(compter("parrainage_reussi"), "filleul qui a terminé un cycle", "filleuls qui ont terminé un cycle")} (+2 chacun)`,
   ].filter(Boolean);
   if (gains.length > 0) phrases.push(`Ce qui le fait monter : ${gains.join(", ")}.`);
   const pertes = [
