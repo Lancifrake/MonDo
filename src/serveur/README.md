@@ -171,6 +171,19 @@ Décision 02, règle 4 : un SMS est d'abord écrit en base (`sms.envois`), puis 
 - Passent par la file : les SMS de litige, et ceux de l'assistant (rappel avant l'échéance, rappel de retard, mise en demeure), en mode autonome tout de suite, en mode manuel après l'accord de l'organisateur. Le texte est rédigé au moment de l'envoi : un rappel ne part pas si la cotisation visée a été payée ou déclarée entre-temps. La mise en demeure est marquée envoyée une fois remise à la file.
 - Montants écrits avec une espace ordinaire (10 000 FCFA) pour rester dans l'alphabet GSM (160 caractères par SMS) ; dates à l'heure du Cameroun.
 
+## Registre lisible et vérifiable
+
+Chaque empreinte inscrite garde, à côté d'elle, le type de l'événement et le cercle concerné (jamais de contenu, jamais de donnée personnelle). `GET /cercles/:id/registre`, pour les membres du cercle (y compris ceux qui en sont partis) :
+
+- les événements du cercle (règlement, engagements, ordre, nouvel ordre après un échange, départs, litiges, mises en demeure, fin) avec leur empreinte, leur lot, la transaction d'inscription et la preuve d'inclusion, vérifiable avec la racine et la fonction `verifierInclusion` du contrat, sans faire confiance à MonDo ;
+- la vérification de chaque lot : la racine recalculée à partir des empreintes en base doit être celle du lot, et cette racine doit être inscrite sur la chaîne (relue sur le contrat) ;
+- la vérification des documents : le règlement, l'ordre et les engagements tels qu'ils sont en base doivent correspondre à des empreintes inscrites ;
+- `integre` : faux dès qu'une empreinte, une racine, le règlement ou l'ordre a été retouché à la main (scénario S8 du cahier des charges).
+
+Statut d'un événement : `en_attente` (pas encore dans un lot), `non_inscrite` (lot figé, inscription à reprendre), `inscrite`, `alteree`.
+
+Pour le voir sur une vraie chaîne sans réseau public : `corepack pnpm chaine-locale` dans `src/contrat`, puis lancer le serveur avec la ligne affichée.
+
 ## Dossier de preuve
 
 `GET /preuve/cercles/:cercleId/membres/:membreId/dossier`, réservé aux autres membres du cercle, seulement après un défaut constaté. Contient : identité du débiteur, règlement et engagement signés (vérifiables avec les clés publiques), preuves d'inscription au registre, relevé des cotisations, mises en demeure. L'export lui-même est inscrit au registre.

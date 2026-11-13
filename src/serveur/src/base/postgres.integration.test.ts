@@ -157,6 +157,13 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     const avance = await client.requete("POST", `/demonstration/cercles/${cercle.id}/avance`, { jours: 1 }, org);
     expect(avance.status).toBe(201);
 
+    // Registre par cercle (migration 028) : lecture et vérification sur un vrai serveur.
+    const registre = (await (await client.requete("GET", `/cercles/${cercle.id}/registre`, undefined, org)).json()) as {
+      evenements: unknown[];
+      integre: boolean;
+    };
+    expect(registre.evenements.length).toBeGreaterThan(0);
+
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);

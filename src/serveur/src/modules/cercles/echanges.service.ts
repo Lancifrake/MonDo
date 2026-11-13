@@ -225,6 +225,7 @@ export class EchangesService {
     // Au registre : l'échange et les deux signatures, par leur empreinte.
     await this.registre.enregistrer(
       canonique({ objet: "echange_de_places", echangeId: id, message, signatures: [l.signature_demandeur, signature] }),
+      { cercleId },
     );
     await this.prevenir(
       id,

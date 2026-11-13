@@ -457,6 +457,16 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE UNIQUE INDEX echange_en_cours ON cercles.echanges (cercle_id, demandeur_id) WHERE statut = 'propose';
       CREATE INDEX echanges_cedant ON cercles.echanges (cercle_id, cedant_id)`,
   },
+  {
+    // Registre lisible par cercle (cahier des charges, M10) : type de l'événement et cercle concerné, à côté de
+    // l'empreinte. Aucune donnée personnelle. Les empreintes d'avant restent sans cercle.
+    nom: "028_registre_par_cercle",
+    sql: `
+      ALTER TABLE registre.empreintes ADD COLUMN objet text;
+      ALTER TABLE registre.empreintes ADD COLUMN cercle_id uuid;
+      ALTER TABLE registre.empreintes ADD COLUMN enregistree_le timestamptz NOT NULL DEFAULT now();
+      CREATE INDEX empreintes_cercle ON registre.empreintes (cercle_id, id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

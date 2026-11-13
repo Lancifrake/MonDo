@@ -1,6 +1,6 @@
 import { createPublicClient, createWalletClient, http, isAddress, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { baseSepolia } from "viem/chains";
+import { baseSepolia, hardhat } from "viem/chains";
 import type { ConnecteurRegistre } from "./connecteur.js";
 
 /** Partie de l'interface du contrat RegistreMonDo (src/contrat) dont le serveur a besoin. */
@@ -43,6 +43,11 @@ export class ConnecteurRegistreEvm implements ConnecteurRegistre {
     if (recu.status !== "success") throw new Error(`Inscription de la racine refusée par la chaîne (${hash})`);
     return { referenceInscription: hash };
   }
+
+  /** Lit le contrat : une racine inscrite a un horodatage non nul. */
+  async estInscrite(racine: string): Promise<boolean> {
+    return (await this.chaine.lire(`0x${racine}` as Hex)) > 0n;
+  }
 }
 
 /**
@@ -56,8 +61,11 @@ export function connecteurEvmDepuisEnvironnement(
   if (!url || !adresse || !cle) return undefined;
   if (!isAddress(adresse)) throw new Error("MONDO_REGISTRE_CONTRAT n'est pas une adresse valide");
   const account = privateKeyToAccount(cle as Hex);
-  const lecture = createPublicClient({ chain: baseSepolia, transport: http(url) });
-  const ecriture = createWalletClient({ chain: baseSepolia, transport: http(url), account });
+  // `local` : chaîne Hardhat sur l'ordinateur, pour la démonstration (src/contrat, `pnpm chaine-locale`).
+  const chain = env.MONDO_REGISTRE_RESEAU === "local" ? hardhat : baseSepolia;
+  if (chain === hardhat && env.NODE_ENV === "production") throw new Error("Chaîne locale interdite en production");
+  const lecture = createPublicClient({ chain, transport: http(url) });
+  const ecriture = createWalletClient({ chain, transport: http(url), account });
   return new ConnecteurRegistreEvm(clientsViem(lecture, ecriture, adresse));
 }
 

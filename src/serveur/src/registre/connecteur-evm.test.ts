@@ -33,6 +33,14 @@ describe("connecteur EVM du registre", () => {
     expect(appels).toHaveLength(1);
   });
 
+  it("relit la chaîne : une racine inscrite est reconnue, une autre non", async () => {
+    const { chaine } = chaineFactice();
+    const connecteur = new ConnecteurRegistreEvm(chaine);
+    await connecteur.inscrireRacine("cd".repeat(32));
+    expect(await connecteur.estInscrite("cd".repeat(32))).toBe(true);
+    expect(await connecteur.estInscrite("ef".repeat(32))).toBe(false);
+  });
+
   it("échoue si la transaction est rejetée, pour que le lot reste à reprendre", async () => {
     const { chaine } = chaineFactice("reverted");
     await expect(new ConnecteurRegistreEvm(chaine).inscrireRacine("cd".repeat(32))).rejects.toThrow(/refusée/);
@@ -51,5 +59,16 @@ describe("connecteur EVM du registre", () => {
         MONDO_REGISTRE_CLE: `0x${"11".repeat(32)}`,
       }),
     ).toThrow(/adresse/);
+  });
+
+  it("chaîne locale de démonstration : acceptée hors production, refusée en production", () => {
+    const env = {
+      MONDO_REGISTRE_RESEAU: "local",
+      MONDO_REGISTRE_RPC_URL: "http://127.0.0.1:8545",
+      MONDO_REGISTRE_CONTRAT: `0x${"12".repeat(20)}`,
+      MONDO_REGISTRE_CLE: `0x${"11".repeat(32)}`,
+    };
+    expect(connecteurEvmDepuisEnvironnement(env)).toBeInstanceOf(ConnecteurRegistreEvm);
+    expect(() => connecteurEvmDepuisEnvironnement({ ...env, NODE_ENV: "production" })).toThrow(/production/);
   });
 });

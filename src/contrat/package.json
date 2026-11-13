@@ -6,7 +6,8 @@
     "compiler": "hardhat build",
     "test": "hardhat test",
     "verifier-types": "tsc --noEmit",
-    "qualite": "hardhat build && tsc --noEmit && hardhat test"
+    "qualite": "hardhat build && tsc --noEmit && hardhat test",
+    "chaine-locale": "hardhat build && node scripts/chaine-locale.mjs"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-node-test-runner": "^3.1.2",
