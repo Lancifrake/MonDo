@@ -176,6 +176,16 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 - EchangePlace : gratuit, plus d'attribut frais.
 - Les stéréotypes «calculé» restent sur Score et DossierDePreuve.
 
+## 13. Ajouts du 13/11 (non encore dans le fichier PlantUML)
+| Classe | Attributs | Remarques |
+|---|---|---|
+| **Parrainage** | id : UUID ; statut : StatutParrainage ; proposeLe : DateTime ; reponduLe : DateTime [0..1] | parrain 1 ── filleul 1 ; un parrain accepté par filleul, trois filleuls au plus ; jamais une caution |
+| **Invitation** | empreinteNumero : String ; inviteeLe : DateTime | Cercle 1 ── 0..* ; le numéro n'est pas gardé |
+| **PaiementSimule** | id : UUID ; operateur : Operateur ; issue : IssueSimulee ; statut ; referenceOperateur : String [0..1] ; motif : String [0..1] | Cotisation 1 ── 0..* ; hors production |
+| **Notification** | id : UUID ; texte : String ; creeeLe : DateTime ; lueLe : DateTime [0..1] | Utilisateur 1 ── 0..* |
+
+Attributs ajoutés : Reglement.scoreMinimum [0..1], Reglement.parrainageAccepte [0..1] ; Cercle.cerclePrecedent (Cercle 0..1 ── 0..1 Cercle, « cycle suivant ») ; EmpreinteRegistre.objet, EmpreinteRegistre.cercle (identifiant) ; Score.premieresPlacesFermees (calculé). Nouveau type d'événement de score : parrainage_reussi (+2). Énumérations : StatutParrainage (propose, accepte, refuse), Operateur (orange_money, mtn_momo), IssueSimulee (reussi, echoue, en_retard).
+
 ## Écarts entre le modèle et le code (12/11)
 | Dans le modèle | Dans le code |
 |---|---|
