@@ -271,5 +271,9 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       );
       expect(second.status).toBe(409);
     }
+    // Notifications (migration 032) : boîte lue et tout marquer lu sur un vrai serveur.
+    const boite = (await (await client.requete("GET", "/notifications", undefined, org)).json()) as { nonLues: number };
+    expect(boite.nonLues).toBeGreaterThanOrEqual(0);
+    expect((await client.requete("POST", "/notifications/lues", undefined, org)).status).toBe(201);
   });
 });

@@ -212,7 +212,7 @@ export class CerclesService {
     );
     for (const { membre_id } of autres) {
       const compte = await this.comptes.chercher(membre_id);
-      if (compte) await this.sms.mettreEnFile(`${cle}:${membre_id}`, compte.numero, texte);
+      if (compte) await this.sms.mettreEnFile(`${cle}:${membre_id}`, compte.numero, texte, membre_id);
     }
     if (autres.length > 0) this.sms.declencher();
   }
@@ -307,6 +307,7 @@ export class CerclesService {
           compte.numero,
           `MonDo : votre cercle repart pour un nouveau cycle (${fcfa(d.reglement.montant)}). ` +
             `Pour y entrer, ouvrez MonDo et saisissez l'identifiant ${id}.`,
+          ancien,
         );
       }
       this.sms.declencher();
@@ -430,6 +431,7 @@ export class CerclesService {
           `depart:${cercleId}:${membreId}:${autre}`,
           compte.numero,
           "MonDo : un membre a quitté votre cercle avant son tour. Son tour est supprimé, ses cotisations à venir sont annulées. Le détail est dans l'application.",
+          autre,
         );
       }
     }

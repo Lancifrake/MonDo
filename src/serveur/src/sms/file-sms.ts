@@ -26,12 +26,22 @@ export class FileSms implements OnModuleDestroy {
     @Inject(CONNECTEUR_SMS) private readonly passerelle: ConnecteurSms,
   ) {}
 
-  async mettreEnFile(cle: string, numero: string, texte: string): Promise<void> {
+  /**
+   * `membreId` : le destinataire est un membre ; le message est aussi gardé dans sa boîte de notifications
+   * (cahier des charges, M5). Sans lui (contact de confiance, invité sans compte), SMS seulement.
+   */
+  async mettreEnFile(cle: string, numero: string, texte: string, membreId?: string): Promise<void> {
     await this.base.requete(
       `INSERT INTO sms.envois (id, cle, numero, texte, statut) VALUES ($1, $2, $3, $4, 'a_envoyer')
        ON CONFLICT (cle) DO NOTHING`,
       [randomUUID(), cle, numero, texte],
     );
+    if (membreId) {
+      await this.base.requete(
+        `INSERT INTO sms.notifications (id, cle, membre_id, texte) VALUES ($1, $2, $3, $4) ON CONFLICT (cle) DO NOTHING`,
+        [randomUUID(), cle, membreId, texte],
+      );
+    }
   }
 
   /** Envoie en arrière-plan, sans faire attendre l'appelant ; un échec reste en file pour le passage suivant. */

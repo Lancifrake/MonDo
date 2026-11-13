@@ -177,7 +177,7 @@ export class AssistantService implements OnModuleInit {
         : await this.texteRappel(cercleId, membreId, type, cotisationId);
     const compte = await this.comptes.chercher(membreId);
     if (texte && compte) {
-      await this.sms.mettreEnFile(`assistant:${actionId}`, compte.numero, texte);
+      await this.sms.mettreEnFile(`assistant:${actionId}`, compte.numero, texte, compte.id);
       this.sms.declencher();
     }
     if (type === "mise_en_demeure") await this.preuve.marquerEnvoyees(cercleId, membreId);

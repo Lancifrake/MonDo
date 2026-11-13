@@ -293,6 +293,7 @@ export class IdentiteService {
         decision === "validee"
           ? "MonDo : identité vérifiée. Vous pouvez rejoindre des cercles ouverts. Votre selfie a été supprimé."
           : "MonDo : vérification d'identité refusée. Le motif est dans l'application ; vos images ont été supprimées.",
+        compte.id,
       );
       this.sms.declencher();
     }

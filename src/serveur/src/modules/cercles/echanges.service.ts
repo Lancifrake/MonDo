@@ -286,7 +286,7 @@ export class EchangesService {
   private async prevenir(echangeId: string, etape: string, membreId: string, texte: string): Promise<void> {
     const compte = await this.comptes.chercher(membreId);
     if (!compte) return;
-    await this.sms.mettreEnFile(`echange:${echangeId}:${etape}`, compte.numero, texte);
+    await this.sms.mettreEnFile(`echange:${echangeId}:${etape}`, compte.numero, texte, membreId);
     this.sms.declencher();
   }
 

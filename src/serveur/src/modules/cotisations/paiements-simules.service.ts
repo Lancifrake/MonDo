@@ -162,7 +162,7 @@ export class PaiementsSimulesService {
   private async prevenir(cle: string, membreId: string, texte: string) {
     const compte = await this.comptes.chercher(membreId);
     if (!compte) return;
-    await this.sms.mettreEnFile(cle, compte.numero, texte);
+    await this.sms.mettreEnFile(cle, compte.numero, texte, membreId);
     this.sms.declencher();
   }
 

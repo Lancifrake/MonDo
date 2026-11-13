@@ -178,6 +178,10 @@ Sur un paiement déclaré que le bénéficiaire ne confirme pas (règles choisie
 
 Non fait : pièces jointes (capture du reçu Mobile Money), administration web.
 
+## Notifications dans l'application
+
+Cahier des charges, M5. Chaque message adressé à un membre (rappels de l'assistant, relance du bénéficiaire, litiges, blocage, départ, échange, relance d'un cercle, Mobile Money simulé, vérification d'identité, récupération de compte) part par SMS et arrive aussi dans sa boîte : `GET /notifications` (les 100 plus récentes et le nombre de non lues), `POST /notifications/:id/lue`, `POST /notifications/lues`. Chacun ne voit et ne marque que les siennes. Les messages à quelqu'un qui n'est pas membre (contact de confiance, invitation par numéro, code de connexion) restent des SMS seulement.
+
 ## File d'envoi des SMS
 
 Décision 02, règle 4 : un SMS est d'abord écrit en base (`sms.envois`), puis envoyé en arrière-plan. Une panne de la passerelle ne bloque donc ni un litige ni une cotisation.
