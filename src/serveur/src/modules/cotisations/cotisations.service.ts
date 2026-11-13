@@ -476,6 +476,45 @@ export class CotisationsService {
     });
   }
 
+  /**
+   * Qui a payé, qui n'a pas payé (US17) : l'état de chaque tour pour tout le cercle, réservé à ceux qui y
+   * paient ou y reçoivent. Ni référence de transaction, ni date de déclaration : seulement le statut.
+   */
+  async etatDuCercle(cercleId: string, demandeurId: string, maintenant: Date = new Date()) {
+    if (!/^[0-9a-f-]{36}$/i.test(cercleId)) throw new ForbiddenException("Réservé aux membres d'un cercle en cours");
+    const lignes = (
+      await this.base.requete<LigneCotisation>(
+        "SELECT * FROM cotisations.cotisations WHERE cercle_id = $1 AND tour > 0 ORDER BY tour, payeur_id",
+        [cercleId],
+      )
+    ).map(versCotisation);
+    if (!lignes.some((c) => c.payeurId === demandeurId || c.beneficiaireId === demandeurId)) {
+      throw new ForbiddenException("Réservé aux membres d'un cercle en cours");
+    }
+    const tours = await this.base.requete<{ numero: number; beneficiaire_id: string; date_limite: Date | string }>(
+      "SELECT numero, beneficiaire_id, date_limite FROM cotisations.tours WHERE cercle_id = $1 ORDER BY numero",
+      [cercleId],
+    );
+    return {
+      cercleId,
+      tours: tours.map((t) => ({
+        numero: t.numero,
+        beneficiaireId: t.beneficiaire_id,
+        dateLimite: new Date(t.date_limite).toISOString(),
+        paiements: lignes
+          .filter((c) => c.tour === t.numero)
+          .map((c) => ({
+            payeurId: c.payeurId,
+            montant: c.montant,
+            statut: c.statut,
+            enRetard: c.statut === "due" && Date.parse(c.dateLimite) < maintenant.getTime(),
+            enLitige: c.enLitige,
+            penaliteDue: c.penaliteDue,
+          })),
+      })),
+    };
+  }
+
   async consulter(id: string): Promise<Cotisation> {
     return this.trouver(id);
   }
