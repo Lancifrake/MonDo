@@ -7,6 +7,7 @@ import { AssistantModule } from "./modules/assistant/assistant.module.js";
 import { CerclesModule } from "./modules/cercles/cercles.module.js";
 import { ComptesModule } from "./modules/comptes/comptes.module.js";
 import { CotisationsModule } from "./modules/cotisations/cotisations.module.js";
+import { DemonstrationModule } from "./modules/demonstration/demonstration.module.js";
 import { LitigesModule } from "./modules/litiges/litiges.module.js";
 import { PlanificateurModule } from "./modules/planificateur/planificateur.module.js";
 import { PreuveModule } from "./modules/preuve/preuve.module.js";
@@ -31,6 +32,7 @@ import { StockageModule } from "./stockage/stockage.module.js";
     PreuveModule,
     LitigesModule,
     AssistantModule,
+    DemonstrationModule,
   ],
   controllers: [SanteController],
   // Toute route exige une requête signée, sauf celles marquées @Public().

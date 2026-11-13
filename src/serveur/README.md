@@ -37,6 +37,16 @@ docker run --rm -e NODE_ENV=demonstration -p 3000:3000 mondo-serveur
 
 Image en deux étapes (construction, puis exécution avec les seules dépendances de production), utilisateur `node` sans droit d'écriture sur le code, contrôle de santé sur `/sante`. Par défaut `NODE_ENV=production` : le serveur refuse alors de démarrer sans `MONDO_STOCKAGE_CLE` et `MONDO_STOCKAGE_DOSSIER`, sans vrai fournisseur SMS et sans registre réel. C'est voulu : aucun simulateur en production. Le `.dockerignore` de la racine ne laisse entrer dans la construction que le serveur et les fichiers du monorepo. L'intégration continue construit l'image et vérifie `/sante` (job `image`). Choix de l'hébergeur et du fournisseur SMS : `docs/conception/comparatif-hebergeur-et-sms.md`.
 
+## Démonstration
+
+Hors production seulement (403 en production), pour montrer un cycle entier avec un seul téléphone. Le membre réel crée un cercle, puis, en tant qu'organisateur :
+
+- `POST /demonstration/cercles/:id/membres-fictifs` : des membres fictifs complètent le cercle. Ils s'inscrivent, signent leur engagement et paient par les mêmes services que tout le monde, avec leur propre clé, gardée en mémoire (perdue au redémarrage).
+- `POST /demonstration/cercles/:id/suite` : les membres fictifs paient le tour en cours et confirment ce qu'ils ont reçu, y compris le paiement du membre réel. Le dernier membre fictif cesse de payer après le premier tour : c'est le défaut de la démonstration.
+- `POST /demonstration/cercles/:id/avance` (`jours`) : le temps du cercle avance (ses dates reculent), puis le planificateur passe : retards, défauts, pénalités, mises en demeure, fin de cycle.
+
+`GET /assistant/mesures?lancements=100` : mesures du système multi-agents demandées par la grille d'évaluation, sur le scénario « 10 membres, un défaut », en mode autonome et en mode manuel : cycles, messages échangés, durée moyenne et maximale (cible : moins de 2 secondes), résultat identique à chaque lancement, mémoire.
+
 ## Structure
 
 | Dossier                     | Rôle                                                           |

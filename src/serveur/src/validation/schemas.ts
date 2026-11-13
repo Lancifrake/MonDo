@@ -146,6 +146,8 @@ export const schemaPropositionEchange = z.strictObject({
 });
 export const schemaAcceptationEchange = z.strictObject({ signature: z.string().min(1).max(200) });
 
+export const schemaAvanceDemonstration = z.strictObject({ jours: z.number().int().min(1).max(400) });
+
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
 export const schemaOuvertureLitige = z.strictObject({

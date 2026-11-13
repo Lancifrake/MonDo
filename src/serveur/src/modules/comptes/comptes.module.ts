@@ -19,6 +19,6 @@ import { RecuperationService } from "./recuperation.service.js";
     BlocagesService,
     RecuperationService,
   ],
-  exports: [ComptesService, ContactConfianceService, IdentiteService, BlocagesService, RecuperationService],
+  exports: [OtpService, ComptesService, ContactConfianceService, IdentiteService, BlocagesService, RecuperationService],
 })
 export class ComptesModule {}
