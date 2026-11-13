@@ -1,0 +1,15 @@
+scenario;mode;cycles;du_fcfa;impaye_fcfa;taux_impayes;pertes_membres_honnetes_fcfa;retards;defauts;relances_a_la_main;actions_de_l_assistant;messages_entre_agents;duree_max_decision_ms
+S1-tontine-saine;mondo;3;13500000;0;0.0000;0;3;0;0;273;819;0.394
+S1-tontine-saine;traditionnel;3;13500000;0;0.0000;0;7;0;7;0;0;0.000
+S2-retards;mondo;3;13500000;0;0.0000;0;21;0;0;291;873;0.044
+S2-retards;traditionnel;3;13500000;0;0.0000;0;37;0;37;0;0;0.000
+S3-defaut-apres-reception;mondo;3;13500000;0;0.0000;0;6;0;0;276;828;0.034
+S3-defaut-apres-reception;traditionnel;3;13500000;650000;0.0481;650000;8;13;21;0;0;0.000
+S4-cercle-de-nouveaux;mondo;3;13500000;400000;0.0296;400000;11;8;0;297;891;0.051
+S4-cercle-de-nouveaux;traditionnel;3;13500000;1000000;0.0741;1000000;12;20;32;0;0;0.000
+S5-mixte;mondo;3;6750000;125000;0.0185;100000;20;5;0;300;900;0.038
+S5-mixte;traditionnel;3;6750000;200000;0.0296;175000;36;8;44;0;0;0.000
+S6-grande-tontine;mondo;2;49000000;880000;0.0180;800000;207;88;0;5283;15849;1.660
+S6-grande-tontine;traditionnel;2;49000000;1200000;0.0245;1130000;432;120;552;0;0;0.000
+S7-connus-sous-le-seuil;mondo;3;13500000;350000;0.0259;350000;4;7;0;288;864;0.017
+S7-connus-sous-le-seuil;traditionnel;3;13500000;550000;0.0407;550000;7;11;18;0;0;0.000

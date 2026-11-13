@@ -53,7 +53,8 @@ export function premierePlaceAutorisee(
  *    (reculer ne met personne en danger). Jamais plus tôt que son score, même si la place souhaitée l'était
  *    (score baissé depuis l'adhésion) ;
  * 2. ceux qui n'ont trouvé aucune place permise (cercle de nouveaux, par exemple) prennent les places restantes,
- *    toutes plus tôt que leur score : le mieux classé reçoit la plus tôt.
+ *    toutes plus tôt que leur score : le mieux classé reçoit la plus tôt ;
+ * 3. un membre aux premières places fermées n'en garde jamais une (voir plus bas).
  */
 export function attribuerLesPlaces(
   candidats: readonly Candidat[],
@@ -84,6 +85,33 @@ export function attribuerLesPlaces(
 
   const restantes = Array.from({ length: n }, (_, i) => i + 1).filter((p) => !occupant.has(p));
   sansPlace.forEach((m, i) => occupant.set(restantes[i]!, m));
+
+  // 3. Un membre aux premières places fermées (défaut récent) ne garde jamais une place de tête reçue parmi les
+  //    restes : il l'échange avec le mieux classé non exclu placé plus loin, en priorité quelqu'un qui demandait une
+  //    place plus tôt que la sienne (scénario S3 du cahier des charges, trouvé par le simulateur le 13/11).
+  const rang = new Map(parPriorite.map((m, i) => [m.id, i]));
+  const { finDuDebut } = zones(n);
+  for (let p = 1; p <= finDuDebut; p++) {
+    const exclu = occupant.get(p)!;
+    if (!exclu.exclusDuDebut) continue;
+    let remplacant: number | undefined;
+    for (let q = finDuDebut + 1; q <= n; q++) {
+      const o = occupant.get(q)!;
+      if (o.exclusDuDebut) continue;
+      if (remplacant === undefined) {
+        remplacant = q;
+        continue;
+      }
+      const r = occupant.get(remplacant)!;
+      const voulaitPlusTot = (c: Candidat, place: number) => c.placeSouhaitee < place;
+      const cle = (c: Candidat, place: number) => [voulaitPlusTot(c, place) ? 0 : 1, c.placeSouhaitee, rang.get(c.id)!];
+      const [a, b] = [cle(o, q), cle(r, remplacant)];
+      if (a[0]! < b[0]! || (a[0] === b[0] && (a[1]! < b[1]! || (a[1] === b[1] && a[2]! < b[2]!)))) remplacant = q;
+    }
+    if (remplacant === undefined) continue;
+    occupant.set(p, occupant.get(remplacant)!);
+    occupant.set(remplacant, exclu);
+  }
 
   return Array.from({ length: n }, (_, i) => ({
     position: i + 1,

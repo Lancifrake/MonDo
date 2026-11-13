@@ -99,3 +99,37 @@ describe("attribution des places à la complétion (choix de David, 08/11)", () 
     expect(attribuerLesPlaces(cs).map((p) => p.position)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
+
+describe("un membre aux premières places fermées n'est jamais placé en tête, même avec les places restantes", () => {
+  it("cercle où personne n'a le score du début : l'exclu ne reçoit pas une place de tête restée vide", () => {
+    // 10 membres : 9 connus à 46 (milieu permis, places 4 à 10), 1 exclu après un défaut. Tous demandent la place 1.
+    const connus = Array.from({ length: 9 }, (_, i) => ({
+      id: `c${i + 1}`,
+      score: 46,
+      rangInscription: i + 2,
+      placeSouhaitee: 1,
+    }));
+    const exclu = { id: "exclu", score: 0, rangInscription: 1, placeSouhaitee: 1, exclusDuDebut: true };
+    const ordre = attribuerLesPlaces([exclu, ...connus]);
+    const placeExclu = ordre.find((p) => p.membre.id === "exclu")!;
+    expect(placeExclu.zone).not.toBe("debut");
+    expect(ordre.slice(0, 3).every((p) => !p.membre.exclusDuDebut)).toBe(true);
+    // Toujours une place par membre.
+    expect(new Set(ordre.map((p) => p.membre.id)).size).toBe(10);
+  });
+
+  it("l'échange se fait avec le mieux classé qui demandait une place plus tôt, pas avec celui qui a choisi d'attendre", () => {
+    const epargnant = { id: "epargnant", score: 46, rangInscription: 2, placeSouhaitee: 9 };
+    const presse = { id: "presse", score: 40, rangInscription: 3, placeSouhaitee: 1 };
+    const autres = Array.from({ length: 7 }, (_, i) => ({
+      id: `a${i}`,
+      score: 35,
+      rangInscription: i + 4,
+      placeSouhaitee: 1,
+    }));
+    const exclu = { id: "exclu", score: 0, rangInscription: 1, placeSouhaitee: 1, exclusDuDebut: true };
+    const ordre = attribuerLesPlaces([exclu, epargnant, presse, ...autres]);
+    expect(ordre.find((p) => p.membre.id === "epargnant")!.position).toBe(9);
+    expect(ordre.find((p) => p.membre.id === "exclu")!.zone).not.toBe("debut");
+  });
+});
