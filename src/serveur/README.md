@@ -81,6 +81,10 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
 
+**Mobile Money simulé** (cahier des charges, M4), hors production : `POST /cotisations/:id/paiement-simule` (`operateur` : `orange_money` ou `mtn_momo` ; `issue` : `reussi`, `echoue` ou `en_retard`), par le payeur, sur une cotisation à payer. Réussi : le retour de l'opérateur simulé déclare le paiement avec sa référence (`OM-SIM-…`), et le bénéficiaire reçoit un SMS qui lui demande de confirmer : le retour ne remplace jamais sa confirmation. Échoué : rien n'est déclaré, le payeur sait pourquoi. En retard : l'opérateur répond une heure plus tard, traité par le planificateur. Une seule tentative en attente par cotisation. `GET /cotisations/:id/paiements-simules` : les tentatives, pour le payeur et le bénéficiaire. L'opérateur est derrière l'interface `ConnecteurMobileMoney` (`src/paiement`). MonDo ne touche jamais l'argent.
+
+**Traces au registre** : chaque cotisation confirmée et chaque défaut constaté sont inscrits (empreinte, sans référence de transaction), en plus du règlement, des engagements, de l'ordre, des litiges, des mises en demeure, des départs et des échanges.
+
 **Qui a payé, qui n'a pas payé** (US17) : `GET /cotisations/cercles/:cercleId/etat`, pour ceux qui paient ou reçoivent dans le cercle : chaque tour, son bénéficiaire, sa date limite et, pour chaque payeur, le statut, le retard, le litige et la pénalité due. Jamais la référence de la transaction.
 
 **Score expliqué** (M6) : `GET /score/:membreId` ajoute `explication` (quelques phrases : ce qui fait monter, ce qui fait baisser, la règle des cercles privés), visible de ceux qui voient le score ; et, pour le membre lui-même seulement, `historique` : chaque événement avec sa date, son cercle, ses points et le score après lui.

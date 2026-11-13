@@ -154,6 +154,11 @@ export const schemaAvanceDemonstration = z.strictObject({ jours: z.number().int(
 
 export const schemaInvitation = z.strictObject({ numero: schemaNumero });
 
+export const schemaPaiementSimule = z.strictObject({
+  operateur: z.enum(["orange_money", "mtn_momo"]),
+  issue: z.enum(["reussi", "echoue", "en_retard"]),
+});
+
 export const schemaPaiement = z.strictObject({ referenceTransaction: z.string().trim().min(1).max(64) });
 
 export const schemaOuvertureLitige = z.strictObject({

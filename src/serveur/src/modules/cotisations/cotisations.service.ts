@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundEx
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type CercleComplet } from "../../evenements/evenements-internes.js";
+import { RegistreService } from "../../registre/registre.service.js";
+import { canonique } from "../../signature/canonique.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { fcfa } from "../../sms/montant.js";
 import { ComptesService } from "../comptes/comptes.service.js";
@@ -87,9 +89,22 @@ export class CotisationsService {
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(ComptesService) private readonly comptes: ComptesService,
     @Inject(FileSms) private readonly sms: FileSms,
+    @Inject(RegistreService) private readonly registre: RegistreService,
   ) {
     this.evenements.ecouter("cercle_complet", (e) => this.planifierTours(e));
-    this.evenements.ecouter("defaut_constate", (e) => this.rendrePenaliteDue(e.cercleId, e.membreId, e.tour));
+    this.evenements.ecouter("defaut_constate", async (e) => {
+      await this.rendrePenaliteDue(e.cercleId, e.membreId, e.tour);
+      // Le défaut est inscrit au registre (cahier des charges, M10) : une empreinte, sans donnée personnelle.
+      await this.registre.enregistrer(
+        canonique({
+          objet: "defaut_constate",
+          cercleId: e.cercleId,
+          membreId: e.membreId,
+          tour: e.tour,
+          constateLe: e.constateLe,
+        }),
+      );
+    });
     this.evenements.ecouter("compte_debloque", (e) => this.reporterEcheances(e.membreId, e.bloqueLe, e.debloqueLe));
     this.evenements.ecouter("confirmation_attendue", (e) => this.relancerBeneficiaire(e.cotisationId, e.palierHeures));
   }
@@ -519,7 +534,20 @@ export class CotisationsService {
     return this.trouver(id);
   }
 
-  private publierConfirmation(c: Cotisation, aTemps: boolean): Promise<void> {
+  private async publierConfirmation(c: Cotisation, aTemps: boolean): Promise<void> {
+    // Chaque confirmation est inscrite au registre (cahier des charges, M4) : une empreinte, sans la référence.
+    await this.registre.enregistrer(
+      canonique({
+        objet: "cotisation_confirmee",
+        cercleId: c.cercleId,
+        cotisationId: c.id,
+        tour: c.tour,
+        payeurId: c.payeurId,
+        beneficiaireId: c.beneficiaireId,
+        montant: c.montant,
+        aTemps,
+      }),
+    );
     return this.evenements.publier({
       type: "cotisation_confirmee",
       cercleId: c.cercleId,

@@ -2,6 +2,7 @@ import { Inject, Injectable } from "@nestjs/common";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type EvenementInterne } from "../../evenements/evenements-internes.js";
 import { BlocagesService } from "../comptes/blocages.service.js";
+import { PaiementsSimulesService } from "../cotisations/paiements-simules.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
 
 const HEURE_MS = 60 * 60 * 1000;
@@ -15,6 +16,7 @@ export class PlanificateurService {
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
     @Inject(BlocagesService) private readonly blocages: BlocagesService,
+    @Inject(PaiementsSimulesService) private readonly paiements: PaiementsSimulesService,
   ) {}
 
   constaterDefaut(cercleId: string, membreId: string, tour: number, maintenant: Date = new Date()): Promise<boolean> {
@@ -40,6 +42,8 @@ export class PlanificateurService {
     // Compte bloqué (règle du 03/11) : ni rappel, ni retard, ni défaut pour ses cotisations. Les blocages
     // arrivés à leur terme sont levés d'abord : les dates sont alors décalées avant l'examen.
     await this.blocages.leverEchus(maintenant);
+    // Retours d'opérateur arrivés (Mobile Money simulé, issue « en retard ») : déclarés avant l'examen.
+    await this.paiements.traiterRetoursEnAttente(maintenant);
     const bloques = await this.blocages.comptesBloques();
     for (const c of await this.cotisations.listerDues()) {
       if (bloques.has(c.payeurId)) continue;

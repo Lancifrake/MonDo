@@ -483,6 +483,28 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
     nom: "030_cycle_suivant",
     sql: `ALTER TABLE cercles.cercles ADD COLUMN cercle_precedent_id uuid REFERENCES cercles.cercles (id)`,
   },
+  {
+    // Paiements Mobile Money simulés (cahier des charges, M4) : une seule tentative en attente par cotisation.
+    nom: "031_paiements_simules",
+    sql: `
+      CREATE TABLE cotisations.paiements_simules (
+        id uuid PRIMARY KEY,
+        cotisation_id uuid NOT NULL,
+        payeur_id uuid NOT NULL,
+        operateur text NOT NULL CHECK (operateur IN ('orange_money', 'mtn_momo')),
+        issue text NOT NULL CHECK (issue IN ('reussi', 'echoue', 'en_retard')),
+        statut text NOT NULL CHECK (statut IN ('en_attente_operateur', 'reussi', 'echoue')),
+        reference_operateur text,
+        motif text,
+        initie_le timestamptz NOT NULL,
+        retour_prevu_le timestamptz NOT NULL,
+        retour_le timestamptz
+      );
+      CREATE UNIQUE INDEX paiement_en_attente ON cotisations.paiements_simules (cotisation_id)
+        WHERE statut = 'en_attente_operateur';
+      CREATE INDEX paiements_a_traiter ON cotisations.paiements_simules (retour_prevu_le)
+        WHERE statut = 'en_attente_operateur'`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
