@@ -247,7 +247,7 @@ export class LitigesService {
       [l.beneficiaireId, textes.beneficiaire],
     ] as const) {
       const compte = await this.comptes.chercher(membreId);
-      if (compte) await this.sms.mettreEnFile(`litige:${l.id}:${etape}:${membreId}`, compte.numero, texte);
+      if (compte) await this.sms.mettreEnFile(`litige:${l.id}:${etape}:${membreId}`, compte.numero, texte, membreId);
     }
     this.sms.declencher();
   }

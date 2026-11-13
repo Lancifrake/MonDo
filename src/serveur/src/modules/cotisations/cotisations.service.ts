@@ -158,6 +158,7 @@ export class CotisationsService {
       `relance_confirmation:${c.id}:${c.declareeLe ?? ""}:${palierHeures}`,
       beneficiaire.numero,
       texte,
+      beneficiaire.id,
     );
     this.sms.declencher();
   }

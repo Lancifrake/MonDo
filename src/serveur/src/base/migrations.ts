@@ -505,6 +505,20 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       CREATE INDEX paiements_a_traiter ON cotisations.paiements_simules (retour_prevu_le)
         WHERE statut = 'en_attente_operateur'`,
   },
+  {
+    // Notifications dans l'application (cahier des charges, M5) : chaque message adressé à un membre.
+    nom: "032_notifications",
+    sql: `
+      CREATE TABLE sms.notifications (
+        id uuid PRIMARY KEY,
+        cle text NOT NULL UNIQUE,
+        membre_id uuid NOT NULL,
+        texte text NOT NULL,
+        creee_le timestamptz NOT NULL DEFAULT now(),
+        lue_le timestamptz
+      );
+      CREATE INDEX notifications_membre ON sms.notifications (membre_id, creee_le DESC)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

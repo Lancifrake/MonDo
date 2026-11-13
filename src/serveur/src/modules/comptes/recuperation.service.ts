@@ -143,6 +143,7 @@ export class RecuperationService {
       compte.numero,
       `MonDo : une récupération de votre compte a été demandée depuis un autre téléphone. Si ce n'est pas vous, ` +
         `opposez-vous dans l'application avant ${heures} h.`,
+      compte.id,
     );
     if (contact) {
       await this.sms.mettreEnFile(
@@ -349,6 +350,7 @@ export class RecuperationService {
       vers === "acceptee"
         ? "MonDo : votre compte est récupéré sur le nouveau téléphone. L'ancien téléphone ne peut plus signer."
         : "MonDo : la récupération de votre compte n'a pas abouti. Votre clé de signature n'a pas changé.",
+      compte.id,
     );
     this.sms.declencher();
     return l;
