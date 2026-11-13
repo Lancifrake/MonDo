@@ -246,5 +246,30 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
       org,
     );
     expect(relance.status).toBe(400);
+    // Mobile Money simulé (migration 031) : un paiement en retard reste en attente, l'index unique tient.
+    const aPayer = (await (
+      await client.requete("GET", `/cotisations?cercleId=${cercle.id}`, undefined, org)
+    ).json()) as {
+      id: string;
+      payeurId: string;
+      statut: string;
+    }[];
+    const unePayable = aPayer.find((c) => c.payeurId === org.id && c.statut === "due");
+    if (unePayable) {
+      const essai = await client.requete(
+        "POST",
+        `/cotisations/${unePayable.id}/paiement-simule`,
+        { operateur: "mtn_momo", issue: "en_retard" },
+        org,
+      );
+      expect(essai.status).toBe(201);
+      const second = await client.requete(
+        "POST",
+        `/cotisations/${unePayable.id}/paiement-simule`,
+        { operateur: "mtn_momo", issue: "reussi" },
+        org,
+      );
+      expect(second.status).toBe(409);
+    }
   });
 });
