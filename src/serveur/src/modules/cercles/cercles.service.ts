@@ -1,5 +1,13 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { createHash, randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees, type Executeur } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type FraisDeTour } from "../../evenements/evenements-internes.js";
 import { RegistreService, type RegistreDuCercle } from "../../registre/registre.service.js";
@@ -9,6 +17,7 @@ import { calculerOrdreDePassage } from "../../score/ordre-de-passage.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
 import { FileSms } from "../../sms/file-sms.js";
+import { fcfa } from "../../sms/montant.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { periodeMinimaleJours, type Frequence } from "../cotisations/calendrier.js";
 import { CotisationsService } from "../cotisations/cotisations.service.js";
@@ -33,6 +42,8 @@ export interface Reglement {
    * Obligatoire à la création, et égal au calcul de `calculerBareme`. Absent des cercles d'avant.
    */
   bareme?: LigneBareme[];
+  /** Score minimum pour rejoindre, fixé par l'organisateur (M3). Absent : pas de seuil. */
+  scoreMinimum?: number;
   /** Cercle privé : ordre de passage fixé par l'organisateur, identifiants du premier au dernier (11/11). */
   ordreFixe?: string[];
 }
@@ -69,7 +80,22 @@ export type CerclePourNonMembre = Omit<Cercle, "membres" | "ordre"> & {
   ordreFixeParOrganisateur?: true;
   /** Ma place dans l'ordre fixé, si l'organisateur m'y a mis. */
   placeFixee?: number;
+  /** Mon score atteint-il le seuil d'entrée du cercle ? */
+  scoreSuffisant: boolean;
 };
+
+/** Un cercle ouvert du catalogue, vu par quelqu'un qui cherche un cercle : jamais qui est dedans ni qui l'organise. */
+export interface CercleDuCatalogue {
+  id: string;
+  reglement: Reglement;
+  statut: Cercle["statut"];
+  placesRestantes: number;
+  premierePlaceAutorisee: number;
+  scoreSuffisant: boolean;
+}
+
+/** Plafond d'invitations par cercle : trois fois le nombre de places (choix prudent contre l'envoi en série). */
+export const INVITATIONS_PAR_PLACE = 3;
 
 /** Résumé d'un cercle pour l'un de ses membres : de quoi afficher sa liste de cercles. */
 export interface ResumeCercle {
@@ -265,6 +291,14 @@ export class CerclesService {
     const membre = await this.comptes.trouver(d.membreId);
     if (cercle.reglement.ouvert && membre.niveau < 2) {
       throw new ForbiddenException("Identité vérifiée (niveau 2) requise pour un cercle ouvert");
+    }
+    if (cercle.reglement.scoreMinimum !== undefined) {
+      const { score } = await this.score.consulter(d.membreId);
+      if (score < cercle.reglement.scoreMinimum) {
+        throw new ForbiddenException(
+          `Votre score (${score}) est sous le seuil fixé par l'organisateur (${cercle.reglement.scoreMinimum})`,
+        );
+      }
     }
     await this.verifierPlace(d.membreId, d.placeSouhaitee, cercle.reglement);
     const message = messageEngagement(cercle.id, cercle.empreinteReglement, d.membreId, d.placeSouhaitee);
@@ -496,19 +530,105 @@ export class CerclesService {
       cercle.statut === "en_attente" ? Math.max(0, cercle.reglement.nombreMembres - membres.length) : 0;
     if (membres.includes(demandeurId)) return { ...cercle, membres, ...(ordre ? { ordre } : {}), placesRestantes };
     const { ordreFixe, ...reglementSansOrdre } = cercle.reglement;
+    const { score } = await this.score.consulter(demandeurId);
+    const scoreSuffisant = score >= (cercle.reglement.scoreMinimum ?? 0);
     if (ordreFixe) {
       // Un membre prévu lit l'ordre qu'il va signer ; un inconnu qui a le lien ne voit pas qui est attendu.
       const placeFixee = ordreFixe.indexOf(demandeurId) + 1;
       return placeFixee > 0
-        ? { ...cercle, placesRestantes, ordreFixeParOrganisateur: true, placeFixee }
-        : { ...cercle, reglement: reglementSansOrdre, placesRestantes, ordreFixeParOrganisateur: true };
+        ? { ...cercle, placesRestantes, ordreFixeParOrganisateur: true, placeFixee, scoreSuffisant }
+        : { ...cercle, reglement: reglementSansOrdre, placesRestantes, ordreFixeParOrganisateur: true, scoreSuffisant };
     }
-    const { score } = await this.score.consulter(demandeurId);
     return {
       ...cercle,
       placesRestantes,
       premierePlaceAutorisee: premierePlaceAutorisee(score, cercle.reglement.nombreMembres),
+      scoreSuffisant,
     };
+  }
+
+  /**
+   * Catalogue (US7) : les cercles ouverts à des inconnus qui cherchent encore des membres, les plus récents
+   * d'abord, filtrés par montant, fréquence et taille. Les cercles privés n'y figurent jamais : on n'y entre
+   * qu'avec le lien.
+   */
+  async catalogue(
+    demandeurId: string,
+    filtres: { montantMin?: number; montantMax?: number; frequence?: string; nombreMembresMax?: number },
+  ): Promise<CercleDuCatalogue[]> {
+    const lignes = await this.base.requete<LigneCercle & { inscrits: number | string }>(
+      `SELECT c.*, (SELECT count(*) FROM cercles.adhesions a WHERE a.cercle_id = c.id) AS inscrits
+       FROM cercles.cercles c
+       WHERE c.statut = 'en_attente' AND (c.reglement->>'ouvert')::boolean
+         AND ($1::bigint IS NULL OR (c.reglement->>'montant')::bigint >= $1)
+         AND ($2::bigint IS NULL OR (c.reglement->>'montant')::bigint <= $2)
+         AND ($3::text IS NULL OR c.reglement->>'frequence' = $3)
+         AND ($4::int IS NULL OR (c.reglement->>'nombreMembres')::int <= $4)
+       ORDER BY c.cree_le DESC, c.id LIMIT 50`,
+      [
+        filtres.montantMin ?? null,
+        filtres.montantMax ?? null,
+        filtres.frequence ?? null,
+        filtres.nombreMembresMax ?? null,
+      ],
+    );
+    const { score } = await this.score.consulter(demandeurId);
+    return lignes.map((l) => ({
+      id: l.id,
+      reglement: l.reglement,
+      statut: l.statut,
+      placesRestantes: Math.max(0, l.reglement.nombreMembres - Number(l.inscrits)),
+      premierePlaceAutorisee: premierePlaceAutorisee(score, l.reglement.nombreMembres),
+      scoreSuffisant: score >= (l.reglement.scoreMinimum ?? 0),
+    }));
+  }
+
+  /**
+   * Invitation par numéro (US4) : un SMS avec l'identifiant du cercle, par la file. Réservée à l'organisateur,
+   * tant que le cercle cherche des membres. Le numéro n'est pas gardé : seulement son empreinte salée par le
+   * cercle, pour ne pas solliciter deux fois la même personne. On ne dit jamais si le numéro a un compte.
+   */
+  async inviter(cercleId: string, organisateurId: string, numero: string) {
+    const cercle = await this.trouver(cercleId);
+    if (cercle.organisateurId !== organisateurId) throw new ForbiddenException("Réservé à l'organisateur du cercle");
+    if (cercle.statut !== "en_attente") throw new BadRequestException("Le cercle ne cherche plus de membres");
+    const organisateur = await this.comptes.trouver(organisateurId);
+    if (organisateur.numero === numero) throw new BadRequestException("Vous êtes déjà dans ce cercle");
+    const plafond = INVITATIONS_PAR_PLACE * cercle.reglement.nombreMembres;
+    const empreinte = createHash("sha256").update(`${cercleId}:${numero}`).digest("hex");
+    // Plafond et écriture en une instruction : deux invitations simultanées ne le dépassent pas.
+    const ajoutee = await this.base.requete(
+      `INSERT INTO cercles.invitations (cercle_id, empreinte_numero)
+       SELECT $1, $2 WHERE (SELECT count(*) FROM cercles.invitations WHERE cercle_id = $1) < $3
+       ON CONFLICT DO NOTHING RETURNING empreinte_numero`,
+      [cercleId, empreinte, plafond],
+    );
+    const [{ n }] = (await this.base.requete<{ n: string | number }>(
+      "SELECT count(*) AS n FROM cercles.invitations WHERE cercle_id = $1",
+      [cercleId],
+    )) as [{ n: string | number }];
+    if (ajoutee.length === 0) {
+      const deja = await this.base.requete(
+        "SELECT 1 FROM cercles.invitations WHERE cercle_id = $1 AND empreinte_numero = $2",
+        [cercleId, empreinte],
+      );
+      if (deja.length === 0) {
+        throw new HttpException(
+          `Plafond atteint : ${plafond} invitations pour ce cercle`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+      return { invitationsEnvoyees: Number(n), plafond };
+    }
+    const r = cercle.reglement;
+    await this.sms.mettreEnFile(
+      `invitation:${cercleId}:${empreinte}`,
+      numero,
+      `MonDo : ${organisateur.nom} vous invite dans son cercle de ${fcfa(r.montant)} (${r.nombreMembres} membres). ` +
+        `Ouvrez MonDo et saisissez l'identifiant ${cercleId}.`,
+    );
+    this.sms.declencher();
+    return { invitationsEnvoyees: Number(n), plafond };
   }
 
   /** Rang et signature d'un membre : rang 1 = organisateur, qui a signé le règlement lui-même. */

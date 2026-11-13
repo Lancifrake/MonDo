@@ -209,5 +209,29 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     expect(
       await app.get(IdentiteService).purger(new Date(), (id) => app.get(CerclesService).aUnCercleEnCours(id)),
     ).toBe(0);
+    // Catalogue (requête sur le règlement en JSON) et invitations (plafond en une instruction).
+    expect(
+      (await client.requete("GET", "/cercles/catalogue?montantMax=50000&frequence=hebdomadaire", undefined, org))
+        .status,
+    ).toBe(200);
+    const autreCercle = (await (
+      await client.requete(
+        "POST",
+        "/cercles",
+        {
+          reglement: r,
+          placeSouhaitee: r.nombreMembres,
+          signature: await org.signer(messageReglement(org.id, r, r.nombreMembres)),
+        },
+        org,
+      )
+    ).json()) as { id: string };
+    const invitation = await client.requete(
+      "POST",
+      `/cercles/${autreCercle.id}/invitations`,
+      { numero: "+237900000077" },
+      org,
+    );
+    expect(invitation.status).toBe(201);
   });
 });

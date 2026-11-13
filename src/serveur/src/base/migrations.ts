@@ -467,6 +467,17 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       ALTER TABLE registre.empreintes ADD COLUMN enregistree_le timestamptz NOT NULL DEFAULT now();
       CREATE INDEX empreintes_cercle ON registre.empreintes (cercle_id, id)`,
   },
+  {
+    // Invitations par numéro (US4) : on garde l'empreinte du numéro, salée par le cercle, jamais le numéro.
+    nom: "029_invitations",
+    sql: `
+      CREATE TABLE cercles.invitations (
+        cercle_id uuid NOT NULL REFERENCES cercles.cercles (id),
+        empreinte_numero text NOT NULL,
+        invitee_le timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (cercle_id, empreinte_numero)
+      )`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
