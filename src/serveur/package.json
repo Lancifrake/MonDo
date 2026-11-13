@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "verifier-format": "prettier --check .",
     "couverture": "vitest run --coverage",
-    "qualite": "eslint . && tsc --noEmit && prettier --check . && vitest run --coverage"
+    "qualite": "eslint . && tsc --noEmit && prettier --check . && vitest run --coverage",
+    "simulation": "pnpm build && node dist/simulation/lancer.js"
   },
   "devDependencies": {
     "@nestjs/testing": "^12.3.2",

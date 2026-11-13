@@ -47,6 +47,10 @@ Hors production seulement (403 en production), pour montrer un cycle entier avec
 
 `GET /assistant/mesures?lancements=100` : mesures du système multi-agents demandées par la grille d'évaluation, sur le scénario « 10 membres, un défaut », en mode autonome et en mode manuel : cycles, messages échangés, durée moyenne et maximale (cible : moins de 2 secondes), résultat identique à chaque lancement, mémoire.
 
+## Simulateur de scénarios et rapport de mesures
+
+Cahier des charges, M15 et M16. `corepack pnpm simulation` rejoue sept scénarios scriptés (`src/simulation/scenarios.ts` : tontine saine, retards, défaut après réception, cercle de nouveaux, mixte, 50 membres, membres connus sous le seuil du début), à graine fixe, avec les vraies règles de MonDo (score, attribution des places, fermeture des premières places, assistant multi-agents) et avec une tontine traditionnelle de référence (ordre tiré au sort, relances à la main). Il écrit dans `docs/mesures` : `resultats.csv` (tableur), `rapport.md` (résultats, points non résolus, hypothèses) et trois figures SVG pour le poster. Même graine, mêmes chiffres (testé sur dix lancements). Le comportement des membres est un modèle dont les hypothèses sont écrites dans `HYPOTHESES` et dans le rapport : les chiffres en dépendent.
+
 ## Structure
 
 | Dossier                     | Rôle                                                           |
@@ -100,6 +104,8 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 **Frais du modèle A** (choix de David, 11/11 ; règle détaillée dans `docs/conception/decision-05-choix-economiques-et-places.md`) : les places du début paient des frais sur la cagnotte nominale, 8 % pour la place 1, dégressif jusqu'à 0 % à la première place du milieu ; moitié pour MonDo, moitié en remise pour les places de fin, à parts égales. Le règlement signé porte le barème en francs (`bareme`, place par place) : `GET /cercles/bareme?nombreMembres=…&montant=…` le donne, et un règlement sans barème ou avec un barème inexact est refusé (`src/score/frais.ts`). Quand le cercle est complet, le module Cotisations crée les **sommes dues** : pour chaque bénéficiaire du début, sa part à MonDo et une remise à chaque membre d'une place de fin, exigibles le jour de sa cagnotte, à régler avant la date limite du tour suivant.
 
 **Sommes dues** : suivies comme une cotisation. `GET /sommes-dues` (`?cercleId=` facultatif) : ce que je dois et ce qu'on me doit ; `POST /sommes-dues/:id/paiement` : celui qui doit déclare sa référence Mobile Money, pas avant l'exigibilité ; `POST /sommes-dues/:id/confirmation` : celui qui reçoit confirme (le membre créancier, ou un Administrateur pour la part de MonDo, jamais celui qui doit). `GET /administration/sommes-dues` : parts de MonDo déclarées, à confirmer. MonDo ne retient ni ne détient rien : il suit des paiements faits hors de lui. Au prototype, une somme impayée n'entraîne ni défaut, ni perte de score, ni mise en demeure.
+
+**Un membre aux premières places fermées n'est jamais placé en tête**, même quand les places de tête restent vides et sont distribuées aux mieux classés de ceux qui n'ont rien trouvé : s'il en reçoit une, il l'échange avec le mieux classé non exclu placé plus loin, en priorité quelqu'un qui demandait une place plus tôt (trouvé par le simulateur le 13/11).
 
 **Premières places fermées après un défaut** (cahier des charges, S3) : après un défaut, un membre ne peut plus demander ni obtenir une place de début, quel que soit son score, jusqu'à deux cycles terminés sans défaut depuis son dernier défaut (`premieresPlacesFermees` dans `GET /score/:id`, avec une phrase dans l'explication). La règle s'applique à l'adhésion, à l'attribution des places à la complétion, à la vue d'un non-membre, au catalogue et aux échanges de places.
 
