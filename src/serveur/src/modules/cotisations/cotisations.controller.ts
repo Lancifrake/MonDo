@@ -15,6 +15,12 @@ export class CotisationsController {
     return this.cotisations.listerDuMembre(cercleId, membreId);
   }
 
+  /** Qui a payé, qui n'a pas payé, tour par tour, pour tout le cercle (US17). */
+  @Get("cercles/:cercleId/etat")
+  etat(@Param("cercleId") cercleId: string, @MembreAuthentifie() membreId: string) {
+    return this.cotisations.etatDuCercle(cercleId, membreId);
+  }
+
   @Post(":id/paiement")
   declarer(
     @Param("id") id: string,

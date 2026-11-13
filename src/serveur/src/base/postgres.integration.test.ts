@@ -164,6 +164,13 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     };
     expect(registre.evenements.length).toBeGreaterThan(0);
 
+    // État du cercle (US17) et score expliqué sur un vrai serveur.
+    expect((await client.requete("GET", `/cotisations/cercles/${cercle.id}/etat`, undefined, org)).status).toBe(200);
+    const scoreExplique = (await (await client.requete("GET", `/score/${org.id}`, undefined, org)).json()) as {
+      historique: unknown[];
+    };
+    expect(Array.isArray(scoreExplique.historique)).toBe(true);
+
     // Routes de lecture de l'application : mêmes requêtes sur un vrai serveur.
     const miens = (await (await client.requete("GET", "/cercles", undefined, org)).json()) as { id: string }[];
     expect(miens.map((c) => c.id)).toEqual([cercle.id]);

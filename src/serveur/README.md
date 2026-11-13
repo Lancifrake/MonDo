@@ -81,6 +81,10 @@ Générés d'un coup quand le cercle est complet (`src/modules/cotisations/calen
 - **Fin de grâce** = date limite + délai de grâce du règlement, copiée sur chaque cotisation.
 - `GET /cotisations?cercleId=…` : ce que le membre doit et ce qu'on lui doit dans ce cercle, rien sur les autres.
 
+**Qui a payé, qui n'a pas payé** (US17) : `GET /cotisations/cercles/:cercleId/etat`, pour ceux qui paient ou reçoivent dans le cercle : chaque tour, son bénéficiaire, sa date limite et, pour chaque payeur, le statut, le retard, le litige et la pénalité due. Jamais la référence de la transaction.
+
+**Score expliqué** (M6) : `GET /score/:membreId` ajoute `explication` (quelques phrases : ce qui fait monter, ce qui fait baisser, la règle des cercles privés), visible de ceux qui voient le score ; et, pour le membre lui-même seulement, `historique` : chaque événement avec sa date, son cercle, ses points et le score après lui.
+
 **Lecture pour l'application** (requêtes signées, chacun ne lit que ce qui le concerne) : `GET /comptes/moi` (mon compte, sans la clé publique), `GET /cercles` (mes cercles : règlement, statut, nombre d'inscrits, ma place une fois l'ordre figé, jamais la liste des membres), `GET /litiges/miens` (les litiges où je suis payeur ou bénéficiaire).
 
 **Identité** : niveau 1 à l'inscription (numéro vérifié par OTP, nom) ; niveau 2 exigé pour adhérer à un cercle ouvert à des inconnus. Le niveau 2 s'obtient par la vérification d'identité interne ci-dessous. `POST /comptes/:id/niveau2` reste un raccourci de démonstration et de test, qui n'examine aucune pièce : il est refusé en production (403).

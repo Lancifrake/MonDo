@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { EvenementScore, TypeEvenementScore } from "./evenements.js";
 import { calculerOrdreDePassage, type MembreCercle } from "./ordre-de-passage.js";
-import { calculerScore, resumerHistorique } from "./score.js";
+import { calculerScore, expliquerScore, resumerHistorique, retracerScore } from "./score.js";
 
 const ev = (...types: TypeEvenementScore[]): EvenementScore[] =>
   types.map((type) => ({ type, cercleId: "c1", date: "2026-11-03" }));
@@ -133,5 +133,51 @@ describe("cercles privés : moitié des gains, pertes entières (choix de David,
     ];
     expect(calculerScore(cycle(true))).toBe(23);
     expect(calculerScore(cycle(false))).toBe(46);
+  });
+});
+
+describe("historique et explication du score (cahier des charges, M6)", () => {
+  const e = (type: TypeEvenementScore, cerclePrive = false, date = "2026-11-03T10:00:00.000Z"): EvenementScore => ({
+    type,
+    cercleId: "c1",
+    date,
+    cerclePrive,
+  });
+
+  it("chaque événement avec ses points et le score après lui, plancher compris", () => {
+    expect(
+      retracerScore([e("cotisation_a_temps"), e("cotisation_a_temps", true), e("defaut"), e("cotisation_en_retard")]),
+    ).toEqual([
+      expect.objectContaining({ type: "cotisation_a_temps", points: 4, scoreApres: 4 }),
+      expect.objectContaining({ type: "cotisation_a_temps", points: 2, scoreApres: 6, cerclePrive: true }),
+      expect.objectContaining({ type: "defaut", points: -30, scoreApres: 0 }),
+      expect.objectContaining({ type: "cotisation_en_retard", points: -1, scoreApres: 0 }),
+    ]);
+  });
+
+  it("une explication en phrases simples, sans jargon", () => {
+    expect(expliquerScore([])).toEqual([
+      "Nouveau membre : le score commence à 0. Il monte avec chaque cotisation payée à temps.",
+    ]);
+    const texte = expliquerScore([
+      e("cotisation_a_temps"),
+      e("cotisation_a_temps"),
+      e("cotisation_a_temps", true),
+      e("cotisation_en_retard"),
+      e("cycle_termine"),
+      e("defaut"),
+      e("depart"),
+    ]).join(" ");
+    expect(texte).toMatch(/3 cotisations payées à temps/);
+    expect(texte).toMatch(/1 cotisation payée en retard/);
+    expect(texte).toMatch(/1 cycle terminé sans défaut/);
+    expect(texte).toMatch(/1 défaut/);
+    expect(texte).toMatch(/1 départ/);
+    expect(texte).toMatch(/cercles? privés?.*moitié/);
+  });
+
+  it("le score expliqué est bien celui calculé", () => {
+    const h = [e("cotisation_a_temps"), e("cycle_termine")];
+    expect(expliquerScore(h)[0]).toContain(`${calculerScore(h)} sur 100`);
   });
 });
