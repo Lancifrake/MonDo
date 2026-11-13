@@ -19,6 +19,7 @@ import { verifierSignature } from "../../signature/signature.js";
 import { FileSms } from "../../sms/file-sms.js";
 import { fcfa } from "../../sms/montant.js";
 import { ComptesService } from "../comptes/comptes.service.js";
+import { ParrainagesService } from "../comptes/parrainages.service.js";
 import { periodeMinimaleJours, type Frequence } from "../cotisations/calendrier.js";
 import { CotisationsService } from "../cotisations/cotisations.service.js";
 import { ScoreService } from "../score/score.service.js";
@@ -44,6 +45,8 @@ export interface Reglement {
   bareme?: LigneBareme[];
   /** Score minimum pour rejoindre, fixé par l'organisateur (M3). Absent : pas de seuil. */
   scoreMinimum?: number;
+  /** Un filleul entre sous le seuil si son parrain est membre du cercle (US6, choix de l'organisateur). */
+  parrainageAccepte?: boolean;
   /** Cercle privé : ordre de passage fixé par l'organisateur, identifiants du premier au dernier (11/11). */
   ordreFixe?: string[];
 }
@@ -180,6 +183,7 @@ export class CerclesService {
     @Inject(BASE_DE_DONNEES) private readonly base: BaseDeDonnees,
     @Inject(FileSms) private readonly sms: FileSms,
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
+    @Inject(ParrainagesService) private readonly parrainages: ParrainagesService,
   ) {
     this.evenements.ecouter("cercle_termine", (e) => this.terminer(e.cercleId, e.termineLe));
     this.evenements.ecouter("compte_bloque", (e) =>
@@ -326,7 +330,9 @@ export class CerclesService {
     }
     if (cercle.reglement.scoreMinimum !== undefined) {
       const { score } = await this.score.consulter(d.membreId);
-      if (score < cercle.reglement.scoreMinimum) {
+      const parrainId = cercle.reglement.parrainageAccepte ? await this.parrainages.parrainDe(d.membreId) : undefined;
+      const parrainPresent = parrainId !== undefined && cercle.membres.includes(parrainId);
+      if (score < cercle.reglement.scoreMinimum && !parrainPresent) {
         throw new ForbiddenException(
           `Votre score (${score}) est sous le seuil fixé par l'organisateur (${cercle.reglement.scoreMinimum})`,
         );

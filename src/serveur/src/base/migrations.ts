@@ -519,6 +519,24 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
       );
       CREATE INDEX notifications_membre ON sms.notifications (membre_id, creee_le DESC)`,
   },
+  {
+    // Parrainage (US6) : un parrain accepté par filleul, une proposition en cours par couple.
+    nom: "033_parrainages",
+    sql: `
+      CREATE TABLE comptes.parrainages (
+        id uuid PRIMARY KEY,
+        parrain_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        filleul_id uuid NOT NULL REFERENCES comptes.comptes (id),
+        statut text NOT NULL CHECK (statut IN ('propose', 'accepte', 'refuse')),
+        propose_le timestamptz NOT NULL,
+        repondu_le timestamptz,
+        CHECK (parrain_id <> filleul_id)
+      );
+      CREATE UNIQUE INDEX un_parrain_par_filleul ON comptes.parrainages (filleul_id) WHERE statut = 'accepte';
+      CREATE UNIQUE INDEX une_proposition_par_couple ON comptes.parrainages (parrain_id, filleul_id)
+        WHERE statut = 'propose';
+      CREATE INDEX parrainages_parrain ON comptes.parrainages (parrain_id)`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {
