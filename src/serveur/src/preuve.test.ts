@@ -1,11 +1,11 @@
 import "reflect-metadata";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppModule } from "./app.module.js";
 import type { Reglement } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
-import type { DossierDePreuve } from "./modules/preuve/preuve.service.js";
+import type { DefautPourAdministrateur, DossierDePreuve } from "./modules/preuve/preuve.service.js";
 import { calculerMontantDu } from "./modules/preuve/montants.js";
 import { RegistreService } from "./registre/registre.service.js";
 import { verifierPreuve } from "./registre/merkle.js";
@@ -109,6 +109,37 @@ describe("dossier de preuve", () => {
     for (const e of [d.empreinte, d.misesEnDemeure[0]!.empreinte]) {
       const p = (await registre.preuvePour(e))!;
       expect(verifierPreuve(e, p.etapes, p.racine)).toBe(true);
+    }
+  });
+});
+
+describe("défauts vus par l'administrateur", () => {
+  it("liste la mise en demeure avec le débiteur et le cercle ; refusé à un simple membre", async () => {
+    const { org, beneficiaire, defaillant, cercle } = await scenarioDefaut();
+    const admin = await client.inscrire();
+    vi.stubEnv("MONDO_ADMINISTRATEURS", admin.id);
+    try {
+      const r = await client.requete("GET", "/administration/defauts", undefined, admin);
+      expect(r.status).toBe(200);
+      const ligne = ((await r.json()) as DefautPourAdministrateur[]).find((d) => d.cercleId === cercle.id)!;
+      const moi = (await (await client.requete("GET", "/comptes/moi", undefined, defaillant)).json()) as {
+        nom: string;
+        numero: string;
+      };
+      const organisateur = (await (await client.requete("GET", "/comptes/moi", undefined, org)).json()) as {
+        nom: string;
+      };
+      expect(ligne).toMatchObject({
+        membreId: defaillant.id,
+        tour: 2,
+        montantDu: { cotisations: 20000, penalites: 1000, total: 21000 },
+        envoi: "a_envoyer",
+        debiteur: { nom: moi.nom, numero: moi.numero },
+        cercle: { organisateur: organisateur.nom, montant: 10000, nombreMembres: 3 },
+      });
+      expect((await client.requete("GET", "/administration/defauts", undefined, beneficiaire)).status).toBe(403);
+    } finally {
+      vi.unstubAllEnvs();
     }
   });
 });
