@@ -1,5 +1,6 @@
 import { ForbiddenException, Inject, Injectable, NotFoundException, type OnModuleInit } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { estAdministrateur } from "../../administration/administrateurs.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes } from "../../evenements/evenements-internes.js";
 import { hacher, type EtapePreuve } from "../../registre/merkle.js";
@@ -53,6 +54,23 @@ export interface DossierDePreuve {
   /** Non générée : créancier et formule du montant restent à trancher avec un juriste (recours-legaux.md, section 5). */
   reconnaissanceDeDette: null;
   avertissements: string[];
+}
+
+/** Ce que voit l'Administrateur d'un défaut : la mise en demeure, qui la doit et pour quel cercle. */
+export interface DefautPourAdministrateur {
+  id: string;
+  cercleId: string;
+  membreId: string;
+  tour: number;
+  emiseLe: string;
+  montantDu: MontantDu;
+  envoi: MiseEnDemeure["envoi"];
+  envoyeeLe: string | null;
+  empreinte: string;
+  /** Null si le compte a disparu : le défaut reste listé. */
+  debiteur: { nom: string; numero: string } | null;
+  /** Un cercle n'a pas de nom : on le reconnaît à son organisateur et à son montant par tour. */
+  cercle: { organisateur: string | null; montant: number; nombreMembres: number } | null;
 }
 
 const AVERTISSEMENTS = [
@@ -135,6 +153,60 @@ export class PreuveService implements OnModuleInit {
       [cercleId, membreId],
     );
     return lignes.length;
+  }
+
+  /**
+   * Tous les défauts constatés, du plus récent au plus ancien, en lecture seule. L'Administrateur suit les
+   * mises en demeure ; il n'exporte pas le dossier, réservé aux membres lésés.
+   */
+  async listerPourAdministrateur(parMembreId: string): Promise<DefautPourAdministrateur[]> {
+    if (!estAdministrateur(parMembreId)) throw new ForbiddenException("Réservé à l'administrateur");
+    const lignes = await this.base.requete<{
+      id: string;
+      cercle_id: string;
+      membre_id: string;
+      tour: number;
+      contenu: { montantDu: MontantDu };
+      empreinte: string;
+      envoi: MiseEnDemeure["envoi"];
+      emise_le: Date | string;
+      envoyee_le: Date | string | null;
+      debiteur_nom: string | null;
+      debiteur_numero: string | null;
+      organisateur_nom: string | null;
+      cercle_montant: string | number | null;
+      cercle_nombre_membres: number | null;
+    }>(
+      `SELECT m.id, m.cercle_id, m.membre_id, m.tour, m.contenu, m.empreinte, m.envoi, m.emise_le, m.envoyee_le,
+              d.nom AS debiteur_nom, d.numero AS debiteur_numero, o.nom AS organisateur_nom,
+              (c.reglement ->> 'montant')::bigint AS cercle_montant,
+              (c.reglement ->> 'nombreMembres')::int AS cercle_nombre_membres
+       FROM preuve.mises_en_demeure m
+       LEFT JOIN comptes.comptes d ON d.id = m.membre_id
+       LEFT JOIN cercles.cercles c ON c.id = m.cercle_id
+       LEFT JOIN comptes.comptes o ON o.id = c.organisateur_id
+       ORDER BY m.emise_le DESC, m.id`,
+    );
+    return lignes.map((l) => ({
+      id: l.id,
+      cercleId: l.cercle_id,
+      membreId: l.membre_id,
+      tour: l.tour,
+      emiseLe: new Date(l.emise_le).toISOString(),
+      montantDu: l.contenu.montantDu,
+      envoi: l.envoi,
+      envoyeeLe: l.envoyee_le ? new Date(l.envoyee_le).toISOString() : null,
+      empreinte: l.empreinte,
+      debiteur: l.debiteur_nom ? { nom: l.debiteur_nom, numero: l.debiteur_numero ?? "" } : null,
+      cercle:
+        l.cercle_montant !== null
+          ? {
+              organisateur: l.organisateur_nom,
+              montant: Number(l.cercle_montant),
+              nombreMembres: l.cercle_nombre_membres ?? 0,
+            }
+          : null,
+    }));
   }
 
   /** Réservé aux membres lésés : membres du cercle autres que le débiteur (flow 7). */
