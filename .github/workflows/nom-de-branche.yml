@@ -1,0 +1,30 @@
+name: Nom de branche
+
+on:
+  pull_request:
+
+# Le jeton ne peut que lire le dépôt.
+permissions:
+  contents: read
+
+jobs:
+  nom-de-branche:
+    runs-on: ubuntu-latest
+    steps:
+      - name: La branche s'appelle type/sujet-court
+        # Le nom de la branche vient de l'auteur de la pull request : on le passe par l'environnement, jamais
+        # collé dans le script, pour qu'un nom piégé ne puisse pas s'exécuter.
+        env:
+          BRANCHE: ${{ github.head_ref }}
+          AUTEUR: ${{ github.actor }}
+        run: |
+          # Dependabot nomme ses branches lui-même (dependabot/npm_and_yarn/...).
+          if [ "$AUTEUR" = "dependabot[bot]" ]; then
+            echo "Branche de Dependabot : pas de contrôle."
+            exit 0
+          fi
+          if ! printf '%s' "$BRANCHE" | grep -Eq '^(feat|fix|docs|chore)/[a-z0-9]+(-[a-z0-9]+)*$'; then
+            echo "::error title=Nom de branche::« $BRANCHE » ne respecte pas type/sujet-court. Types : feat, fix, docs, chore. Sujet en minuscules, chiffres et tirets, sans tiret bas ni majuscule. Exemple : feat/calcul-score. Voir CONTRIBUTING.md."
+            exit 1
+          fi
+          echo "« $BRANCHE » est conforme."
