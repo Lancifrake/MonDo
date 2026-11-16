@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { Cotisation } from "./modules/cotisations/cotisations.service.js";
-import type { Litige } from "./modules/litiges/litiges.service.js";
+import type { Litige, LitigePourAdministrateur } from "./modules/litiges/litiges.service.js";
 import { ComptesService } from "./modules/comptes/comptes.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import { CONNECTEUR_SMS, type ConnecteurSmsSimule } from "./sms/connecteur-sms.js";
@@ -119,6 +119,24 @@ describe("ouverture d'un litige", () => {
     expect(lies).toHaveLength(1);
     expect(lies[0]).toMatchObject({ ouvertPar: "automatique", statut: "ouvert" });
     expect((await score(payeur)).defauts).toBe(0);
+  });
+});
+
+describe("liste des litiges vue par l'administrateur", () => {
+  it("donne les parties, la cotisation en cause et le cercle", async () => {
+    const { payeur, beneficiaire, cotisation, vieillir, ouvrir } = await paiementNonConfirme();
+    await vieillir(49);
+    expect((await ouvrir(payeur)).status).toBe(201);
+    const ouverts = await json<LitigePourAdministrateur[]>(await client.requete("GET", "/litiges", undefined, admin));
+    const litige = ouverts.find((l) => l.cotisationId === cotisation.id)!;
+    const moi = async (qui: Identite) =>
+      json<{ nom: string; numero: string }>(await client.requete("GET", "/comptes/moi", undefined, qui));
+    const [p, b] = await Promise.all([moi(payeur), moi(beneficiaire)]);
+    expect(litige.payeur).toEqual({ nom: p.nom, numero: p.numero });
+    expect(litige.beneficiaire).toEqual({ nom: b.nom, numero: b.numero });
+    expect(litige.cotisation).toMatchObject({ montant: 10000, tour: 1, referenceTransaction: "OM-123" });
+    expect(litige.cercle).toMatchObject({ montant: 10000, nombreMembres: 3 });
+    expect(litige.cercle!.organisateur).toMatch(/^Membre /);
   });
 });
 
