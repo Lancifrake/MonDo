@@ -156,9 +156,15 @@ describe("suivi d'une somme due, comme une cotisation", () => {
     expect(file.map((s) => s.id)).toContain(fraisMonDo.id);
     // L'Administrateur voit qui a payé et pour quel cercle, pour rapprocher la référence du compte marchand.
     const ligne = file.find((s) => s.id === fraisMonDo.id)!;
-    const moi = await json<{ nom: string; numero: string }>(await client.requete("GET", "/comptes/moi", undefined, premier));
+    const moi = await json<{ nom: string; numero: string }>(
+      await client.requete("GET", "/comptes/moi", undefined, premier),
+    );
     expect(ligne.debiteur).toEqual({ nom: moi.nom, numero: moi.numero });
-    expect(ligne.cercle).toMatchObject({ organisateur: expect.stringMatching(/^Membre /), montant: 10_000, nombreMembres: 3 });
+    expect(ligne.cercle).toMatchObject({
+      organisateur: expect.stringMatching(/^Membre /),
+      montant: 10_000,
+      nombreMembres: 3,
+    });
     expect((await client.requete("GET", "/administration/sommes-dues", undefined, dernier)).status).toBe(403);
     expect((await confirmer(fraisMonDo.id, admin)).status).toBe(201);
   });
