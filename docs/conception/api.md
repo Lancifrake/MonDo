@@ -86,7 +86,7 @@ Codes de réponse : 400 entrée invalide ou règle métier, 401 non signée ou s
 | GET | /litiges ; POST /litiges/:id/decision | litiges ouverts ; trancher |
 | GET | /administration/identites ; GET …/:id/pieces/:nature ; POST …/:id/decision | vérification d'identité |
 | GET | /administration/recuperations ; POST …/:id/decision | récupérations contestées |
-| GET | /administration/sommes-dues | parts de MonDo à confirmer |
+| GET | /administration/sommes-dues | parts de MonDo à confirmer, avec `debiteur` (nom, numéro) et `cercle` (organisateur, montant, nombre de membres) : un cercle n'a pas de nom |
 
 ### Démonstration et exploitation
 | Méthode | Chemin | Qui | Rôle |

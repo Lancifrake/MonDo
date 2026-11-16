@@ -27,6 +27,13 @@ export interface SommeDue {
   statut: "due" | "declaree" | "confirmee" | "annulee";
 }
 
+/** Ce que voit l'Administrateur : la somme, plus de quoi savoir qui a payé et pour quel cercle. */
+export interface SommeDuePourAdministrateur extends SommeDue {
+  /** Null si le compte a disparu : la somme reste listée, l'identifiant suffit à la retrouver. */
+  debiteur: { nom: string; numero: string } | null;
+  cercle: { organisateur: string | null; montant: number; nombreMembres: number } | null;
+}
+
 interface LigneSomme extends Record<string, unknown> {
   id: string;
   cercle_id: string;
@@ -74,13 +81,44 @@ export class SommesDuesService {
     return lignes.map(versSomme);
   }
 
-  /** Parts de MonDo déclarées, en attente de confirmation par un Administrateur. */
-  async listerPourAdministrateur(parMembreId: string): Promise<SommeDue[]> {
+  /**
+   * Parts de MonDo déclarées, en attente de confirmation par un Administrateur. Avec de quoi rapprocher la
+   * référence du compte marchand : nom et numéro de celui qui a payé, organisateur et montant du cercle
+   * (un cercle n'a pas de nom).
+   */
+  async listerPourAdministrateur(parMembreId: string): Promise<SommeDuePourAdministrateur[]> {
     if (!estAdministrateur(parMembreId)) throw new ForbiddenException("Réservé à l'administrateur");
-    const lignes = await this.base.requete<LigneSomme>(
-      "SELECT * FROM cotisations.sommes_dues WHERE creancier_id IS NULL AND statut = 'declaree' ORDER BY declaree_le, id",
+    const lignes = await this.base.requete<
+      LigneSomme & {
+        debiteur_nom: string | null;
+        debiteur_numero: string | null;
+        organisateur_nom: string | null;
+        cercle_montant: string | number | null;
+        cercle_nombre_membres: number | null;
+      }
+    >(
+      `SELECT s.*, d.nom AS debiteur_nom, d.numero AS debiteur_numero, o.nom AS organisateur_nom,
+              (c.reglement ->> 'montant')::bigint AS cercle_montant,
+              (c.reglement ->> 'nombreMembres')::int AS cercle_nombre_membres
+       FROM cotisations.sommes_dues s
+       LEFT JOIN comptes.comptes d ON d.id = s.debiteur_id
+       LEFT JOIN cercles.cercles c ON c.id::text = s.cercle_id
+       LEFT JOIN comptes.comptes o ON o.id = c.organisateur_id
+       WHERE s.creancier_id IS NULL AND s.statut = 'declaree'
+       ORDER BY s.declaree_le, s.id`,
     );
-    return lignes.map(versSomme);
+    return lignes.map((l) => ({
+      ...versSomme(l),
+      debiteur: l.debiteur_nom ? { nom: l.debiteur_nom, numero: l.debiteur_numero ?? "" } : null,
+      cercle:
+        l.cercle_montant !== null
+          ? {
+              organisateur: l.organisateur_nom,
+              montant: Number(l.cercle_montant),
+              nombreMembres: l.cercle_nombre_membres ?? 0,
+            }
+          : null,
+    }));
   }
 
   /** Celui qui doit déclare son paiement, une fois la somme exigible (le jour de sa cagnotte pour des frais). */
