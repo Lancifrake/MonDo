@@ -4,7 +4,7 @@ import type { INestApplication } from "@nestjs/common";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppModule } from "./app.module.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
-import type { SommeDue } from "./modules/cotisations/sommes-dues.service.js";
+import type { SommeDue, SommeDuePourAdministrateur } from "./modules/cotisations/sommes-dues.service.js";
 import { calculerBareme } from "./score/frais.js";
 import { creerClient, type Identite } from "./testing/client.js";
 import { cercleComplet, creerCercle, reglementDeTest } from "./testing/cercles.js";
@@ -150,8 +150,21 @@ describe("suivi d'une somme due, comme une cotisation", () => {
     expect((await confirmer(fraisMonDo.id, dernier)).status).toBe(403);
     vi.stubEnv("MONDO_ADMINISTRATEURS", `${admin.id},${premier.id}`);
     expect((await confirmer(fraisMonDo.id, premier)).status).toBe(403);
-    const file = await json<SommeDue[]>(await client.requete("GET", "/administration/sommes-dues", undefined, admin));
+    const file = await json<SommeDuePourAdministrateur[]>(
+      await client.requete("GET", "/administration/sommes-dues", undefined, admin),
+    );
     expect(file.map((s) => s.id)).toContain(fraisMonDo.id);
+    // L'Administrateur voit qui a payé et pour quel cercle, pour rapprocher la référence du compte marchand.
+    const ligne = file.find((s) => s.id === fraisMonDo.id)!;
+    const moi = await json<{ nom: string; numero: string }>(
+      await client.requete("GET", "/comptes/moi", undefined, premier),
+    );
+    expect(ligne.debiteur).toEqual({ nom: moi.nom, numero: moi.numero });
+    expect(ligne.cercle).toMatchObject({
+      organisateur: expect.stringMatching(/^Membre /),
+      montant: 10_000,
+      nombreMembres: 3,
+    });
     expect((await client.requete("GET", "/administration/sommes-dues", undefined, dernier)).status).toBe(403);
     expect((await confirmer(fraisMonDo.id, admin)).status).toBe(201);
   });
