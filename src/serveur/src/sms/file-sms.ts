@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../base/base-de-donnees.js";
-import { CONNECTEUR_SMS, type ConnecteurSms } from "./connecteur-sms.js";
+import { CONNECTEUR_SMS, ConnecteurSmsSimule, type ConnecteurSms } from "./connecteur-sms.js";
 
 /** Au-delà, le message est abandonné et journalisé (numéro invalide, passerelle durablement en panne). */
 export const TENTATIVES_MAX = 5;
@@ -19,6 +19,11 @@ const RESERVATION_PERIMEE = "5 minutes";
 @Injectable()
 export class FileSms implements OnModuleDestroy {
   private readonly journal = new Logger("File SMS");
+
+  /** Vrai quand aucun SMS ne part vraiment : le message est seulement écrit dans le journal du serveur. */
+  get simulee(): boolean {
+    return this.passerelle instanceof ConnecteurSmsSimule;
+  }
   private enCours: Promise<void> | undefined;
 
   constructor(
