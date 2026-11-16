@@ -28,7 +28,7 @@ export interface CercleListe {
   reglement: { montant: number; frequence: string; periodeJours: number | null; nombreMembres: number };
   /** Membres inscrits qui ne sont pas partis. */
   membres: number;
-  /** Tours dont toutes les cotisations sont confirmées, sur le nombre de tours du cercle. */
+  /** Tours qui ont des cotisations, toutes confirmées, sur le nombre de tours du cercle. */
   toursTermines: number;
   toursTotal: number;
   litigesOuverts: number;
@@ -98,7 +98,9 @@ export class AdministrationService {
               (c.reglement ->> 'montant')::bigint AS montant, c.reglement ->> 'frequence' AS frequence,
               (c.reglement ->> 'periodeJours')::int AS periode_jours, (c.reglement ->> 'nombreMembres')::int AS nombre_membres,
               (SELECT count(*) FROM cercles.adhesions a WHERE a.cercle_id = c.id AND a.parti_le IS NULL) AS membres,
-              (SELECT count(*) FROM cotisations.tours t WHERE t.cercle_id = c.id::text AND NOT EXISTS (
+              (SELECT count(*) FROM cotisations.tours t WHERE t.cercle_id = c.id::text AND EXISTS (
+                 SELECT 1 FROM cotisations.cotisations k
+                 WHERE k.cercle_id = t.cercle_id AND k.tour = t.numero) AND NOT EXISTS (
                  SELECT 1 FROM cotisations.cotisations k
                  WHERE k.cercle_id = t.cercle_id AND k.tour = t.numero AND k.statut <> 'confirmee')) AS tours_termines,
               (SELECT count(*) FROM litiges.litiges l WHERE l.cercle_id = c.id::text AND l.statut = 'ouvert') AS litiges_ouverts
