@@ -83,7 +83,7 @@ Codes de réponse : 400 entrée invalide ou règle métier, 401 non signée ou s
 ### Administration (comptes listés dans `MONDO_ADMINISTRATEURS`)
 | Méthode | Chemin | Rôle |
 |---|---|---|
-| GET | /litiges ; POST /litiges/:id/decision | litiges ouverts ; trancher |
+| GET | /litiges ; POST /litiges/:id/decision | litiges ouverts, avec `payeur` et `beneficiaire` (nom, numéro), `cotisation` (montant, tour, référence déclarée, date limite) et `cercle` ; trancher |
 | GET | /administration/identites ; GET …/:id/pieces/:nature ; POST …/:id/decision | vérification d'identité |
 | GET | /administration/recuperations ; POST …/:id/decision | récupérations contestées |
 | GET | /administration/sommes-dues | parts de MonDo à confirmer, avec `debiteur` (nom, numéro) et `cercle` (organisateur, montant, nombre de membres) : un cercle n'a pas de nom |

@@ -40,6 +40,15 @@ export interface Litige {
   trancheLe?: string;
 }
 
+/** Ce que voit l'Administrateur : le litige, plus les parties, la cotisation en cause et le cercle. */
+export interface LitigePourAdministrateur extends Litige {
+  /** Null si le compte a disparu : le litige reste listé. */
+  payeur: { nom: string; numero: string } | null;
+  beneficiaire: { nom: string; numero: string } | null;
+  cotisation: { montant: number; tour: number; referenceTransaction: string | null; dateLimite: string | null } | null;
+  cercle: { organisateur: string | null; montant: number; nombreMembres: number } | null;
+}
+
 interface LigneLitige extends Record<string, unknown> {
   id: string;
   cotisation_id: string;
@@ -124,12 +133,64 @@ export class LitigesService {
     return l;
   }
 
-  async listerOuverts(parMembreId: string): Promise<Litige[]> {
+  /**
+   * Litiges ouverts, avec de quoi trancher : qui a payé et qui doit recevoir (nom, numéro), la cotisation en
+   * cause (montant, tour, référence Mobile Money déclarée, date limite) et le cercle (un cercle n'a pas de nom).
+   */
+  async listerOuverts(parMembreId: string): Promise<LitigePourAdministrateur[]> {
     if (!estAdministrateur(parMembreId)) throw new ForbiddenException("Réservé à l'administrateur");
-    const lignes = await this.base.requete<LigneLitige>(
-      "SELECT * FROM litiges.litiges WHERE statut = 'ouvert' ORDER BY ouvert_le, id",
+    const lignes = await this.base.requete<
+      LigneLitige & {
+        payeur_nom: string | null;
+        payeur_numero: string | null;
+        beneficiaire_nom: string | null;
+        beneficiaire_numero: string | null;
+        cotisation_montant: string | number | null;
+        cotisation_tour: number | null;
+        cotisation_reference: string | null;
+        cotisation_date_limite: Date | string | null;
+        organisateur_nom: string | null;
+        cercle_montant: string | number | null;
+        cercle_nombre_membres: number | null;
+      }
+    >(
+      `SELECT l.*, p.nom AS payeur_nom, p.numero AS payeur_numero, b.nom AS beneficiaire_nom,
+              b.numero AS beneficiaire_numero, k.montant AS cotisation_montant, k.tour AS cotisation_tour,
+              k.reference_transaction AS cotisation_reference, k.date_limite AS cotisation_date_limite,
+              o.nom AS organisateur_nom, (c.reglement ->> 'montant')::bigint AS cercle_montant,
+              (c.reglement ->> 'nombreMembres')::int AS cercle_nombre_membres
+       FROM litiges.litiges l
+       LEFT JOIN comptes.comptes p ON p.id = l.payeur_id
+       LEFT JOIN comptes.comptes b ON b.id = l.beneficiaire_id
+       LEFT JOIN cotisations.cotisations k ON k.id = l.cotisation_id
+       LEFT JOIN cercles.cercles c ON c.id::text = l.cercle_id
+       LEFT JOIN comptes.comptes o ON o.id = c.organisateur_id
+       WHERE l.statut = 'ouvert'
+       ORDER BY l.ouvert_le, l.id`,
     );
-    return lignes.map(versLitige);
+    const personne = (nom: string | null, numero: string | null) => (nom ? { nom, numero: numero ?? "" } : null);
+    return lignes.map((l) => ({
+      ...versLitige(l),
+      payeur: personne(l.payeur_nom, l.payeur_numero),
+      beneficiaire: personne(l.beneficiaire_nom, l.beneficiaire_numero),
+      cotisation:
+        l.cotisation_montant !== null
+          ? {
+              montant: Number(l.cotisation_montant),
+              tour: l.cotisation_tour ?? 0,
+              referenceTransaction: l.cotisation_reference,
+              dateLimite: l.cotisation_date_limite ? new Date(l.cotisation_date_limite).toISOString() : null,
+            }
+          : null,
+      cercle:
+        l.cercle_montant !== null
+          ? {
+              organisateur: l.organisateur_nom,
+              montant: Number(l.cercle_montant),
+              nombreMembres: l.cercle_nombre_membres ?? 0,
+            }
+          : null,
+    }));
   }
 
   /** Litiges où le membre est partie, du plus récent au plus ancien. */
