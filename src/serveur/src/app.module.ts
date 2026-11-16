@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { GardeAuthentification } from "./authentification/garde.js";
 import { BaseModule } from "./base/base.module.js";
 import { EvenementsModule } from "./evenements/evenements.module.js";
+import { AdministrationModule } from "./modules/administration/administration.module.js";
 import { AssistantModule } from "./modules/assistant/assistant.module.js";
 import { CerclesModule } from "./modules/cercles/cercles.module.js";
 import { ComptesModule } from "./modules/comptes/comptes.module.js";
@@ -32,6 +33,7 @@ import { StockageModule } from "./stockage/stockage.module.js";
     PreuveModule,
     LitigesModule,
     AssistantModule,
+    AdministrationModule,
     DemonstrationModule,
   ],
   controllers: [SanteController],
