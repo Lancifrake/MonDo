@@ -12,7 +12,9 @@ Le français est la langue de travail : documents, issues, pull requests, messag
 ## Branches
 - `main` est toujours dans un état présentable. **On n'y pousse jamais directement : tout passe par une pull request.**
 - Une branche par sujet, nommée `type/sujet-court`, par exemple `feat/calcul-score` ou `docs/flow-litige`.
-- Une branche vit peu de temps : on la fusionne vite, on la supprime ensuite.
+- Le type est `feat`, `fix`, `docs` ou `chore`, comme pour les commits. Le sujet est en minuscules, chiffres et tirets, sans majuscule, tiret bas ni espace : `feat/calcul-score`, pas `feature/Calcul_Score`. Les branches que GitHub nomme tout seul (`nom-patch-1`, créées en éditant un fichier sur le site) sont refusées : crée la branche toi-même avant de modifier.
+- La vérification **Nom de branche** de la CI échoue si le nom ne respecte pas cette forme. Les branches de Dependabot sont exclues.
+- Une branche vit peu de temps : on la fusionne vite. GitHub supprime la branche de la pull request dès qu'elle est fusionnée ; si tu en as d'autres en local, supprime-les (`git branch -d`).
 
 ## Commits
 Format : `type: description courte à l'impératif ou au présent`.
