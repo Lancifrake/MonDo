@@ -135,9 +135,14 @@ describe("journal, vérification du registre et santé", () => {
       "empreinte",
       "enregistreLe",
       "id",
+      "lot",
       "objet",
       "statut",
     ]);
+    const figee = duCercle.find((e) => e.lot !== null)!;
+    expect(figee.lot!.racine).toMatch(/^[0-9a-f]{64}$/);
+    expect(figee.lot!.referenceInscription).toBeTruthy();
+    expect(figee.statut).toBe("inscrite");
 
     const ok = await json<{ lots: number; alteres: number }>(
       await client.requete("GET", "/administration/registre/verification", undefined, admin),
