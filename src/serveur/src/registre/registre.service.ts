@@ -161,6 +161,42 @@ export class RegistreService {
     });
   }
 
+  /** Vrai quand les racines ne partent sur aucune vraie chaîne (développement). */
+  get simule(): boolean {
+    return this.connecteur instanceof ConnecteurRegistreSimule;
+  }
+
+  /**
+   * Contrôle tous les lots : chaque racine recalculée à partir des empreintes en base doit être celle du lot, et,
+   * si le lot a été inscrit, celle de la chaîne. Une empreinte ou une racine retouchée à la main est détectée.
+   */
+  async verifierTout(): Promise<{
+    lots: number;
+    alteres: number;
+    nonInscrits: number;
+    empreintes: number;
+    empreintesEnAttente: number;
+  }> {
+    const ids = await this.base.requete<{ id: number }>("SELECT id FROM registre.lots ORDER BY id");
+    let alteres = 0;
+    let nonInscrits = 0;
+    for (const { id } of ids) {
+      const lot = await this.verifierLot(id);
+      if (!lot.intact || (lot.referenceInscription && !lot.inscritSurLaChaine)) alteres++;
+      else if (!lot.referenceInscription) nonInscrits++;
+    }
+    const [n] = await this.base.requete<{ empreintes: string | number; en_attente: string | number }>(
+      "SELECT count(*) AS empreintes, count(*) FILTER (WHERE lot_id IS NULL) AS en_attente FROM registre.empreintes",
+    );
+    return {
+      lots: ids.length,
+      alteres,
+      nonInscrits,
+      empreintes: Number(n?.empreintes ?? 0),
+      empreintesEnAttente: Number(n?.en_attente ?? 0),
+    };
+  }
+
   private async verifierLot(id: number) {
     const [l] = await this.base.requete<{ racine: string; reference_inscription: string | null }>(
       "SELECT racine, reference_inscription FROM registre.lots WHERE id = $1",

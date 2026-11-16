@@ -4,7 +4,14 @@ import type { INestApplication } from "@nestjs/common";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { AppModule } from "./app.module.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
-import type { CercleListe, CompteListe } from "./modules/administration/administration.service.js";
+import type {
+  CercleListe,
+  CompteListe,
+  EvenementJournal,
+  SanteSysteme,
+  TableauDeBord,
+} from "./modules/administration/administration.service.js";
+import { RegistreService } from "./registre/registre.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
 import { cercleComplet, cotisationsDe, reglementDeTest } from "./testing/cercles.js";
 
@@ -87,5 +94,75 @@ describe("cercles vus par l'administrateur", () => {
     ).find((c) => c.id === cercle.id)!;
     expect(apres.toursTermines).toBe(1);
     expect((await client.requete("GET", "/administration/cercles", undefined, org)).status).toBe(403);
+  });
+});
+
+describe("tableau de bord vu par l'administrateur", () => {
+  it("compte les comptes, cercles, litiges et files à traiter, avec 30 points par série", async () => {
+    const { membres } = await cercleComplet(client, reglementDeTest());
+    const r = await client.requete("GET", "/administration/tableau-de-bord", undefined, admin);
+    expect(r.status).toBe(200);
+    const t = await json<TableauDeBord>(r);
+    expect(t.comptes.valeur).toBeGreaterThanOrEqual(membres.length + 1);
+    expect(t.comptes.derniers30Jours).toBe(t.comptes.valeur);
+    expect(t.cercles.enCours).toBeGreaterThanOrEqual(1);
+    for (const i of [t.comptes, t.cercles, t.cotisations, t.identitesEnAttente, t.litiges, t.defauts]) {
+      expect(i.serie).toHaveLength(30);
+    }
+    // La série quotidienne des comptes retombe sur le total inscrit sur 30 jours.
+    expect(t.comptes.serie.reduce((a, b) => a + b, 0)).toBe(t.comptes.derniers30Jours);
+    expect(t.volumeParMois).toHaveLength(6);
+    expect(t.aTraiter).toEqual({ litiges: 0, recuperations: 0, identites: 0, sommesDues: 0, defauts: 0 });
+    expect(t.activite.length).toBeGreaterThan(0);
+    expect(
+      (await client.requete("GET", "/administration/tableau-de-bord", undefined, membres[0] as Identite)).status,
+    ).toBe(403);
+  });
+});
+
+describe("journal, vérification du registre et santé", () => {
+  it("le journal liste des empreintes sans contenu, la vérification passe, puis détecte une empreinte retouchée", async () => {
+    const { cercle } = await cercleComplet(client, reglementDeTest());
+    await app.get(RegistreService).fermerLot();
+    const j = await client.requete("GET", "/administration/journal?limite=500", undefined, admin);
+    expect(j.status).toBe(200);
+    const evenements = await json<EvenementJournal[]>(j);
+    const duCercle = evenements.filter((e) => e.cercle?.id === cercle.id);
+    expect(duCercle.length).toBeGreaterThan(0);
+    expect(duCercle.every((e) => e.statut !== "en_attente")).toBe(true);
+    expect(Object.keys(evenements[0]!).sort()).toEqual([
+      "cercle",
+      "empreinte",
+      "enregistreLe",
+      "id",
+      "objet",
+      "statut",
+    ]);
+
+    const ok = await json<{ lots: number; alteres: number }>(
+      await client.requete("GET", "/administration/registre/verification", undefined, admin),
+    );
+    expect(ok.lots).toBeGreaterThan(0);
+    expect(ok.alteres).toBe(0);
+
+    await base().requete(
+      "UPDATE registre.empreintes SET empreinte = 'retouchee' WHERE id = (SELECT max(id) FROM registre.empreintes WHERE lot_id IS NOT NULL)",
+    );
+    const apres = await json<{ alteres: number }>(
+      await client.requete("GET", "/administration/registre/verification", undefined, admin),
+    );
+    expect(apres.alteres).toBe(1);
+  });
+
+  it("la santé donne la file SMS, le registre et ce qui est simulé ; refusée à un simple membre", async () => {
+    const r = await client.requete("GET", "/administration/sante", undefined, admin);
+    expect(r.status).toBe(200);
+    const s = await json<SanteSysteme>(r);
+    expect(s).toMatchObject({ base: "ok", simules: { sms: true, registre: true } });
+    expect(s.sms.echecs).toBe(0);
+    expect(s.registre.empreintes).toBeGreaterThan(0);
+    const membre = await client.inscrire();
+    expect((await client.requete("GET", "/administration/sante", undefined, membre)).status).toBe(403);
+    expect((await client.requete("GET", "/administration/journal", undefined, membre)).status).toBe(403);
   });
 });
