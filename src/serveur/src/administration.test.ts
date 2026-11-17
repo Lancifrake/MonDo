@@ -60,7 +60,17 @@ describe("comptes vus par l'administrateur", () => {
     expect(comptes.find((c) => c.id === admin.id)?.administrateur).toBe(true);
     // Ni clé publique ni pièce : rien d'autre que ces champs ne sort.
     expect(Object.keys(comptes[0]!).sort()).toEqual(
-      ["administrateur", "blocage", "cerclesActifs", "creeLe", "id", "niveau", "nom", "numero", "verificationEnAttente"].sort(),
+      [
+        "administrateur",
+        "blocage",
+        "cerclesActifs",
+        "creeLe",
+        "id",
+        "niveau",
+        "nom",
+        "numero",
+        "verificationEnAttente",
+      ].sort(),
     );
     expect((await client.requete("GET", "/administration/comptes", undefined, m1)).status).toBe(403);
     expect((await client.requete("GET", "/administration/comptes")).status).toBe(401);

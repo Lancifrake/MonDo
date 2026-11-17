@@ -221,7 +221,10 @@ export class AdministrationService {
     const [comptes, verifies, comptes30, cercles, enCours, enAttente, termines, cercles30] = await Promise.all([
       this.nombre("SELECT count(*) AS n FROM comptes.comptes WHERE id <> ALL($1::uuid[])", admins),
       this.nombre("SELECT count(*) AS n FROM comptes.comptes WHERE niveau = 2 AND id <> ALL($1::uuid[])", admins),
-      this.nombre(`SELECT count(*) AS n FROM comptes.comptes WHERE cree_le >= ${il30} AND id <> ALL($1::uuid[])`, admins),
+      this.nombre(
+        `SELECT count(*) AS n FROM comptes.comptes WHERE cree_le >= ${il30} AND id <> ALL($1::uuid[])`,
+        admins,
+      ),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles"),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles WHERE statut = 'complet'"),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles WHERE statut = 'en_attente'"),
