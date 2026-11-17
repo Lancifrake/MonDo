@@ -67,6 +67,8 @@ export interface EvenementJournal {
   cercle: { id: string; organisateur: string | null } | null;
   /** en_attente : pas encore dans un lot ; non_inscrite : lot figé, racine pas sur la chaîne ; inscrite : sur la chaîne. */
   statut: "en_attente" | "non_inscrite" | "inscrite";
+  /** Le lot qui contient l'empreinte : sa racine et la référence de l'inscription (transaction, ou « simule-n »). Absent tant que l'empreinte attend. */
+  lot: { id: number; racine: string; referenceInscription: string | null; fermeLe: string } | null;
 }
 
 export interface SanteSysteme {
@@ -279,11 +281,13 @@ export class AdministrationService {
       empreinte: string;
       enregistree_le: Date | string;
       lot_id: number | null;
+      racine: string | null;
       reference_inscription: string | null;
+      ferme_le: Date | string | null;
       cercle_id: string | null;
       organisateur_nom: string | null;
     }>(
-      `SELECT e.id, e.objet, e.empreinte, e.enregistree_le, e.lot_id, l.reference_inscription, e.cercle_id, o.nom AS organisateur_nom
+      `SELECT e.id, e.objet, e.empreinte, e.enregistree_le, e.lot_id, l.racine, l.reference_inscription, l.ferme_le, e.cercle_id, o.nom AS organisateur_nom
        FROM registre.empreintes e
        LEFT JOIN registre.lots l ON l.id = e.lot_id
        LEFT JOIN cercles.cercles c ON c.id = e.cercle_id
@@ -298,6 +302,15 @@ export class AdministrationService {
       enregistreLe: new Date(l.enregistree_le).toISOString(),
       cercle: l.cercle_id ? { id: l.cercle_id, organisateur: l.organisateur_nom } : null,
       statut: l.lot_id === null ? "en_attente" : l.reference_inscription ? "inscrite" : "non_inscrite",
+      lot:
+        l.lot_id === null || l.racine === null || l.ferme_le === null
+          ? null
+          : {
+              id: l.lot_id,
+              racine: l.racine,
+              referenceInscription: l.reference_inscription,
+              fermeLe: new Date(l.ferme_le).toISOString(),
+            },
     }));
   }
 
