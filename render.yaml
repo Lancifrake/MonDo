@@ -8,7 +8,7 @@ services:
     dockerfilePath: ./src/serveur/Dockerfile
     dockerContext: .
     healthCheckPath: /sante
-    autoDeploy: false
+    autoDeploy: true
     envVars:
       # Le Dockerfile fixe NODE_ENV=production, qui exige un vrai SMS, un vrai registre et un stockage durable.
       # Pour la démonstration on repasse en développement : SMS et registre simulés, code SMS dans le journal.

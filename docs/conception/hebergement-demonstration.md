@@ -7,6 +7,7 @@ Pour une démonstration avec des **données fictives uniquement** : serveur sur 
 - `NODE_ENV=development` est imposé : le Dockerfile met `production`, qui refuse de démarrer sans vrai fournisseur SMS, registre réel et stockage durable. En développement, le SMS et le registre sont simulés.
 - Le serveur crée ou met à jour son schéma tout seul au démarrage (`migrer`).
 - Contrôle de santé : `GET /sante`.
+- `autoDeploy: true` : chaque fusion dans `main` redéploie le serveur, qui redémarre (il s'endort puis se réveille).
 
 ## Étapes (faites par une personne de l'équipe)
 1. **Neon** : créer un compte, un projet, puis copier la chaîne de connexion. Elle se termine par `?sslmode=require`.
