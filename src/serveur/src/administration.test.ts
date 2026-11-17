@@ -53,12 +53,14 @@ describe("comptes vus par l'administrateur", () => {
       cerclesActifs: 1,
       blocage: null,
       verificationEnAttente: false,
+      administrateur: false,
     });
     expect(comptes.find((c) => c.id === m2.id)?.blocage).toMatchObject({ motif: "opposition" });
-    expect(comptes.some((c) => c.id === admin.id)).toBe(true);
+    // L'administrateur est dans la liste mais reconnaissable : il n'est pas un utilisateur.
+    expect(comptes.find((c) => c.id === admin.id)?.administrateur).toBe(true);
     // Ni clé publique ni pièce : rien d'autre que ces champs ne sort.
     expect(Object.keys(comptes[0]!).sort()).toEqual(
-      ["blocage", "cerclesActifs", "creeLe", "id", "niveau", "nom", "numero", "verificationEnAttente"].sort(),
+      ["administrateur", "blocage", "cerclesActifs", "creeLe", "id", "niveau", "nom", "numero", "verificationEnAttente"].sort(),
     );
     expect((await client.requete("GET", "/administration/comptes", undefined, m1)).status).toBe(403);
     expect((await client.requete("GET", "/administration/comptes")).status).toBe(401);
@@ -103,7 +105,10 @@ describe("tableau de bord vu par l'administrateur", () => {
     const r = await client.requete("GET", "/administration/tableau-de-bord", undefined, admin);
     expect(r.status).toBe(200);
     const t = await json<TableauDeBord>(r);
-    expect(t.comptes.valeur).toBeGreaterThanOrEqual(membres.length + 1);
+    // Les administrateurs ne comptent pas parmi les utilisateurs : le total est celui de la liste sans eux.
+    const liste = await json<CompteListe[]>(await client.requete("GET", "/administration/comptes", undefined, admin));
+    expect(t.comptes.valeur).toBe(liste.filter((c) => !c.administrateur).length);
+    expect(t.comptes.valeur).toBeGreaterThanOrEqual(membres.length);
     expect(t.comptes.derniers30Jours).toBe(t.comptes.valeur);
     expect(t.cercles.enCours).toBeGreaterThanOrEqual(1);
     for (const i of [t.comptes, t.cercles, t.cotisations, t.identitesEnAttente, t.litiges, t.defauts]) {
