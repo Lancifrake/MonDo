@@ -1,0 +1,20 @@
+# Instance de DÉMONSTRATION du serveur MonDo sur Render (offre gratuite). Données fictives uniquement.
+# Mode d'emploi : docs/conception/hebergement-demonstration.md
+services:
+  - type: web
+    name: mondo-serveur-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: ./src/serveur/Dockerfile
+    dockerContext: .
+    healthCheckPath: /sante
+    autoDeploy: false
+    envVars:
+      # Le Dockerfile fixe NODE_ENV=production, qui exige un vrai SMS, un vrai registre et un stockage durable.
+      # Pour la démonstration on repasse en développement : SMS et registre simulés, code SMS dans le journal.
+      - key: NODE_ENV
+        value: development
+      - key: DATABASE_URL
+        sync: false
+      - key: MONDO_ADMINISTRATEURS
+        sync: false
