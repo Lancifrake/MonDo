@@ -1,5 +1,5 @@
 import { ForbiddenException, Inject, Injectable } from "@nestjs/common";
-import { estAdministrateur } from "../../administration/administrateurs.js";
+import { estAdministrateur, identifiantsAdministrateurs } from "../../administration/administrateurs.js";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { RegistreService } from "../../registre/registre.service.js";
 import { FileSms } from "../../sms/file-sms.js";
@@ -18,6 +18,8 @@ export interface CompteListe {
   blocage: { motif: "essais_rates" | "opposition"; bloqueLe: string } | null;
   /** Une pièce d'identité attend la décision d'un Administrateur. */
   verificationEnAttente: boolean;
+  /** Ce compte est dans la liste des administrateurs : il gère la plateforme, il n'est pas un utilisateur. */
+  administrateur: boolean;
 }
 
 /** Un cercle vu par l'Administrateur. Un cercle n'a pas de nom : on le reconnaît à son organisateur et à son montant. */
@@ -98,18 +100,25 @@ export class AdministrationService {
    * Un point par jour sur 30 jours. `table`, `colonne`, `agregat` et `filtre` sont des constantes de ce fichier,
    * jamais une valeur venue d'une requête.
    */
-  private async serie(table: string, colonne: string, agregat: string, filtre = "true"): Promise<number[]> {
+  private async serie(
+    table: string,
+    colonne: string,
+    agregat: string,
+    filtre = "true",
+    parametres: unknown[] = [],
+  ): Promise<number[]> {
     const lignes = await this.base.requete<{ v: string | number }>(
       `SELECT coalesce(${agregat}, 0) AS v
        FROM generate_series(current_date - 29, current_date, interval '1 day') g(jour)
        LEFT JOIN ${table} t ON t.${colonne}::date = g.jour::date AND ${filtre}
        GROUP BY g.jour ORDER BY g.jour`,
+      parametres,
     );
     return lignes.map((l) => Number(l.v));
   }
 
-  private async nombre(sql: string): Promise<number> {
-    const [l] = await this.base.requete<{ n: string | number | null }>(sql);
+  private async nombre(sql: string, parametres: unknown[] = []): Promise<number> {
+    const [l] = await this.base.requete<{ n: string | number | null }>(sql, parametres);
     return Number(l?.n ?? 0);
   }
 
@@ -148,6 +157,7 @@ export class AdministrationService {
       cerclesActifs: Number(l.cercles_actifs),
       blocage: l.blocage_le ? { motif: l.blocage_motif, bloqueLe: new Date(l.blocage_le).toISOString() } : null,
       verificationEnAttente: l.verification,
+      administrateur: estAdministrateur(l.id),
     }));
   }
 
@@ -206,10 +216,15 @@ export class AdministrationService {
   async tableauDeBord(parMembreId: string): Promise<TableauDeBord> {
     this.exigerAdministrateur(parMembreId);
     const il30 = "now() - interval '30 days'";
+    // Les administrateurs gèrent la plateforme : ils ne comptent pas parmi les utilisateurs.
+    const admins = [identifiantsAdministrateurs()];
     const [comptes, verifies, comptes30, cercles, enCours, enAttente, termines, cercles30] = await Promise.all([
-      this.nombre("SELECT count(*) AS n FROM comptes.comptes"),
-      this.nombre("SELECT count(*) AS n FROM comptes.comptes WHERE niveau = 2"),
-      this.nombre(`SELECT count(*) AS n FROM comptes.comptes WHERE cree_le >= ${il30}`),
+      this.nombre("SELECT count(*) AS n FROM comptes.comptes WHERE id <> ALL($1::uuid[])", admins),
+      this.nombre("SELECT count(*) AS n FROM comptes.comptes WHERE niveau = 2 AND id <> ALL($1::uuid[])", admins),
+      this.nombre(
+        `SELECT count(*) AS n FROM comptes.comptes WHERE cree_le >= ${il30} AND id <> ALL($1::uuid[])`,
+        admins,
+      ),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles"),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles WHERE statut = 'complet'"),
       this.nombre("SELECT count(*) AS n FROM cercles.cercles WHERE statut = 'en_attente'"),
@@ -237,7 +252,7 @@ export class AdministrationService {
       ),
     ]);
     const [serieComptes, serieCercles, serieMontant, serieIdentites, serieLitiges, serieDefauts] = await Promise.all([
-      this.serie("comptes.comptes", "cree_le", "count(t.id)"),
+      this.serie("comptes.comptes", "cree_le", "count(t.id)", "t.id <> ALL($1::uuid[])", admins),
       this.serie("cercles.cercles", "cree_le", "count(t.id)"),
       this.serie("cotisations.cotisations", "date_limite", "sum(t.montant)", "t.statut = 'confirmee'"),
       this.serie("comptes.verifications_identite", "deposee_le", "count(t.id)"),
