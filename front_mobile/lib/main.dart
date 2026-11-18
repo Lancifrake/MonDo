@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/auth_provider.dart';
+import 'screens/compte/recuperation_screen.dart';
 import 'screens/main_shell.dart';
+import 'services/recuperation_locale.dart';
 import 'screens/pin_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'theme/app_theme.dart';
@@ -34,9 +36,14 @@ class _Demarrage extends ConsumerStatefulWidget {
 
 class _DemarrageState extends ConsumerState<_Demarrage> {
   /// null : pas de compte ; false : compte sans PIN ; true : compte avec PIN à demander.
+  RecuperationLocale? _reprise;
+
   late final Future<bool?> _session = () async {
     final ok = await ref.read(authStateProvider.notifier).restaurerSession();
-    if (!ok) return null;
+    if (!ok) {
+      _reprise = await RecuperationLocale.lire(); // récupération demandée ici et pas encore aboutie
+      return null;
+    }
     return pinDefini();
   }();
 
@@ -49,7 +56,7 @@ class _DemarrageState extends ConsumerState<_Demarrage> {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
         return switch (snap.data) {
-          null => const WelcomeScreen(),
+          null => _reprise != null ? RecuperationScreen(reprise: _reprise) : const WelcomeScreen(),
           true => const PinScreen(verifier: true),
           false => const MainShell(),
         };

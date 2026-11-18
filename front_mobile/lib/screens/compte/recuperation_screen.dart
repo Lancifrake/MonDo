@@ -4,6 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/api_client_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/storage_provider.dart';
+import '../../services/recuperation_locale.dart';
+import '../pin_screen.dart';
 import '../../services/crypto_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
@@ -18,7 +22,10 @@ const _versionConsentement = '2026-11-11';
 /// ou le code secret, la demande aboutit à la fin du délai, sauf opposition de l'ancien téléphone.
 /// Sans contact, il faut déposer pièce d'identité et selfie, examinés par un administrateur.
 class RecuperationScreen extends ConsumerStatefulWidget {
-  const RecuperationScreen({super.key});
+  /// [reprise] : une demande déjà faite depuis ce téléphone (app rouverte ou réinstallée).
+  const RecuperationScreen({super.key, this.reprise});
+
+  final RecuperationLocale? reprise;
 
   @override
   ConsumerState<RecuperationScreen> createState() => _RecuperationState();
@@ -33,6 +40,18 @@ class _RecuperationState extends ConsumerState<RecuperationScreen> {
   CryptoService? _cle;
   Map<String, dynamic>? _demande;
   final Map<String, String> _pieces = {};
+  final _identifiant = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.reprise;
+    if (r != null) {
+      _cle = r.cle;
+      _demande = {'id': r.recuperationId, 'finDelaiLe': r.finDelaiLe, 'piecesRequises': r.piecesRequises, 'statut': 'en_attente'};
+      _numero.text = r.numero.replaceFirst('+237', '');
+    }
+  }
 
   String get _numeroComplet => '+237${_numero.text.replaceAll(' ', '')}';
 
@@ -65,8 +84,42 @@ class _RecuperationState extends ConsumerState<RecuperationScreen> {
               },
               fromJson: (j) => j as Map<String, dynamic>,
             );
+        await RecuperationLocale(
+          numero: _numeroComplet,
+          recuperationId: r['id'] as String,
+          cle: cle,
+          finDelaiLe: r['finDelaiLe'] as String,
+          piecesRequises: r['piecesRequises'] == true,
+        ).enregistrer();
         setState(() => _demande = r);
       });
+
+  /// Ouvre le compte récupéré : le serveur ne donne pas l'identifiant du compte au nouveau téléphone,
+  /// il faut le saisir (Profil, « Mon identifiant », sur l'ancien téléphone, ou l'administrateur).
+  Future<void> _ouvrirCompte() => _envoyer(() async {
+        final id = _identifiant.text.trim();
+        if (!RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(id)) {
+          return afficherMessage(context, 'L’identifiant est un code de 36 caractères (xxxxxxxx-xxxx-…).');
+        }
+        final cle = _cle!;
+        final auth = ref.read(authStateProvider.notifier);
+        await auth.setCurrentSession(membreId: id, cryptoService: cle);
+        try {
+          await auth.fetchProfil(); // requête signée : refusée tant que la récupération n'est pas aboutie
+        } catch (e) {
+          ref.read(apiClientProvider).reset();
+          rethrow;
+        }
+        await ref.read(localStorageProvider).saveSession(membreId: id, phoneNumber: _numeroComplet, cryptoService: cle);
+        await RecuperationLocale.effacer();
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const PinScreen()), (_) => false);
+      });
+
+  Future<void> _abandonner() async {
+    await RecuperationLocale.effacer();
+    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+  }
 
   Future<void> _photo(String nature) async {
     final image = await ImagePicker().pickImage(
@@ -122,6 +175,15 @@ class _RecuperationState extends ConsumerState<RecuperationScreen> {
             'Ton ancien téléphone est prévenu et peut s’opposer pendant ce délai. '
             'Garde cette application ouverte sur ce téléphone : sa clé est celle qui remplacera l’ancienne.',
           ),
+          const Titre('Quand c’est abouti'),
+          const Note(
+            'Quand la date ci-dessus est passée (et, sans contact de confiance, que ton dossier est validé), '
+            'saisis l’identifiant de ton compte pour l’ouvrir sur ce téléphone. Tu le trouves dans Profil, '
+            '« Mon identifiant », sur l’ancien téléphone, ou auprès de l’administrateur.',
+          ),
+          Champ(controleur: _identifiant, libelle: 'Identifiant du compte'),
+          AppButton(label: 'Ouvrir mon compte', isLoading: _envoi, onPressed: _ouvrirCompte),
+          TextButton(onPressed: _abandonner, child: const Text('Abandonner cette demande sur ce téléphone')),
           if (d['piecesRequises'] == true) ...[
             const Titre('Pièces à déposer'),
             const Note('Sans contact de confiance, un administrateur vérifie ta carte d’identité et ton selfie.'),
