@@ -40,6 +40,14 @@ final notificationsRefreshableProvider =
   return notificationsService.getNotifications();
 });
 
+/// Provider alias pour les notifications de l'utilisateur avec refresh
+final meNotificationsRefreshableProvider =
+    FutureProvider<List<Notification>>((ref) async {
+  ref.watch(notificationsRefreshProvider); // Dépendre du refresh provider
+  final notificationsService = ref.watch(notificationsServiceProvider);
+  return notificationsService.getNotifications();
+});
+
 /// Provider augmenté pour les notifications non lues avec refresh
 final notificationsNonLuesRefreshableProvider =
     FutureProvider<List<Notification>>((ref) async {
