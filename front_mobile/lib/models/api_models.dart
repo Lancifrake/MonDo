@@ -128,6 +128,9 @@ class Cotisation with _$Cotisation {
     @JsonKey(name: 'confirmee_le') String? confirmeeLe,
   }) = _Cotisation;
 
+  /// Alias pour compatibilité avec les écrans
+  String get beneficiaire => beneficiaireId;
+
   factory Cotisation.fromJson(Map<String, dynamic> json) =>
       _$CotisationFromJson(json);
 }
@@ -236,10 +239,15 @@ class Notification with _$Notification {
   const factory Notification({
     required String id,
     @JsonKey(name: 'membre_id') required String membreId,
-    required String texte,
-    @JsonKey(name: 'creee_le') required String creeLe,
+    required String titre,
+    required String message,
+    required String type, // "cotisation", "cercle", "litige", "score", "system"
+    @JsonKey(name: 'date_creation') required String dateCreation,
     @JsonKey(name: 'lue_le') String? lueLe,
   }) = _Notification;
+
+  /// Retourne true si la notification a été lue
+  bool get lue => lueLe != null;
 
   factory Notification.fromJson(Map<String, dynamic> json) =>
       _$NotificationFromJson(json);
