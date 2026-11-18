@@ -208,4 +208,4 @@ Les frais de place étaient payés après la cagnotte : un bénéficiaire qui ne
 7. **Cercles existants.** La migration 034 donne les nouvelles dates aux frais encore dus des cercles déjà en cours.
 6. **Démonstration.** Les membres fictifs règlent leurs frais de place d'avance, pour que le membre réel puisse payer.
 
-Non couvert, à décider : un bénéficiaire qui ne paie jamais ses frais bloque son tour sans conséquence sur son score ; une pénalité ou un défaut pour frais impayés n'est pas codé. 
+8. **Frais jamais payés (choix de David du 19/11).** Si, à la fin de grâce de son tour, le bénéficiaire n'a toujours rien déclaré de ses frais et n'a rien reçu, il perd sa place : traité comme un départ (tour supprimé, cotisations à venir annulées, ce qu'il a versé lui est remboursé, ses retards de payeur restent dus), mais compté comme un défaut (−30) et non comme un départ (−15). Un paiement déclaré mais pas encore confirmé par un Administrateur ne déclenche rien : le retard serait celui de MonDo.
