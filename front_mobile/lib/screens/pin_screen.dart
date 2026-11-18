@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../theme/app_colors.dart';
-import '../widgets/app_bar.dart';
+import '../widgets/logo_mondo.dart';
 import 'main_shell.dart';
 
 /// Le PIN déverrouille l'app sur CE téléphone : il ne part jamais au serveur.
@@ -18,6 +19,7 @@ Future<bool> pinDefini() async => (await _stockage.read(key: _cleStockagePin)) !
 
 Future<void> effacerPin() => _stockage.delete(key: _cleStockagePin);
 
+/// Choisir son PIN (deux fois, pour éviter une faute de frappe) ou le saisir à l'ouverture.
 class PinScreen extends StatefulWidget {
   /// [verifier] : demander le PIN déjà choisi (à l'ouverture) au lieu d'en choisir un.
   const PinScreen({super.key, this.verifier = false});
@@ -29,137 +31,197 @@ class PinScreen extends StatefulWidget {
 }
 
 class _PinScreenState extends State<PinScreen> {
-  static const _keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'back'];
-
   String _pin = '';
-
-  void _onKey(String key) {
-    if (key == 'back') {
-      if (_pin.isNotEmpty) {
-        setState(() => _pin = _pin.substring(0, _pin.length - 1));
-      }
-      return;
-    }
-    if (_pin.length >= 4) return;
-    setState(() => _pin += key);
-    if (_pin.length == 4) _onComplete();
-  }
-
+  String? _premier; // création : le premier code saisi, en attente de confirmation
+  String? _erreur;
   int _essais = 0;
 
-  Future<void> _onComplete() async {
+  String get _titre => widget.verifier
+      ? 'Ton code PIN'
+      : _premier == null
+          ? 'Choisis ton code PIN'
+          : 'Confirme ton code PIN';
+
+  String get _sousTitre => widget.verifier
+      ? 'Pour ouvrir MonDo sur ce téléphone.'
+      : _premier == null
+          ? '4 chiffres pour protéger l’application sur ce téléphone. Il ne quitte jamais le téléphone.'
+          : 'Saisis-le une seconde fois.';
+
+  void _touche(String k) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _erreur = null;
+      if (k == 'effacer') {
+        if (_pin.isNotEmpty) _pin = _pin.substring(0, _pin.length - 1);
+      } else if (_pin.length < 4) {
+        _pin += k;
+      }
+    });
+    if (_pin.length == 4) _complet();
+  }
+
+  Future<void> _complet() async {
+    final saisi = _pin;
     if (widget.verifier) {
       final attendu = await _stockage.read(key: _cleStockagePin);
-      if (attendu != _empreinte(_pin)) {
+      if (attendu != _empreinte(saisi)) {
         _essais++;
-        setState(() => _pin = '');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Code PIN incorrect ($_essais).')));
-        }
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _pin = '';
+          _erreur = 'Code incorrect${_essais > 1 ? ' ($_essais essais)' : ''}.';
+        });
         return;
       }
+    } else if (_premier == null) {
+      setState(() {
+        _premier = saisi;
+        _pin = '';
+      });
+      return;
+    } else if (_premier != saisi) {
+      HapticFeedback.heavyImpact();
+      setState(() {
+        _premier = null;
+        _pin = '';
+        _erreur = 'Les deux codes diffèrent. Recommence.';
+      });
+      return;
     } else {
-      await _stockage.write(key: _cleStockagePin, value: _empreinte(_pin));
+      await _stockage.write(key: _cleStockagePin, value: _empreinte(saisi));
     }
-    // Petit délai pour voir le 4e point se remplir
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const MainShell()),
-        (route) => false,
-      );
-    });
+    await Future<void>.delayed(const Duration(milliseconds: 150));
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainShell()),
+      (_) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar(context, widget.verifier ? 'Ton code PIN' : 'Choisis ton code PIN'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-        child: Column(
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Ce code à 4 chiffres protège l'application sur ce téléphone.",
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 16,
-                  height: 1.4,
+      backgroundColor: AppColors.background,
+      appBar: widget.verifier
+          ? null
+          : AppBar(
+              leading: _premier == null
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => setState(() {
+                        _premier = null;
+                        _pin = '';
+                      }),
+                    ),
+            ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              SizedBox(height: widget.verifier ? 48 : 8),
+              const LogoMonDo(taille: 44, couleur: AppColors.textDark),
+              const SizedBox(height: 20),
+              Text(_titre, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text(
+                _sousTitre,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.4),
+              ),
+              const SizedBox(height: 32),
+              _Points(remplis: _pin.length, erreur: _erreur != null),
+              SizedBox(
+                height: 40,
+                child: Center(
+                  child: Text(
+                    _erreur ?? '',
+                    style: const TextStyle(color: AppColors.orange, fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: List.generate(4, (i) {
-                final filled = i < _pin.length;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.symmetric(horizontal: 8),
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: filled ? AppColors.green : Colors.white,
-                    border: Border.all(
-                      color: filled ? AppColors.green : AppColors.border,
-                      width: 1.5,
-                    ),
-                  ),
-                );
-              }),
-            ),
-            const SizedBox(height: 32),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 300),
-              child: GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 3,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.25,
-                children: _keys.map((k) => _Key(value: k, onTap: _onKey)).toList(),
-              ),
-            ),
-          ],
+              const Spacer(),
+              _Clavier(onTouche: _touche, effacerActif: _pin.isNotEmpty),
+              const SizedBox(height: 24),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Key extends StatelessWidget {
-  const _Key({required this.value, required this.onTap});
+class _Points extends StatelessWidget {
+  const _Points({required this.remplis, required this.erreur});
 
-  final String value;
-  final ValueChanged<String> onTap;
+  final int remplis;
+  final bool erreur;
 
   @override
   Widget build(BuildContext context) {
-    if (value.isEmpty) return const SizedBox.shrink(); // case vide
+    final couleur = erreur ? AppColors.orange : AppColors.textDark;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < 4; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            margin: const EdgeInsets.symmetric(horizontal: 10),
+            width: 14,
+            height: 14,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: i < remplis ? couleur : Colors.transparent,
+              border: Border.all(color: i < remplis ? couleur : (erreur ? AppColors.orange : AppColors.textMuted), width: 1.5),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => onTap(value),
-        child: Center(
-          child: value == 'back'
-              ? const Icon(Icons.backspace_outlined, size: 24)
-              : Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+/// Clavier numérique sobre : chiffres sans fond, comme le clavier d'un téléphone.
+class _Clavier extends StatelessWidget {
+  const _Clavier({required this.onTouche, required this.effacerActif});
+
+  final ValueChanged<String> onTouche;
+  final bool effacerActif;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget touche(String k) {
+      if (k.isEmpty) return const Expanded(child: SizedBox(height: 72));
+      final effacer = k == 'effacer';
+      return Expanded(
+        child: SizedBox(
+          height: 72,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: effacer && !effacerActif ? null : () => onTouche(k),
+            child: Center(
+              child: effacer
+                  ? Icon(Icons.backspace_outlined,
+                      size: 24, color: effacerActif ? AppColors.textDark : AppColors.border)
+                  : Text(k, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w400)),
+            ),
+          ),
         ),
-      ),
+      );
+    }
+
+    const lignes = [
+      ['1', '2', '3'],
+      ['4', '5', '6'],
+      ['7', '8', '9'],
+      ['', '0', 'effacer'],
+    ];
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 320),
+      child: Column(children: [
+        for (final l in lignes) Row(children: [for (final k in l) touche(k)]),
+      ]),
     );
   }
 }

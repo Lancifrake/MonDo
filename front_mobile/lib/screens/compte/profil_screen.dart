@@ -119,6 +119,24 @@ class ProfilScreen extends ConsumerWidget {
             onTap: () => ouvrir(const SommesDuesScreen()),
           ),
         ]),
+        if (compte?.niveau == 1) ...[
+          const Titre('Démonstration'),
+          Bloc(enfants: [
+            Ligne(
+              'Passer au niveau 2 sans pièce',
+              onTap: () async {
+                try {
+                  await ref.read(espaceServiceProvider).demoNiveau2();
+                  await ref.read(authStateProvider.notifier).fetchProfil();
+                  ref.invalidate(_profilProvider);
+                  if (context.mounted) afficherMessage(context, 'Compte passé au niveau 2.');
+                } catch (e) {
+                  if (context.mounted) afficherErreur(context, e);
+                }
+              },
+            ),
+          ]),
+        ],
         const SizedBox(height: 28),
         TextButton(
           onPressed: () async {

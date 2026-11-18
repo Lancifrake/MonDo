@@ -3,6 +3,7 @@ import 'compte/recuperation_screen.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_button.dart';
+import '../widgets/logo_mondo.dart';
 import 'signup_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -22,8 +23,6 @@ class WelcomeScreen extends StatelessWidget {
               children: [
                 const _Logo(),
                 const Spacer(),
-                const _ValidatedCard(),
-                const SizedBox(height: 28),
                 const Text(
                   'Ta tontine, sans dispute, sans cahier, sans risque.',
                   style: TextStyle(
@@ -35,8 +34,8 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Cotise en cash ou en Mobile Money. MonDo garde la preuve, '
-                  'ton argent reste entre vos mains.',
+                  'Cotise en espèces ou en Mobile Money. Chaque paiement est confirmé par celui qui le reçoit '
+                  'et inscrit au registre : l’argent ne passe jamais par MonDo.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.7),
                     fontSize: 16,
@@ -78,89 +77,12 @@ class _Logo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.green,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.bar_chart_rounded, color: AppColors.lime),
-        ),
-        const SizedBox(width: 12),
-        const Text(
-          'MonDo',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        LogoMonDo(taille: 40),
+        SizedBox(width: 10),
+        Text('MonDo', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600)),
       ],
-    );
-  }
-}
-
-class _ValidatedCard extends StatelessWidget {
-  const _ValidatedCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Transform.rotate(
-      angle: -0.07, // légère inclinaison comme sur la maquette
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: const BoxDecoration(
-                color: AppColors.green,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.check, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Cotisation validée',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textMuted,
-                  ),
-                ),
-                Text(
-                  '50 000 FCFA',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textDark,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

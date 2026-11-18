@@ -250,6 +250,11 @@ class _ActionsMembre extends ConsumerWidget {
             child: const Text('Démo : les autres jouent le tour'),
           ),
           const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _faire(context, ref, () => espace.demoAvancer(cercle.id, 10), 'Le temps a avancé de 10 jours.'),
+            child: const Text('Démo : avancer de 10 jours'),
+          ),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () async {
               final ok = await showDialog<bool>(

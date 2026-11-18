@@ -56,9 +56,13 @@ void main() {
     await t.tap(find.text('Vérifier'));
     await attendre(t, find.text('Choisis ton code PIN'));
 
-    for (final k in ['1', '2', '3', '4']) {
-      await t.tap(find.text(k).last);
-      await t.pump(const Duration(milliseconds: 100));
+    // Le PIN se saisit deux fois à la création
+    for (var fois = 0; fois < 2; fois++) {
+      for (final k in ['1', '2', '3', '4']) {
+        await t.tap(find.text(k).last);
+        await t.pump(const Duration(milliseconds: 100));
+      }
+      if (fois == 0) await attendre(t, find.text('Confirme ton code PIN'));
     }
     await attendre(t, find.text('Bonjour, Amina.'));
     await attendre(t, find.text('Mes tontines'));
