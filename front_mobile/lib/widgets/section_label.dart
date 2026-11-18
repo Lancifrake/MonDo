@@ -11,7 +11,7 @@ class SectionLabel extends StatelessWidget {
       text,
       style: const TextStyle(
         fontSize: 15,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w600,
         height: 1.3,
       ),
     );

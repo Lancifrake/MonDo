@@ -137,7 +137,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
                       _title,
                       style: const TextStyle(
                         fontSize: 28,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 20),

@@ -2,323 +2,71 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
 import '../../providers/cotisations_provider.dart';
-import '../../services/api_client.dart';
-import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/sobre.dart';
 
-/// Écran de déclaration de paiement (étape 1/2)
-/// 
-/// Permet de déclarer un paiement effectué pour une cotisation.
-/// 
-/// Endpoints API utilisés:
-/// - POST /cotisations/:id/paiement (déclarer paiement)
+/// Le payeur déclare avoir payé, hors de l'app, avec la référence de la transaction.
+/// Le bénéficiaire confirme ensuite la réception.
 class PaymentDeclareScreen extends ConsumerStatefulWidget {
+  const PaymentDeclareScreen({super.key, required this.cotisationId, required this.cotisation});
+
   final String cotisationId;
   final Cotisation cotisation;
 
-  const PaymentDeclareScreen({
-    super.key,
-    required this.cotisationId,
-    required this.cotisation,
-  });
-
   @override
-  ConsumerState<PaymentDeclareScreen> createState() =>
-      _PaymentDeclareScreenState();
+  ConsumerState<PaymentDeclareScreen> createState() => _PaymentDeclareState();
 }
 
-class _PaymentDeclareScreenState extends ConsumerState<PaymentDeclareScreen> {
-  String? _selectedOperateur;
-  final _referenceController = TextEditingController();
-  bool _isLoading = false;
-  String? _error;
-
-  final List<Map<String, String>> _operateurs = [
-    {'label': 'Orange Money', 'value': 'orange_money'},
-    {'label': 'MTN Money', 'value': 'mtn_money'},
-    {'label': 'Virement Bancaire', 'value': 'virement_bancaire'},
-    {'label': 'Autre', 'value': 'autre'},
-  ];
+class _PaymentDeclareState extends ConsumerState<PaymentDeclareScreen> {
+  final _reference = TextEditingController();
+  bool _envoi = false;
 
   @override
   void dispose() {
-    _referenceController.dispose();
+    _reference.dispose();
     super.dispose();
   }
 
-  /// Valide et soumet la déclaration
-  Future<void> _declare() async {
-    // Valider les champs
-    if (_selectedOperateur == null) {
-      setState(() {
-        _error = 'Veuillez sélectionner un opérateur';
-      });
-      return;
-    }
-
-    if (_referenceController.text.isEmpty) {
-      setState(() {
-        _error = 'Veuillez entrer la référence de transaction';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
+  Future<void> _declarer() async {
+    if (_reference.text.trim().isEmpty) return afficherMessage(context, 'Saisis la référence de la transaction.');
+    setState(() => _envoi = true);
     try {
-      // La requête est signée par le client ; le serveur ne garde que la référence.
       await ref.read(cotisationsServiceProvider).declarerPaiement(
-        cotisationId: widget.cotisationId,
-        referenceTransaction: _referenceController.text,
-      );
+            cotisationId: widget.cotisationId,
+            referenceTransaction: _reference.text,
+          );
       ref.invalidate(mesCotisationsRefreshableProvider);
-
-      // Le bénéficiaire doit maintenant confirmer la réception.
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Paiement déclaré. Le bénéficiaire doit confirmer la réception.'),
-        ));
-        Navigator.pop(context, true);
-      }
-    } on ApiException catch (e) {
-      setState(() {
-        _error = e.message;
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: ${e.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      afficherMessage(context, 'Paiement déclaré. Le bénéficiaire doit confirmer la réception.');
+      Navigator.pop(context, true);
     } catch (e) {
-      setState(() {
-        _error = 'Erreur inattendue: $e';
-        _isLoading = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (mounted) afficherErreur(context, e);
+    } finally {
+      if (mounted) setState(() => _envoi = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Déclarer un Paiement'),
-        elevation: 0,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Étape
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Étape 1 de 2',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Résumé de la cotisation
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Cotisation à Payer',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Montant',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          formatAmount(widget.cotisation.montant),
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Bénéficiaire',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          widget.cotisation.beneficiaireId,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Date limite',
-                          style: TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          formatDate(widget.cotisation.dateLimite),
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Sélection opérateur
-              const Text(
-                'Opérateur de Paiement',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                value: _selectedOperateur,
-                items: _operateurs
-                    .map((op) => DropdownMenuItem(
-                          value: op['value'],
-                          child: Text(op['label']!),
-                        ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedOperateur = value;
-                    _error = null;
-                  });
-                },
-                decoration: InputDecoration(
-                  hintText: 'Choisir un opérateur',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Référence transaction
-              const Text(
-                'Référence de Transaction',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: _referenceController,
-                keyboardType: TextInputType.text,
-                decoration: InputDecoration(
-                  hintText: 'Ex: 123456789 (13 chiffres pour Mobile Money)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  errorText: _error != null && _selectedOperateur != null
-                      ? _error
-                      : null,
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Info
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: const Text(
-                  'ℹ️ Assurez-vous d\'avoir effectué le paiement avant de le déclarer. '
-                  'Vous devrez fournir une preuve à l\'étape suivante.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.blue,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 32),
-
-              // Bouton
-              AppButton(
-                label: _isLoading ? 'Déclaration en cours...' : 'Continuer',
-                onPressed: _isLoading ? null : _declare,
-                isLoading: _isLoading,
-              ),
-            ],
-          ),
+    final c = widget.cotisation;
+    return Ecran(
+      titre: 'Déclarer mon paiement',
+      enfants: [
+        Bloc(enfants: [
+          Ligne('Montant', valeur: '${formatAmount(c.montant)} FCFA'),
+          Ligne('Tour', valeur: '${c.tour}'),
+          Ligne('À payer avant le', valeur: formatDate(c.dateLimite)),
+          if (c.penaliteDue > 0) Ligne('Pénalité de retard', valeur: '${formatAmount(c.penaliteDue)} FCFA', accent: true),
+        ]),
+        const Titre('Référence'),
+        const Note(
+          'Paie le bénéficiaire par Orange Money, MTN MoMo ou en espèces, puis recopie la référence '
+          'que l’opérateur t’a envoyée par SMS. En espèces, écris par exemple « espèces, remis à Paul ».',
         ),
-      ),
+        Champ(controleur: _reference, libelle: 'Référence de la transaction', indice: 'MP241118.1532.A12345'),
+      ],
+      bas: AppButton(label: 'Déclarer le paiement', isLoading: _envoi, onPressed: _declarer),
     );
   }
 }

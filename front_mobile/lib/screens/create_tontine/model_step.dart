@@ -15,16 +15,6 @@ class ModelStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('Type de tontine'),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            const _TypeChip(label: 'Tontine classique', selected: true),
-          ],
-        ),
-        const SizedBox(height: 24),
         const SectionLabel('Choisis un modèle : les règles sont déjà prêtes'),
         const SizedBox(height: 12),
         for (final m in tontineModels) ...[
@@ -60,14 +50,14 @@ class _TypeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: selected ? AppColors.green : const Color(0xFFEBEDE7),
+        color: selected ? AppColors.textDark : Colors.white,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 12,
-          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           color: selected ? Colors.white : AppColors.textMuted,
         ),
       ),

@@ -78,7 +78,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             if (cerclesAsync.isLoading && cercles.isEmpty) const LinearProgressIndicator(),
             if (cerclesAsync.hasError)
-              Text(messageErreur(cerclesAsync.error!), style: const TextStyle(color: Colors.red)),
+              Text(messageErreur(cerclesAsync.error!), style: const TextStyle(color: AppColors.orange)),
             if (!cerclesAsync.isLoading && cercles.isEmpty && !cerclesAsync.hasError)
               const Text(
                 'Aucune tontine pour l’instant. Crées-en une ou trouve-en une ouverte.',
@@ -135,7 +135,7 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
     );
   }
 }
@@ -154,19 +154,6 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        CircleAvatar(
-          radius: 22,
-          backgroundColor: AppColors.pinkBg,
-          child: Text(
-            _initiales,
-            style: const TextStyle(
-              color: AppColors.pinkText,
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +167,7 @@ class _Header extends StatelessWidget {
               ),
               Text(
                 nom.isEmpty ? 'Bonjour.' : 'Bonjour, ${nom.split(' ').first}.',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -237,7 +224,7 @@ class _BalanceCard extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 38,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const TextSpan(
@@ -288,7 +275,7 @@ class _Stat extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontSize: 22,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -386,20 +373,12 @@ class _ActionTile extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
       child: Column(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.mint,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: AppColors.green),
-          ),
-          const SizedBox(height: 10),
+          Icon(icon, color: AppColors.textDark, size: 22),
+          const SizedBox(height: 8),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -415,9 +394,12 @@ class _PendingPaymentsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.limeSoft,
+      color: Colors.white,
       clipBehavior: Clip.antiAlias,
-      borderRadius: BorderRadius.circular(16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: const BorderSide(color: AppColors.border),
+      ),
       child: InkWell(
         onTap: () => Navigator.push(
           context,
@@ -427,33 +409,21 @@ class _PendingPaymentsBanner extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           child: Row(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.assignment_turned_in_outlined,
-                  color: AppColors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      nombre == 1 ? '1 paiement à valider' : '$nombre paiements à valider',
+                      nombre == 1 ? '1 paiement à confirmer' : '$nombre paiements à confirmer',
                       style: const TextStyle(
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        color: AppColors.orange,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
                     const Text(
-                      'À toi de confirmer la réception (onglet Cotisations, « Déclarée »)',
+                      'On t’a déclaré un paiement : confirme ce que tu as reçu.',
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textMuted,
@@ -517,7 +487,7 @@ class _NextContributionCard extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 38,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const TextSpan(
@@ -534,8 +504,7 @@ class _NextContributionCard extends StatelessWidget {
           const SizedBox(height: 12),
           StatusBadge(
             label: 'À payer avant le ${formatDate(cotisation.dateLimite)}',
-            background: AppColors.amberBg,
-            foreground: AppColors.amberText,
+            foreground: AppColors.lime,
           ),
           const SizedBox(height: 18),
           AppButton(

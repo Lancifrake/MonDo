@@ -19,8 +19,7 @@ class EcheanceCard extends StatelessWidget {
             width: 52,
             height: 56,
             decoration: BoxDecoration(
-              color: AppColors.mint,
-              borderRadius: BorderRadius.circular(12),
+              border: Border(right: BorderSide(color: AppColors.border)),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -29,16 +28,16 @@ class EcheanceCard extends StatelessWidget {
                   echeance.day,
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.darkGreen,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textDark,
                   ),
                 ),
                 Text(
                   echeance.month,
                   style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.textMuted,
                   ),
                 ),
               ],
@@ -55,7 +54,7 @@ class EcheanceCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),

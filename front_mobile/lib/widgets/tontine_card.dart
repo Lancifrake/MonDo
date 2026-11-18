@@ -3,8 +3,9 @@ import '../data/mock_data.dart';
 import '../theme/app_colors.dart';
 import '../utils/format.dart';
 import 'app_card.dart';
-import 'status_badge.dart';
 
+/// Une tontine dans « Mes tontines » : du texte, un filet, le statut en texte.
+/// Pas d'icône sur pastille ni de barre : le remplissage s'écrit en pourcentage.
 class TontineCard extends StatelessWidget {
   const TontineCard({super.key, required this.tontine, this.onTap});
 
@@ -14,103 +15,41 @@ class TontineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = tontine;
-    final toPay = t.status == PaymentStatus.aPayer;
-
+    final aPayer = t.status == PaymentStatus.aPayer;
+    final remplissage = (t.progress * 100).round();
     return AppCard(
       onTap: onTap,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.mint,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.account_balance_outlined,
-                  color: AppColors.green,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      t.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${t.frequency} · ${t.members}/${t.totalMembers} membres',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
+                child: Text(t.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textMuted),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: t.progress,
-              minHeight: 6,
-              backgroundColor: AppColors.track,
-              color: AppColors.green,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(
-                      text: formatAmount(t.amount),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const TextSpan(
-                      text: ' FCFA',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                  ],
+              Text(
+                aPayer ? 'à payer' : 'à jour',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: aPayer ? AppColors.orange : AppColors.textMuted,
                 ),
-              ),
-              const Spacer(),
-              if (t.isTreasurer) ...[
-                const StatusBadge(
-                  label: 'Trésorier',
-                  background: AppColors.blueBg,
-                  foreground: AppColors.link,
-                ),
-                const SizedBox(width: 6),
-              ],
-              StatusBadge(
-                label: toPay ? 'À payer' : 'À jour',
-                background: toPay ? AppColors.amberBg : AppColors.mint,
-                foreground: toPay ? AppColors.amberText : AppColors.green,
               ),
             ],
           ),
+          const SizedBox(height: 4),
+          Text(
+            [
+              t.frequency,
+              '${t.members} ${t.members > 1 ? 'membres' : 'membre'} sur ${t.totalMembers}',
+              if (remplissage < 100) 'rempli à $remplissage %',
+              if (t.isTreasurer) 'tu l’organises',
+            ].join(' · '),
+            style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          Text('${formatAmount(t.amount)} FCFA par tour', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         ],
       ),
     );

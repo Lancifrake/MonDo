@@ -42,7 +42,7 @@ class _MainShellState extends State<MainShell> {
           selectedItemColor: AppColors.green,
           unselectedItemColor: AppColors.textMuted,
           selectedLabelStyle:
-              const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+              const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
           items: const [
             BottomNavigationBarItem(

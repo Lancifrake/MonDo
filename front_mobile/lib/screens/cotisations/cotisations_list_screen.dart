@@ -1,502 +1,145 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../cercles/vie_cercle_screens.dart';
-import '../../providers/api_client_provider.dart';
-import '../../services/api_client.dart';
 import '../../models/api_models.dart';
-import '../../providers/auth_provider.dart';
+import '../../providers/api_client_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
-import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
-import '../../widgets/app_button.dart';
+import '../../widgets/sobre.dart';
+import '../cercles/vie_cercle_screens.dart';
 import 'payment_declare_screen.dart';
 
-/// Écran de liste des cotisations
-/// 
-/// Affiche toutes les cotisations dues de l'utilisateur,
-/// filtrées par cercle et statut.
-/// 
-/// Endpoints API utilisés:
-/// - GET /cercles (pour filtrer par cercle)
-/// - GET /cotisations?cercleId=... (liste cotisations)
+/// Mes cotisations dans toutes mes tontines : ce que je dois et ce qu'on me doit.
+/// Le payeur déclare, le bénéficiaire confirme ; MonDo ne touche jamais l'argent.
 class CotisationsListScreen extends ConsumerStatefulWidget {
   const CotisationsListScreen({super.key});
 
   @override
-  ConsumerState<CotisationsListScreen> createState() =>
-      _CotisationsListScreenState();
+  ConsumerState<CotisationsListScreen> createState() => _CotisationsState();
 }
 
-class _CotisationsListScreenState extends ConsumerState<CotisationsListScreen> {
-  String? _selectedCercleId;
-  String _selectedStatut = 'due'; // due, declaree, confirmee
+class _CotisationsState extends ConsumerState<CotisationsListScreen> {
+  String _filtre = 'action';
 
   @override
   Widget build(BuildContext context) {
-    // Récupérer les cercles de l'utilisateur pour le filtre
-    final mesCerclesAsync = ref.watch(mesCerclesRefreshableProvider);
+    final moi = ref.read(apiClientProvider).membreId;
+    final cotisations = ref.watch(mesCotisationsRefreshableProvider);
+    final noms = {for (final c in ref.watch(mesCerclesRefreshableProvider).valueOrNull ?? const <ResumeCercle>[]) c.id: c.nom};
+
+    bool aFaire(Cotisation c) =>
+        (c.payeurId == moi && c.statut == 'due') || (c.beneficiaireId == moi && c.statut == 'declaree');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mes Cotisations'),
-        elevation: 0,
-      ),
-      body: mesCerclesAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
+      appBar: AppBar(title: const Text('Cotisations')),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(mesCotisationsRefreshableProvider),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          children: [
+            Filtres(
+              choix: const {'action': 'À faire', 'due': 'Dues', 'declaree': 'Déclarées', 'confirmee': 'Confirmées'},
+              actif: _filtre,
+              onChange: (v) => setState(() => _filtre = v),
+            ),
+            const SizedBox(height: 12),
+            ...selon(cotisations, (liste) {
+              final vues = liste.where((c) => _filtre == 'action' ? aFaire(c) : c.statut == _filtre).toList();
+              if (vues.isEmpty) {
+                return [Note(_filtre == 'action' ? 'Rien à faire pour l’instant.' : 'Aucune cotisation ici.')];
+              }
+              return [for (final c in vues) _Cotisation(c: c, moi: moi, nomCercle: noms[c.cercleId])];
+            }, reessayer: () => ref.invalidate(mesCotisationsRefreshableProvider)),
+          ],
         ),
-        error: (error, stackTrace) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 64,
-                color: Colors.red.shade300,
-              ),
-              const SizedBox(height: 16),
-              Text('Erreur: $error'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () =>
-                    ref.refresh(mesCerclesRefreshableProvider),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
-        data: (resumeCercles) {
-          // Sélectionner le premier cercle par défaut
-          _selectedCercleId ??= resumeCercles.isNotEmpty ? resumeCercles.first.id : null;
-
-          return Column(
-            children: [
-              // Filtres
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Filtre cercle
-                    const Text(
-                      'Cercle',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCercleId,
-                      items: resumeCercles
-                          .map((c) => DropdownMenuItem(
-                                value: c.id,
-                                child: Text(c.nom),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCercleId = value;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Filtre statut
-                    const Text(
-                      'Statut',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _buildStatusFilter('due', 'À payer'),
-                          const SizedBox(width: 8),
-                          _buildStatusFilter('declaree', 'Déclarée'),
-                          const SizedBox(width: 8),
-                          _buildStatusFilter('confirmee', 'Confirmée'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Liste des cotisations
-              Expanded(
-                child: _selectedCercleId == null
-                    ? const Center(
-                        child: Text('Aucun cercle disponible'),
-                      )
-                    : _CotisationsListContent(
-                        cercleId: _selectedCercleId!,
-                        statut: _selectedStatut,
-                      ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatusFilter(String statut, String label) {
-    final isSelected = _selectedStatut == statut;
-
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedStatut = statut;
-          });
-        }
-      },
-      backgroundColor: Colors.grey.shade100,
-      selectedColor: Colors.blue,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
   }
 }
 
-/// Widget interne pour afficher la liste des cotisations
-class _CotisationsListContent extends ConsumerWidget {
-  final String cercleId;
-  final String statut;
+class _Cotisation extends ConsumerWidget {
+  const _Cotisation({required this.c, required this.moi, this.nomCercle});
 
-  const _CotisationsListContent({
-    required this.cercleId,
-    required this.statut,
-  });
+  final Cotisation c;
+  final String? moi;
+  final String? nomCercle;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Récupérer les cotisations filtrées
-    final cotisationsAsync = ref.watch(
-      mesCotisationsFiltreesProvider(statut),
-    );
+    final jeDois = c.payeurId == moi;
+    final (statut, ton) = switch (c.statut) {
+      'due' when jeDois => ('à payer', Ton.action),
+      'due' => ('attendue', Ton.gris),
+      'declaree' when !jeDois => ('à confirmer', Ton.action),
+      'declaree' => ('déclarée', Ton.gris),
+      'confirmee' => ('confirmée', Ton.encre),
+      _ => (c.statut, Ton.gris),
+    };
+    final details = [
+      '${jeDois ? 'Je dois' : 'On me doit'} · tour ${c.tour}',
+      if (nomCercle != null) nomCercle!,
+      'avant le ${formatDate(c.dateLimite)}',
+      if (c.penaliteDue > 0) 'pénalité ${formatAmount(c.penaliteDue)} FCFA',
+      if (c.enLitige) 'en litige',
+      if (c.referenceTransaction != null) 'réf. ${c.referenceTransaction}',
+    ].join(' · ');
 
-    return cotisationsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
-      ),
-      error: (error, stackTrace) => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red.shade300,
-            ),
-            const SizedBox(height: 16),
-            Text('Erreur: $error'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () =>
-                  ref.refresh(mesCotisationsFiltreesProvider(statut)),
-              child: const Text('Réessayer'),
-            ),
-          ],
-        ),
-      ),
-      data: (cotisations) {
-        // Filtrer par cercle sélectionné
-        final cotisationsFiltered =
-            cotisations.where((c) => c.cercleId == cercleId).toList();
-
-        if (cotisationsFiltered.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.done_all,
-                  size: 64,
-                  color: Colors.green.shade300,
-                ),
-                const SizedBox(height: 16),
-                const Text('Aucune cotisation pour ce filtre'),
-              ],
-            ),
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async {
-            ref.refresh(mesCotisationsFiltreesProvider(statut));
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: cotisationsFiltered.length,
-            itemBuilder: (context, index) {
-              final cotisation = cotisationsFiltered[index];
-              final moi = ref.read(apiClientProvider).membreId;
-              return _CotisationCard(
-                cotisation: cotisation,
-                moi: moi,
-                onConfirm: () => _confirmerReception(context, ref, cotisation),
-                onPay: () {
-                  // Naviguer vers écran de déclaration de paiement
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PaymentDeclareScreen(
-                        cotisationId: cotisation.id,
-                        cotisation: cotisation,
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
+    Widget? actions;
+    if (c.statut == 'due' && jeDois) {
+      actions = Row(children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: c))),
+            child: const Text('Mobile Money (démo)'),
           ),
-        );
-      },
-    );
-  }
-}
-
-/// Card pour afficher une cotisation
-/// Le bénéficiaire confirme avoir reçu l'argent (POST /cotisations/:id/confirmation).
-Future<void> _confirmerReception(BuildContext context, WidgetRef ref, Cotisation c) async {
-  final ok = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Confirmer la réception ?'),
-      content: Text(
-        'Tu confirmes avoir reçu ${formatAmount(c.montant)} FCFA'
-        '${c.referenceTransaction != null ? ' (référence ${c.referenceTransaction})' : ''}. '
-        'Cette confirmation est inscrite au registre.',
-      ),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Je confirme')),
-      ],
-    ),
-  );
-  if (ok != true) return;
-  try {
-    await ref.read(cotisationsServiceProvider).confirmerPaiement(cotisationId: c.id);
-    ref.invalidate(mesCotisationsRefreshableProvider);
-    ref.invalidate(mesCotisationsFiltreesProvider);
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Réception confirmée.')));
-    }
-  } catch (e) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e is ApiException ? e.message : 'Erreur : $e')),
-      );
-    }
-  }
-}
-
-class _CotisationCard extends StatelessWidget {
-  final Cotisation cotisation;
-  final String? moi;
-  final VoidCallback onPay;
-  final VoidCallback onConfirm;
-
-  const _CotisationCard({
-    required this.cotisation,
-    required this.moi,
-    required this.onPay,
-    required this.onConfirm,
-  });
-
-  bool get _jeDois => cotisation.payeurId == moi;
-
-  Color _getStatusColor(String statut) {
-    switch (statut) {
-      case 'due':
-        return Colors.red;
-      case 'declaree':
-        return Colors.orange;
-      case 'confirmee':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusLabel(String statut) {
-    switch (statut) {
-      case 'due':
-        return 'À payer';
-      case 'declaree':
-        return 'Déclarée';
-      case 'confirmee':
-        return 'Confirmée';
-      default:
-        return statut;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // En-tête avec statut
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Bénéficiaire',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        cotisation.beneficiaireId,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getStatusColor(cotisation.statut).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    _getStatusLabel(cotisation.statut),
-                    style: TextStyle(
-                      color: _getStatusColor(cotisation.statut),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Informations
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Montant',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatAmount(cotisation.montant),
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'Date limite',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textMuted,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      formatDate(cotisation.dateLimite),
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            Text(
-              _jeDois ? 'Je dois · tour ${cotisation.tour}' : 'On me doit · tour ${cotisation.tour}',
-              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
-            ),
-            const SizedBox(height: 8),
-
-            // Le bénéficiaire confirme ce que le payeur a déclaré
-            if (cotisation.statut == 'declaree' && !_jeDois)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onConfirm,
-                  child: const Text('Confirmer la réception'),
-                ),
-              ),
-
-            // Le payeur déclare son paiement
-            if (cotisation.statut == 'due' && _jeDois)
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: onPay,
-                  child: const Text("J'ai payé : déclarer"),
-                ),
-              ),
-            if (cotisation.statut == 'due' && _jeDois)
-              TextButton(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: cotisation)),
-                ),
-                child: const Text('Payer par Mobile Money (démo)'),
-              ),
-          ],
         ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => PaymentDeclareScreen(cotisationId: c.id, cotisation: c)),
+            ),
+            child: const Text('J’ai payé'),
+          ),
+        ),
+      ]);
+    } else if (c.statut == 'declaree' && !jeDois) {
+      actions = ElevatedButton(onPressed: () => _confirmer(context, ref), child: const Text('Confirmer la réception'));
+    }
+
+    return Carte(
+      titre: '${formatAmount(c.montant)} FCFA',
+      detail: details,
+      statut: statut,
+      ton: ton,
+      bas: actions,
+    );
+  }
+
+  Future<void> _confirmer(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmer la réception ?'),
+        content: Text(
+          'Tu confirmes avoir reçu ${formatAmount(c.montant)} FCFA'
+          '${c.referenceTransaction != null ? ' (référence ${c.referenceTransaction})' : ''}. '
+          'La confirmation est inscrite au registre.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Je confirme')),
+        ],
       ),
     );
+    if (ok != true) return;
+    try {
+      await ref.read(cotisationsServiceProvider).confirmerPaiement(cotisationId: c.id);
+      ref.invalidate(mesCotisationsRefreshableProvider);
+      if (context.mounted) afficherMessage(context, 'Réception confirmée.');
+    } catch (e) {
+      if (context.mounted) afficherErreur(context, e);
+    }
   }
 }

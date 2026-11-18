@@ -29,7 +29,7 @@ class WelcomeScreen extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 32,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     height: 1.15,
                   ),
                 ),
@@ -95,7 +95,7 @@ class _Logo extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontSize: 24,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -152,7 +152,7 @@ class _ValidatedCard extends StatelessWidget {
                   '50 000 FCFA',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: AppColors.textDark,
                   ),
                 ),

@@ -612,4 +612,4 @@ class _RecuperationAlerteState extends ConsumerState<RecuperationAlerteScreen> {
 }
 
 // Couleur d'accent partagée avec les autres écrans
-const accentAction = AppColors.amberText;
+const accentAction = AppColors.orange;

@@ -110,7 +110,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 24,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: 8,
                     ),
                     inputFormatters: [

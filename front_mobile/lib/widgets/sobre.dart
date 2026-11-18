@@ -25,7 +25,7 @@ class Ecran extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(titre, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        title: Text(titre, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
         backgroundColor: AppColors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -47,7 +47,7 @@ class Titre extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 20, bottom: 8),
-        child: Text(texte, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textMuted)),
+        child: Text(texte, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
       );
 }
 
@@ -100,9 +100,10 @@ class Ligne extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           child: Row(children: [
-            Expanded(child: Text(libelle, style: const TextStyle(fontSize: 15))),
+            Expanded(flex: 3, child: Text(libelle, style: const TextStyle(fontSize: 15))),
             if (valeur != null)
               Flexible(
+                flex: 2,
                 child: Text(
                   valeur!,
                   textAlign: TextAlign.right,
@@ -159,6 +160,92 @@ class Champ extends StatelessWidget {
           controller: controleur,
           keyboardType: clavier,
           decoration: InputDecoration(labelText: libelle, hintText: indice, prefixText: prefixe),
+        ),
+      );
+}
+
+/// Statut en texte seul : encre, gris si inactif, orange si une action est attendue.
+enum Ton { encre, gris, action }
+
+TextStyle styleStatut(Ton ton) => TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: switch (ton) { Ton.encre => AppColors.textDark, Ton.gris => AppColors.textMuted, Ton.action => AppColors.orange },
+    );
+
+/// Rangée de filtres : le choix actif est en encre pleine, les autres en filet.
+class Filtres extends StatelessWidget {
+  const Filtres({super.key, required this.choix, required this.actif, required this.onChange});
+
+  final Map<String, String> choix; // valeur -> libellé
+  final String actif;
+  final ValueChanged<String> onChange;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          for (final e in choix.entries)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(e.value, style: TextStyle(color: e.key == actif ? Colors.white : AppColors.textDark)),
+                selected: e.key == actif,
+                onSelected: (_) => onChange(e.key),
+              ),
+            ),
+        ]),
+      );
+}
+
+/// Contenu d'une donnée chargée : chargement, erreur lisible avec « Réessayer », puis les données.
+List<Widget> selon<T>(AsyncValue<T> v, List<Widget> Function(T) donnees, {VoidCallback? reessayer}) => v.when(
+      loading: () => const [Padding(padding: EdgeInsets.only(top: 24), child: LinearProgressIndicator())],
+      error: (e, _) => [
+        Note(messageErreur(e)),
+        if (reessayer != null) Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: reessayer, child: const Text('Réessayer'))),
+      ],
+      data: donnees,
+    );
+
+/// Carte cliquable à filet fin : un titre, une ligne de détail, un statut à droite.
+class Carte extends StatelessWidget {
+  const Carte({super.key, required this.titre, this.detail, this.statut, this.ton = Ton.encre, this.onTap, this.bas});
+
+  final String titre;
+  final String? detail;
+  final String? statut;
+  final Ton ton;
+  final VoidCallback? onTap;
+  final Widget? bas;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Material(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Expanded(child: Text(titre, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
+                  if (statut != null) ...[const SizedBox(width: 12), Text(statut!, style: styleStatut(ton))],
+                ]),
+                if (detail != null) ...[
+                  const SizedBox(height: 4),
+                  Text(detail!, style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35)),
+                ],
+                if (bas != null) ...[const SizedBox(height: 12), bas!],
+              ]),
+            ),
+          ),
         ),
       );
 }

@@ -11,13 +11,13 @@ String formatAmount(int value) {
 }
 
 /// Formate une date ISO 8601 en format lisible (ex: 15 nov 2026)
+const _moisCourts = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+
+/// Sans dépendre des données de langue d'intl (non chargées, le format échouait en silence).
 String formatDate(String isoDate) {
-  try {
-    final date = DateTime.parse(isoDate);
-    return DateFormat('d MMM yyyy', 'fr_FR').format(date);
-  } catch (e) {
-    return isoDate;
-  }
+  final d = DateTime.tryParse(isoDate)?.toLocal();
+  if (d == null) return isoDate;
+  return '${d.day} ${_moisCourts[d.month - 1]} ${d.year}';
 }
 
 /// Formate une date-heure en format relatif (ex: "il y a 2 heures")
@@ -36,7 +36,7 @@ String formatDateTimeRelative(String isoDate) {
     } else if (difference.inDays < 7) {
       return 'Il y a ${difference.inDays} j';
     } else {
-      return DateFormat('d MMM', 'fr_FR').format(dateTime);
+      return '${dateTime.toLocal().day} ${_moisCourts[dateTime.toLocal().month - 1]}';
     }
   } catch (e) {
     return isoDate;

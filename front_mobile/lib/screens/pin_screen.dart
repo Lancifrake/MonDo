@@ -155,7 +155,7 @@ class _Key extends StatelessWidget {
                   value,
                   style: const TextStyle(
                     fontSize: 24,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
         ),

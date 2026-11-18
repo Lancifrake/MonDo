@@ -38,7 +38,7 @@ class AppButton extends StatelessWidget {
                 ? BorderSide(color: borderColor!)
                 : BorderSide.none,
           ),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         child: isLoading
             ? SizedBox(

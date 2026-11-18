@@ -145,7 +145,7 @@ class ReglementStep extends ConsumerWidget {
         const SizedBox(height: 10),
         bareme.when(
           loading: () => const LinearProgressIndicator(),
-          error: (e, _) => Text('Barème indisponible : $e', style: const TextStyle(color: Colors.red)),
+          error: (e, _) => Text('Barème indisponible : $e', style: const TextStyle(color: AppColors.orange)),
           data: (liste) => _Bareme(liste: liste),
         ),
         const SizedBox(height: 16),

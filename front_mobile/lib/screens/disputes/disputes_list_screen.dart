@@ -1,372 +1,97 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
+import '../../providers/api_client_provider.dart';
 import '../../providers/litiges_provider.dart';
-import '../../theme/app_colors.dart';
-import '../../utils/format.dart';
+import '../../widgets/sobre.dart';
 import 'dispute_detail_screen.dart';
 import 'open_dispute_screen.dart';
 
-/// Écran de liste des litiges
-/// 
-/// Affiche tous les litiges de l'utilisateur (ouverts, tranchés, clos)
-/// avec possibilité de filtrer par statut.
-/// 
-/// Endpoints API utilisés:
-/// - GET /litiges/miens (récupérer mes litiges)
+/// Texte d'une décision de litige.
+String decisionLitige(String? d) => switch (d) {
+      'paiement_valide' => 'paiement reconnu',
+      'paiement_refuse' => 'paiement non reconnu',
+      'confirme_par_beneficiaire' => 'confirmé par le bénéficiaire',
+      null => 'en attente',
+      _ => d,
+    };
+
+/// Mes litiges : un paiement déclaré que le bénéficiaire ne confirme pas.
+/// Seul un administrateur MonDo tranche.
 class DisputesListScreen extends ConsumerStatefulWidget {
   const DisputesListScreen({super.key});
 
   @override
-  ConsumerState<DisputesListScreen> createState() =>
-      _DisputesListScreenState();
+  ConsumerState<DisputesListScreen> createState() => _DisputesState();
 }
 
-class _DisputesListScreenState extends ConsumerState<DisputesListScreen> {
-  String _selectedFilter = 'all'; // all, ouvert, tranche, clos
+class _DisputesState extends ConsumerState<DisputesListScreen> {
+  String _filtre = 'tous';
 
   @override
   Widget build(BuildContext context) {
-    // Récupérer mes litiges
-    final litiquesAsync = ref.watch(mesLitigesRefreshableProvider);
-
+    final litiges = ref.watch(mesLitigesRefreshableProvider);
+    final moi = ref.read(apiClientProvider).membreId;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mes Litiges'),
-        elevation: 0,
+        title: const Text('Litiges'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const OpenDisputeScreen(),
-                ),
-              );
+          TextButton(
+            onPressed: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const OpenDisputeScreen()));
+              ref.invalidate(mesLitigesRefreshableProvider);
             },
+            child: const Text('Ouvrir'),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filtres
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('all', 'Tous'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('ouvert', 'Ouverts'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('tranche', 'Tranchés'),
-                  const SizedBox(width: 8),
-                  _buildFilterChip('clos', 'Clos'),
-                ],
-              ),
+      body: RefreshIndicator(
+        onRefresh: () async => ref.invalidate(mesLitigesRefreshableProvider),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          children: [
+            Filtres(
+              choix: const {'tous': 'Tous', 'ouvert': 'En cours', 'tranche': 'Tranchés', 'clos': 'Clos'},
+              actif: _filtre,
+              onChange: (v) => setState(() => _filtre = v),
             ),
-          ),
-
-          // Liste des litiges
-          Expanded(
-            child: litiquesAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stackTrace) => Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Colors.red.shade300,
-                    ),
-                    const SizedBox(height: 16),
-                    Text('Erreur: $error'),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () =>
-                          ref.refresh(mesLitigesRefreshableProvider),
-                      child: const Text('Réessayer'),
-                    ),
-                  ],
-                ),
-              ),
-              data: (litiges) {
-                // Filtrer les litiges
-                final filtered = litiges.where((l) {
-                  if (_selectedFilter == 'all') {
-                    return true;
-                  }
-                  return l.statut == _selectedFilter;
-                }).toList();
-
-                if (filtered.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.done_outline,
-                          size: 64,
-                          color: Colors.green.shade300,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          _selectedFilter == 'all'
-                              ? 'Aucun litige'
-                              : 'Aucun litige $_selectedFilter',
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    ref.refresh(mesLitigesRefreshableProvider);
-                  },
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: filtered.length,
-                    itemBuilder: (context, index) {
-                      final litige = filtered[index];
-                      return _LitigeCard(
-                        litige: litige,
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => DisputeDetailScreen(
-                                litigeId: litige.id,
-                              ),
-                            ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String value, String label) {
-    final isSelected = _selectedFilter == value;
-
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        if (selected) {
-          setState(() {
-            _selectedFilter = value;
-          });
-        }
-      },
-      backgroundColor: Colors.grey.shade100,
-      selectedColor: Colors.blue,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            const SizedBox(height: 12),
+            ...selon(litiges, (liste) {
+              final vus = liste.where((l) => _filtre == 'tous' || l.statut == _filtre).toList();
+              if (vus.isEmpty) {
+                return const [
+                  Note('Aucun litige. Si un bénéficiaire ne confirme pas ton paiement sous 48 h, tu peux en ouvrir un.'),
+                ];
+              }
+              return [for (final l in vus) _Litige(l: l, moi: moi)];
+            }, reessayer: () => ref.invalidate(mesLitigesRefreshableProvider)),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Card pour afficher un litige
-class _LitigeCard extends StatelessWidget {
-  final Litige litige;
-  final VoidCallback onTap;
+class _Litige extends StatelessWidget {
+  const _Litige({required this.l, required this.moi});
 
-  const _LitigeCard({
-    required this.litige,
-    required this.onTap,
-  });
-
-  Color _getStatusColor(String statut) {
-    switch (statut) {
-      case 'ouvert':
-        return Colors.red;
-      case 'tranche':
-        return Colors.orange;
-      case 'clos':
-        return Colors.green;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusLabel(String statut) {
-    switch (statut) {
-      case 'ouvert':
-        return 'Ouvert';
-      case 'tranche':
-        return 'Tranché';
-      case 'clos':
-        return 'Clos';
-      default:
-        return statut;
-    }
-  }
+  final Litige l;
+  final String? moi;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // En-tête
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Motif',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          litige.motif,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getStatusColor(litige.statut).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _getStatusLabel(litige.statut),
-                      style: TextStyle(
-                        color: _getStatusColor(litige.statut),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-
-              // Détails
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Ouvert par',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        litige.ouvertPar.substring(0, 12) + '...',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      const Text(
-                        'Date d\'ouverture',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        formatDate(litige.ouvertLe),
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Décision si tranchée
-              if (litige.statut != 'ouvert' && litige.decision != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Décision',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppColors.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        litige.decision!,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+    final (statut, ton) = switch (l.statut) {
+      'ouvert' => ('en examen', Ton.action),
+      'tranche' => (decisionLitige(l.decision), Ton.encre),
+      'clos' => ('clos', Ton.gris),
+      _ => (l.statut, Ton.gris),
+    };
+    return Carte(
+      titre: l.payeurId == moi ? 'Mon paiement contesté' : 'Paiement qu’on me déclare',
+      detail: '${l.motif}\nOuvert le ${dateCourte(l.ouvertLe)}',
+      statut: statut,
+      ton: ton,
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DisputeDetailScreen(litigeId: l.id))),
     );
   }
 }

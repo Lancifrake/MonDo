@@ -107,7 +107,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ),
                         child: const Text(
                           '+237',
-                          style: TextStyle(fontWeight: FontWeight.w700),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -164,7 +164,7 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
     );
   }
 }

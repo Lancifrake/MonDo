@@ -81,9 +81,9 @@ void main() {
 
     // Fiche de la tontine : compléter avec des membres fictifs, puis le registre
     await t.tap(find.textContaining('Tontine de 10').first);
-    await attendre(t, find.text('Démo : compléter avec des membres fictifs'));
-    await t.ensureVisible(find.text('Démo : compléter avec des membres fictifs'));
-    await t.tap(find.text('Démo : compléter avec des membres fictifs'));
+    await attendre(t, find.text('Démo : remplir avec des fictifs'));
+    await t.ensureVisible(find.text('Démo : remplir avec des fictifs'));
+    await t.tap(find.text('Démo : remplir avec des fictifs'));
     await attendre(t, find.text('Registre et preuve d’intégrité'));
     await t.ensureVisible(find.text('Registre et preuve d’intégrité'));
     await t.tap(find.text('Registre et preuve d’intégrité'));
