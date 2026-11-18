@@ -26,7 +26,7 @@ Le serveur fait maintenant tourner tout le cycle de vie d'un cercle : création,
 |---|---|---|
 | 1 | Modèle de frais | **A** : les places de la zone de début paient des frais sur la cagnotte, 8 % pour la place 1, dégressif jusqu'à 0 % à la première place du milieu ; le milieu ne paie rien ; les places de fin reçoivent une remise |
 | 2 | Partage | moitié MonDo, moitié places de fin |
-| 3 | Encaissement | MonDo ne touche jamais l'argent des membres : après réception de sa cagnotte, le bénéficiaire paie sa part à MonDo par Mobile Money, suivie comme une cotisation (due, déclarée, confirmée) |
+| 3 | Encaissement | MonDo ne touche jamais l'argent des membres : le bénéficiaire paie sa part à MonDo par Mobile Money, suivie comme une cotisation (due, déclarée, confirmée). **Changé le 19/11 : AVANT la cagnotte, plus après** (voir « Frais payés avant la cagnotte » ci-dessous) |
 | 4 | Plafond pour les nouveaux | **pas de plafond** de cagnotte |
 | 5 | Reculer, échanger | échange de places après complétion : gratuit au prototype, signé par les deux, expire à 48 h, jamais plus tôt que ce que permet le score, suspendu si un des comptes est en récupération |
 | 6 | Mode d'ordre | « le score ouvre, le membre choisit » partout ; en cercle privé, l'organisateur peut fixer l'ordre lui-même dans le règlement, chacun le signe en le connaissant ; pas de tirage au sort |
@@ -43,7 +43,7 @@ Notations : N membres, montant M par cotisation, cagnotte nominale C = (N − 1)
 2. **Montants entiers, arrondis en faveur de celui qui paie.** Part de MonDo = partie entière de la moitié des frais. Remise versée à chaque place de fin = partie entière de (moitié des frais / d). Les frais réellement dus sont la somme de ces parts : l'arrondi ne les augmente jamais.
 3. **Chiffrés dans le règlement signé.** Le règlement porte le barème en francs, place par place (frais, part de MonDo, remise par place de fin). Le serveur refuse un règlement dont le barème ne correspond pas au calcul. Chaque membre signe donc des montants, pas une formule. Les cercles créés avant cette règle, sans barème, n'ont pas de frais.
 4. **Qui paie quoi.** Proposition appliquée, à confirmer : la remise est répartie à parts égales entre les places de fin, et chaque bénéficiaire de tête la verse directement à chacun des membres concernés. Le bénéficiaire de la place p doit donc d + 1 sommes : une à MonDo, une à chaque membre d'une place de fin.
-5. **Quand.** Les sommes sont créées quand le cercle est complet. Elles sont exigibles à la date limite du tour du bénéficiaire (le jour de sa cagnotte) et à régler au plus tard à la date limite du tour suivant.
+5. **Quand.** Les sommes sont créées quand le cercle est complet. Depuis le 19/11 elles sont exigibles AVANT la cagnotte : dès que le cercle est complet pour la place 1, à la date limite du tour précédent pour les autres, et à régler au plus tard à la date limite du tour du bénéficiaire (voir ci-dessous).
 6. **Suivi.** Chaque somme suit les états d'une cotisation : due, déclarée par celui qui paie (référence Mobile Money), confirmée par celui qui reçoit. Un Administrateur confirme la part de MonDo, sans jamais être celui qui la doit.
 7. **Ce que MonDo ne fait pas.** MonDo ne retient rien, ne prélève rien et ne détient rien : il suit des paiements faits hors de lui. Sa propre part arrive sur son compte Mobile Money marchand comme un paiement de service.
 
@@ -196,3 +196,15 @@ Ils ne touchent pas aux règles, mais bloquent un pilote réel :
 3. Questions 5, 6 et 7 : elles débloquent les échanges de place.
 4. Questions 8, 9 et 11.
 5. Question 10, avec le juriste, avant tout pilote réel.
+
+## Frais payés avant la cagnotte (décision de David du 19/11)
+Les frais de place étaient payés après la cagnotte : un bénéficiaire qui ne payait pas gardait sa cagnotte et MonDo perdait ses frais (hypothèse prudente du plan financier : 85 % encaissés). Ils sont désormais payés avant, ce qui ramène le recouvrement du plan à 100 %.
+
+1. **Exigibilité.** Les frais de la place 1 sont exigibles dès que le cercle est complet. Ceux de la place k le sont à la date limite du tour k − 1. Date limite de règlement : celle du tour du bénéficiaire.
+2. **Tour fermé.** Tant que la part de MonDo du bénéficiaire n'est pas confirmée par un Administrateur, ou que l'une de ses remises reste non déclarée, personne ne peut déclarer une cotisation vers lui : le serveur répond 400 « Le bénéficiaire n'a pas encore réglé ses frais de place ».
+3. **Les payeurs ne sont pas punis.** Un tour fermé n'est ni rappelé, ni compté en retard, ni en défaut. Quand le tour s'ouvre, les cotisations encore dues reçoivent une nouvelle date limite (maintenant) et la même durée de grâce.
+4. **Échange de places.** Refusé dès que des frais de l'une des deux places sont déclarés ou réglés ; comme ils se paient maintenant très tôt, l'échange doit se faire avant.
+5. **Départ.** Inchangé : libre avant d'avoir reçu, refusé après. Un membre d'une place de fin qui part rend les remises qu'il a déjà reçues ; les frais déjà versés à MonDo ne sont pas remboursés (à confirmer).
+6. **Démonstration.** Les membres fictifs règlent leurs frais de place d'avance, pour que le membre réel puisse payer.
+
+Non couvert, à décider : un bénéficiaire qui ne paie jamais ses frais bloque son tour sans conséquence sur son score ; une pénalité ou un défaut pour frais impayés n'est pas codé. Le remboursement à MonDo de frais déjà payés par un membre qui part avant de recevoir n'est pas défini.
