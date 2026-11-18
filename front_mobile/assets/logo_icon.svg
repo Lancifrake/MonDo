@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <!-- Dark teal background -->
+  <rect width="192" height="192" fill="#1a3a36"/>
+  
+  <!-- Top left white circle -->
+  <circle cx="48" cy="48" r="24" fill="#f5f5f5"/>
+  
+  <!-- Top center: white outer + lime green inner (focus) -->
+  <circle cx="96" cy="48" r="36" fill="#f5f5f5"/>
+  <circle cx="96" cy="48" r="28" fill="#c8ff00"/>
+  
+  <!-- Top right white circle -->
+  <circle cx="144" cy="48" r="24" fill="#f5f5f5"/>
+  
+  <!-- Middle left white circle -->
+  <circle cx="24" cy="96" r="24" fill="#f5f5f5"/>
+  
+  <!-- Middle right white circle -->
+  <circle cx="168" cy="96" r="24" fill="#f5f5f5"/>
+  
+  <!-- Bottom left white circle -->
+  <circle cx="48" cy="144" r="24" fill="#f5f5f5"/>
+  
+  <!-- Bottom center white circle -->
+  <circle cx="96" cy="168" r="24" fill="#f5f5f5"/>
+  
+  <!-- Bottom right white circle -->
+  <circle cx="144" cy="144" r="24" fill="#f5f5f5"/>
+</svg>
