@@ -91,3 +91,10 @@ final mesCerclesRefreshableProvider =
   final cerclesService = ref.watch(cerclesServiceProvider);
   return cerclesService.getMesCercles();
 });
+
+/// Barème des frais pour un montant et un nombre de membres (GET /cercles/bareme).
+final baremeProvider =
+    FutureProvider.family<List<FraisPlace>, ({int nombreMembres, int montant})>((ref, p) {
+  if (p.montant <= 0) return Future.value(const <FraisPlace>[]);
+  return ref.watch(cerclesServiceProvider).getBareme(nombreMembres: p.nombreMembres, montant: p.montant);
+});

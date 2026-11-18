@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/cercles_provider.dart';
 import '../../data/tontine_draft.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/app_bar.dart';
@@ -7,40 +10,72 @@ import '../../widgets/bottom_bar.dart';
 import '../../widgets/step_progress.dart';
 import 'info_step.dart';
 import 'model_step.dart';
+import 'reglement_step.dart';
 
-class CreateTontineScreen extends StatefulWidget {
+class CreateTontineScreen extends ConsumerStatefulWidget {
   const CreateTontineScreen({super.key});
 
   @override
-  State<CreateTontineScreen> createState() => _CreateTontineScreenState();
+  ConsumerState<CreateTontineScreen> createState() => _CreateTontineScreenState();
 }
 
-class _CreateTontineScreenState extends State<CreateTontineScreen> {
+class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
   final _draft = TontineDraft();
+  bool _envoi = false;
   int _step = 0; // 0 = étape 1
 
-  // Le choix « tout régler moi-même » ajoute deux étapes
-  int get _totalSteps => _draft.customAll ? 8 : 6;
+  static const _totalSteps = 3;
+  bool get _derniere => _step == _totalSteps - 1;
 
   String get _title => switch (_step) {
         0 => 'Ton modèle',
         1 => 'Ta tontine',
-        _ => 'À venir',
+        _ => 'Ton règlement',
       };
 
-  // Le bouton Continuer est grisé tant que l'étape n'est pas valide
+  // Le bouton est grisé tant que l'étape n'est pas valide
   bool get _canContinue {
-    if (_step == 1) return _draft.name.trim().isNotEmpty;
-    return true;
+    if (_step == 1) return _draft.montant > 0;
+    return !_envoi;
+  }
+
+  /// Signe le règlement et crée la tontine (POST /cercles).
+  Future<void> _creer() async {
+    setState(() => _envoi = true);
+    try {
+      final d = _draft;
+      await ref.read(cerclesServiceProvider).createCercle(
+            montant: d.montant,
+            frequence: d.frequence,
+            nombreMembres: d.nombreMembres,
+            ouvert: !d.isPrivate,
+            datePremierTour: d.datePremierTour,
+            penaliteRetard: d.penaliteRetard,
+            delaiGraceJours: d.delaiGraceJours,
+          );
+      ref.invalidate(mesCerclesRefreshableProvider);
+      ref.invalidate(catalogueCerclesProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tontine créée. Invite tes membres pour la compléter.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+    } finally {
+      if (mounted) setState(() => _envoi = false);
+    }
   }
 
   void _refresh() => setState(() {});
 
   void _next() {
-    if (_step < _totalSteps - 1) {
+    if (_derniere) {
+      _creer();
+    } else {
       setState(() => _step++);
     }
-    // Dernière étape : la création de la tontine viendra plus tard
   }
 
   void _back() {
@@ -54,10 +89,7 @@ class _CreateTontineScreenState extends State<CreateTontineScreen> {
       case 1:
         return InfoStep(draft: _draft, onChanged: _refresh);
       default:
-        return const Text(
-          'Cette étape arrive bientôt.',
-          style: TextStyle(color: AppColors.textMuted, fontSize: 16),
-        );
+        return ReglementStep(draft: _draft, onChanged: _refresh);
     }
   }
 
@@ -129,8 +161,9 @@ class _CreateTontineScreenState extends State<CreateTontineScreen> {
                   Expanded(
                     flex: 3,
                     child: AppButton(
-                      label: 'Continuer',
+                      label: _derniere ? 'Signer et créer' : 'Continuer',
                       onPressed: _canContinue ? _next : null,
+                      isLoading: _envoi,
                     ),
                   ),
                 ],

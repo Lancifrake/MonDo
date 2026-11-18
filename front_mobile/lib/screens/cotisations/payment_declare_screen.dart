@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
 import '../../providers/cotisations_provider.dart';
 import '../../services/api_client.dart';
-import '../../services/crypto_service.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
-import 'payment_confirmation_screen.dart';
 
 /// Écran de déclaration de paiement (étape 1/2)
 /// 
@@ -72,32 +70,19 @@ class _PaymentDeclareScreenState extends ConsumerState<PaymentDeclareScreen> {
     });
 
     try {
-      // Signer la requête
-      // Note: En production, vérifier la signature avec la clé privée
-      final signature = 'mock_signature'; // TODO: Signer réellement
-
-      // Appeler l'API pour déclarer le paiement
-      final cotisationsService =
-          ref.read(cotisationsServiceProvider);
-      final updatedCotisation =
-          await cotisationsService.declarerPaiement(
+      // La requête est signée par le client ; le serveur ne garde que la référence.
+      await ref.read(cotisationsServiceProvider).declarerPaiement(
         cotisationId: widget.cotisationId,
-        methode: _selectedOperateur!,
         referenceTransaction: _referenceController.text,
-        signature: signature,
       );
+      ref.invalidate(mesCotisationsRefreshableProvider);
 
-      // Naviguer vers la confirmation
+      // Le bénéficiaire doit maintenant confirmer la réception.
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PaymentConfirmationScreen(
-              cotisationId: widget.cotisationId,
-              cotisation: updatedCotisation,
-            ),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Paiement déclaré. Le bénéficiaire doit confirmer la réception.'),
+        ));
+        Navigator.pop(context, true);
       }
     } on ApiException catch (e) {
       setState(() {

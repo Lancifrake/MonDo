@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/api_client_provider.dart';
+import '../../services/api_client.dart';
 import '../../models/api_models.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/cercles_provider.dart';
@@ -249,8 +251,11 @@ class _CotisationsListContent extends ConsumerWidget {
             itemCount: cotisationsFiltered.length,
             itemBuilder: (context, index) {
               final cotisation = cotisationsFiltered[index];
+              final moi = ref.read(apiClientProvider).membreId;
               return _CotisationCard(
                 cotisation: cotisation,
+                moi: moi,
+                onConfirm: () => _confirmerReception(context, ref, cotisation),
                 onPay: () {
                   // Naviguer vers écran de déclaration de paiement
                   Navigator.push(
@@ -273,14 +278,54 @@ class _CotisationsListContent extends ConsumerWidget {
 }
 
 /// Card pour afficher une cotisation
+/// Le bénéficiaire confirme avoir reçu l'argent (POST /cotisations/:id/confirmation).
+Future<void> _confirmerReception(BuildContext context, WidgetRef ref, Cotisation c) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Confirmer la réception ?'),
+      content: Text(
+        'Tu confirmes avoir reçu ${formatAmount(c.montant)} FCFA'
+        '${c.referenceTransaction != null ? ' (référence ${c.referenceTransaction})' : ''}. '
+        'Cette confirmation est inscrite au registre.',
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Je confirme')),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  try {
+    await ref.read(cotisationsServiceProvider).confirmerPaiement(cotisationId: c.id);
+    ref.invalidate(mesCotisationsRefreshableProvider);
+    ref.invalidate(mesCotisationsFiltreesProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Réception confirmée.')));
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e is ApiException ? e.message : 'Erreur : $e')),
+      );
+    }
+  }
+}
+
 class _CotisationCard extends StatelessWidget {
   final Cotisation cotisation;
+  final String? moi;
   final VoidCallback onPay;
+  final VoidCallback onConfirm;
 
   const _CotisationCard({
     required this.cotisation,
+    required this.moi,
     required this.onPay,
+    required this.onConfirm,
   });
+
+  bool get _jeDois => cotisation.payeurId == moi;
 
   Color _getStatusColor(String statut) {
     switch (statut) {
@@ -415,8 +460,24 @@ class _CotisationCard extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Bouton payer (si status = due)
-            if (cotisation.statut == 'due')
+            Text(
+              _jeDois ? 'Je dois · tour ${cotisation.tour}' : 'On me doit · tour ${cotisation.tour}',
+              style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 8),
+
+            // Le bénéficiaire confirme ce que le payeur a déclaré
+            if (cotisation.statut == 'declaree' && !_jeDois)
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: onConfirm,
+                  child: const Text('Confirmer la réception'),
+                ),
+              ),
+
+            // Le payeur déclare son paiement
+            if (cotisation.statut == 'due' && _jeDois)
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -425,7 +486,7 @@ class _CotisationCard extends StatelessWidget {
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Payer Maintenant'),
+                  child: const Text("J'ai payé : déclarer"),
                 ),
               ),
           ],

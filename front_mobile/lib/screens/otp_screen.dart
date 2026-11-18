@@ -1,22 +1,26 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/bottom_bar.dart';
 import 'pin_screen.dart';
 
-class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key, required this.phone});
+class OtpScreen extends ConsumerStatefulWidget {
+  const OtpScreen({super.key, required this.phone, required this.nom});
 
   final String phone;
+  final String nom;
 
   @override
-  State<OtpScreen> createState() => _OtpScreenState();
+  ConsumerState<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpScreenState extends State<OtpScreen> {
+class _OtpScreenState extends ConsumerState<OtpScreen> {
+  bool _envoi = false;
   final _codeCtrl = TextEditingController();
   Timer? _timer;
   int _seconds = 30;
@@ -46,11 +50,36 @@ class _OtpScreenState extends State<OtpScreen> {
     super.dispose();
   }
 
-  void _verify() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PinScreen()),
-    );
+  /// Le code SMS est vérifié par le serveur DANS l'inscription (POST /comptes).
+  Future<void> _verify() async {
+    setState(() => _envoi = true);
+    try {
+      await ref.read(authStateProvider.notifier).signup(
+            phoneNumber: '+237${widget.phone}',
+            nom: widget.nom,
+            otp: _codeCtrl.text,
+          );
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PinScreen()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+    } finally {
+      if (mounted) setState(() => _envoi = false);
+    }
+  }
+
+  Future<void> _renvoyer() async {
+    setState(_startTimer);
+    try {
+      await ref.read(authStateProvider.notifier).requestOtp('+237${widget.phone}');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+    }
   }
 
   @override
@@ -90,11 +119,6 @@ class _OtpScreenState extends State<OtpScreen> {
                     ],
                     onChanged: (_) => setState(() {}),
                   ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    "Aperçu : n'importe quel code à 6 chiffres est accepté.",
-                    style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-                  ),
                   const SizedBox(height: 24),
                   Center(
                     child: _seconds > 0
@@ -103,7 +127,7 @@ class _OtpScreenState extends State<OtpScreen> {
                             style: const TextStyle(color: AppColors.textMuted),
                           )
                         : TextButton(
-                            onPressed: () => setState(_startTimer),
+                            onPressed: _renvoyer,
                             child: const Text('Renvoyer le code'),
                           ),
                   ),
@@ -115,6 +139,7 @@ class _OtpScreenState extends State<OtpScreen> {
             child: AppButton(
               label: 'Vérifier',
               onPressed: _codeCtrl.text.length == 6 ? _verify : null,
+              isLoading: _envoi,
             ),
           ),
         ],

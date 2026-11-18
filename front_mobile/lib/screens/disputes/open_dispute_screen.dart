@@ -69,7 +69,9 @@ class _OpenDisputeScreenState extends ConsumerState<OpenDisputeScreen> {
             ],
           ),
         ),
-        data: (cotisations) {
+        data: (toutes) {
+          // Un litige ne s'ouvre que sur un paiement DÉCLARÉ et pas encore confirmé.
+          final cotisations = toutes.where((c) => c.statut == 'declaree').toList();
           return SingleChildScrollView(
             child: Padding(
               padding: const EdgeInsets.all(24.0),

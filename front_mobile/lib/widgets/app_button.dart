@@ -9,6 +9,7 @@ class AppButton extends StatelessWidget {
     this.background = AppColors.green,
     this.foreground = Colors.white,
     this.borderColor,
+    this.isLoading = false,
   });
 
   final String label;
@@ -16,6 +17,7 @@ class AppButton extends StatelessWidget {
   final Color background;
   final Color foreground;
   final Color? borderColor;
+  final bool isLoading; // affiche une roue et bloque le bouton
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +25,7 @@ class AppButton extends StatelessWidget {
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: onPressed,
+        onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: background,
           foregroundColor: foreground,
@@ -38,7 +40,13 @@ class AppButton extends StatelessWidget {
           ),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
-        child: Text(label),
+        child: isLoading
+            ? SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2.5, color: foreground),
+              )
+            : Text(label),
       ),
     );
   }

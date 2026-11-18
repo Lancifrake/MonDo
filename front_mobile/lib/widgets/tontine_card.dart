@@ -6,9 +6,10 @@ import 'app_card.dart';
 import 'status_badge.dart';
 
 class TontineCard extends StatelessWidget {
-  const TontineCard({super.key, required this.tontine});
+  const TontineCard({super.key, required this.tontine, this.onTap});
 
   final Tontine tontine;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -16,7 +17,7 @@ class TontineCard extends StatelessWidget {
     final toPay = t.status == PaymentStatus.aPayer;
 
     return AppCard(
-      onTap: () {}, // détail de la tontine à venir
+      onTap: onTap,
       child: Column(
         children: [
           Row(

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/auth_provider.dart';
+import '../welcome_screen.dart';
 import '../../models/api_models.dart';
 import '../../providers/score_provider.dart';
 import '../../theme/app_colors.dart';
@@ -17,8 +19,6 @@ class ScoreScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Récupérer le score de l'utilisateur
-    // TODO: Remplacer par vraie implémentation - utiliser l'ID du membre connecté
     final monScoreAsync = ref.watch(monScoreRefreshableProvider);
 
     return Scaffold(
@@ -29,6 +29,34 @@ class ScoreScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => ref.refresh(monScoreRefreshableProvider),
+          ),
+          IconButton(
+            tooltip: 'Se déconnecter (efface la clé de ce téléphone)',
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Se déconnecter ?'),
+                  content: const Text(
+                    'La clé de ce téléphone sera effacée. Sans code secret de récupération, '
+                    'tu ne pourras plus accéder à ce compte.',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Effacer')),
+                  ],
+                ),
+              );
+              if (ok != true) return;
+              await ref.read(authStateProvider.notifier).logout();
+              if (context.mounted) {
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                  (route) => false,
+                );
+              }
+            },
           ),
         ],
       ),
@@ -247,7 +275,7 @@ class _ScoreExplanation extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        if (score.explication != null)
+        if (score.explication.isNotEmpty)
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -256,7 +284,7 @@ class _ScoreExplanation extends StatelessWidget {
               border: Border.all(color: Colors.blue.shade200),
             ),
             child: Text(
-              score.explication!,
+              score.explication.join('\n'),
               style: const TextStyle(
                 fontSize: 13,
                 color: Colors.blue,
@@ -400,8 +428,8 @@ class _EvenementCard extends StatelessWidget {
   const _EvenementCard({required this.event});
 
   Color _getDeltaColor() {
-    if (event.delta > 0) return Colors.green;
-    if (event.delta < 0) return Colors.red;
+    if (event.points > 0) return Colors.green;
+    if (event.points < 0) return Colors.red;
     return Colors.grey;
   }
 
@@ -447,7 +475,7 @@ class _EvenementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final deltaColor = _getDeltaColor();
-    final isPositive = event.delta > 0;
+    final isPositive = event.points > 0;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -490,7 +518,7 @@ class _EvenementCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  formatDateTimeRelative(event.creeLe),
+                  formatDateTimeRelative(event.date),
                   style: const TextStyle(
                     fontSize: 11,
                     color: AppColors.textMuted,
@@ -511,7 +539,7 @@ class _EvenementCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
-              '${isPositive ? '+' : ''}${event.delta}',
+              '${isPositive ? '+' : ''}${event.points}',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,

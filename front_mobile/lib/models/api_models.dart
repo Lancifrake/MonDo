@@ -3,23 +3,23 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'api_models.freezed.dart';
 part 'api_models.g.dart';
 
+// Les champs suivent EXACTEMENT les réponses du serveur (camelCase), relevées
+// sur un vrai serveur le 18/11 : voir docs/conception/api.md.
+// Les getters marqués « affichage » ne viennent pas du serveur : ils servent les écrans.
+
 // ============================================================================
-// AUTHENTIFICATION & COMPTES
+// COMPTES
 // ============================================================================
 
-/// Réponse OTP du serveur
+/// POST /comptes/otp
 @freezed
 class OtpResponse with _$OtpResponse {
-  const factory OtpResponse({
-    @JsonKey(name: 'codeExpirez') required String? codeExpirez,
-    @JsonKey(name: 'codeEnvoyeLe') required String? codeEnvoyeLe,
-  }) = _OtpResponse;
+  const factory OtpResponse({String? expireLe}) = _OtpResponse;
 
-  factory OtpResponse.fromJson(Map<String, dynamic> json) =>
-      _$OtpResponseFromJson(json);
+  factory OtpResponse.fromJson(Map<String, dynamic> json) => _$OtpResponseFromJson(json);
 }
 
-/// Réponse d'inscription
+/// POST /comptes
 @freezed
 class InscriptionResponse with _$InscriptionResponse {
   const factory InscriptionResponse({
@@ -33,7 +33,7 @@ class InscriptionResponse with _$InscriptionResponse {
       _$InscriptionResponseFromJson(json);
 }
 
-/// Profil du compte connecté
+/// GET /comptes/moi
 @freezed
 class Compte with _$Compte {
   const factory Compte({
@@ -43,99 +43,147 @@ class Compte with _$Compte {
     required int niveau,
   }) = _Compte;
 
-  factory Compte.fromJson(Map<String, dynamic> json) =>
-      _$CompteFromJson(json);
+  factory Compte.fromJson(Map<String, dynamic> json) => _$CompteFromJson(json);
 }
 
 // ============================================================================
-// CERCLES (TONTINES)
+// CERCLES (le serveur dit « cercle », l'écran dit « tontine »)
 // ============================================================================
 
-/// Réglement d'un cercle
+/// Frais d'une place (GET /cercles/bareme), recopiés tels quels dans le règlement.
+@freezed
+class FraisPlace with _$FraisPlace {
+  const factory FraisPlace({
+    required int place,
+    required int frais,
+    required int partMonDo,
+    required int remiseParPlaceDeFin,
+  }) = _FraisPlace;
+
+  factory FraisPlace.fromJson(Map<String, dynamic> json) => _$FraisPlaceFromJson(json);
+}
+
+/// Règlement signé par l'organisateur : rien ne s'y modifie après la signature.
 @freezed
 class Reglement with _$Reglement {
   const factory Reglement({
     required int montant,
-    required String frequence, // "hebdomadaire", "mensuelle", etc.
+    required String frequence, // hebdomadaire, mensuelle, jours
+    int? periodeJours,
     required int nombreMembres,
-    @JsonKey(name: 'penaliteRetard') int? penaliteRetard,
-    @JsonKey(name: 'delaiGraceJours') int? delaiGraceJours,
-    @JsonKey(name: 'ordreFixe') List<String>? ordreFixe,
-    @JsonKey(name: 'scoreMinimum') int? scoreMinimum,
-    bool? ouvert,
+    required int penaliteRetard,
+    required int delaiGraceJours,
+    required bool ouvert,
+    required String datePremierTour,
+    required List<FraisPlace> bareme,
+    List<int>? rappelsAvantEcheanceJours,
+    int? scoreMinimum,
+    List<String>? ordreFixe,
+    bool? parrainageAccepte,
   }) = _Reglement;
 
-  factory Reglement.fromJson(Map<String, dynamic> json) =>
-      _$ReglementFromJson(json);
+  factory Reglement.fromJson(Map<String, dynamic> json) => _$ReglementFromJson(json);
 }
 
-/// Cercle (Tontine)
+/// Une place dans l'ordre de passage (membres du cercle seulement).
+@freezed
+class PlaceOrdre with _$PlaceOrdre {
+  const factory PlaceOrdre({
+    required String membreId,
+    required int position,
+    String? zone,
+    int? placeSouhaitee,
+  }) = _PlaceOrdre;
+
+  factory PlaceOrdre.fromJson(Map<String, dynamic> json) => _$PlaceOrdreFromJson(json);
+}
+
+/// GET /cercles/:id, GET /cercles/catalogue, POST /cercles.
+/// `membres` et `ordre` ne sont donnés qu'aux membres du cercle.
 @freezed
 class Cercle with _$Cercle {
   const factory Cercle({
     required String id,
-    @JsonKey(name: 'organisateurId') required String organisateurId,
+    String? organisateurId,
     required Reglement reglement,
-    @JsonKey(name: 'empreinteReglement') String? empreinteReglement,
-    required List<String> membres,
+    String? empreinteReglement,
+    @Default(<String>[]) List<String> membres,
     List<String>? partis,
-    required String statut, // "en_attente", "complet", "termine"
-    List<dynamic>? ordre,
-    @JsonKey(name: 'termineLe') String? termineLe,
-    String? nom,
-    String? description,
+    required String statut, // en_attente, complet, termine
+    List<PlaceOrdre>? ordre,
+    String? termineLe,
+    int? placesRestantes,
+    int? premierePlaceAutorisee,
+    bool? scoreSuffisant,
   }) = _Cercle;
 
-  factory Cercle.fromJson(Map<String, dynamic> json) =>
-      _$CercleFromJson(json);
+  const Cercle._();
+
+  /// Affichage : un cercle n'a pas de nom côté serveur.
+  String get nom => 'Tontine de ${_milliers(reglement.montant)} FCFA';
+
+  /// Affichage : rien côté serveur.
+  String? get description => null;
+
+  factory Cercle.fromJson(Map<String, dynamic> json) => _$CercleFromJson(json);
 }
 
-/// Résumé d'un cercle pour la liste
+/// GET /cercles : mes cercles, avec ma place.
 @freezed
 class ResumeCercle with _$ResumeCercle {
   const factory ResumeCercle({
     required String id,
-    required String nom,
+    @Default(false) bool organisateur,
+    required Reglement reglement,
     required String statut,
-    required int nombreMembres,
-    required int nombreMembresCible,
-    @JsonKey(name: 'montantTotal') required int montantTotal,
-    @JsonKey(name: 'montantTotal') String? frequence,
+    @Default(0) int nombreInscrits,
+    int? maPlace,
   }) = _ResumeCercle;
 
-  factory ResumeCercle.fromJson(Map<String, dynamic> json) =>
-      _$ResumeCercleFromJson(json);
+  const ResumeCercle._();
+
+  String get nom => 'Tontine de ${_milliers(reglement.montant)} FCFA';
+  int get nombreMembres => nombreInscrits;
+  int get nombreMembresCible => reglement.nombreMembres;
+  int get montantTotal => reglement.montant;
+  String get frequence => reglement.frequence;
+
+  factory ResumeCercle.fromJson(Map<String, dynamic> json) => _$ResumeCercleFromJson(json);
 }
 
 // ============================================================================
 // COTISATIONS
 // ============================================================================
 
-/// Cotisation
+/// GET /cotisations?cercleId=…
 @freezed
 class Cotisation with _$Cotisation {
   const factory Cotisation({
     required String id,
-    @JsonKey(name: 'cercleId') required String cercleId,
-    @JsonKey(name: 'payeur_id') required String payeurId,
-    @JsonKey(name: 'beneficiaire_id') required String beneficiaireId,
+    required String cercleId,
+    required String payeurId,
+    required String beneficiaireId,
     required int montant,
-    @JsonKey(name: 'dateLimite') required String dateLimite,
-    int? tour,
-    required String statut, // "due", "declaree", "confirmee"
-    @JsonKey(name: 'referenceTransaction') String? referenceTransaction,
-    @JsonKey(name: 'declareeLe') String? declareeLe,
-    @JsonKey(name: 'confirmee_le') String? confirmeeLe,
+    required int tour,
+    required String dateLimite,
+    String? finGrace,
+    required String statut, // due, declaree, confirmee
+    String? referenceTransaction,
+    String? declareeLe,
+    String? confirmeeLe,
+    @Default(false) bool enLitige,
+    @Default(0) int penalite,
+    @Default(0) int penaliteDue,
   }) = _Cotisation;
 
-  /// Alias pour compatibilité avec les écrans
+  const Cotisation._();
+
   String get beneficiaire => beneficiaireId;
 
-  factory Cotisation.fromJson(Map<String, dynamic> json) =>
-      _$CotisationFromJson(json);
+  factory Cotisation.fromJson(Map<String, dynamic> json) => _$CotisationFromJson(json);
 }
 
-/// État des cotisations par cercle
+/// GET /cotisations/cercles/:id/etat
 @freezed
 class EtatCotisations with _$EtatCotisations {
   const factory EtatCotisations({
@@ -143,152 +191,160 @@ class EtatCotisations with _$EtatCotisations {
     required List<EtatTour> tours,
   }) = _EtatCotisations;
 
-  factory EtatCotisations.fromJson(Map<String, dynamic> json) =>
-      _$EtatCotisationsFromJson(json);
+  factory EtatCotisations.fromJson(Map<String, dynamic> json) => _$EtatCotisationsFromJson(json);
 }
 
-/// État d'un tour
 @freezed
 class EtatTour with _$EtatTour {
   const factory EtatTour({
     required int numero,
-    required List<EtatMembre> membres,
+    required String beneficiaireId,
+    String? dateLimite,
+    required List<EtatMembre> paiements,
   }) = _EtatTour;
 
-  factory EtatTour.fromJson(Map<String, dynamic> json) =>
-      _$EtatTourFromJson(json);
+  const EtatTour._();
+
+  /// Affichage : les payeurs du tour.
+  List<EtatMembre> get membres => paiements;
+
+  factory EtatTour.fromJson(Map<String, dynamic> json) => _$EtatTourFromJson(json);
 }
 
-/// État d'un membre pour une cotisation
+/// Un paiement dans un tour : qui doit, combien, où il en est.
 @freezed
 class EtatMembre with _$EtatMembre {
   const factory EtatMembre({
-    required String id,
-    required String statut, // "due", "declaree", "confirmee"
+    required String payeurId,
     required int montant,
+    required String statut,
+    @Default(false) bool enRetard,
+    @Default(false) bool enLitige,
+    @Default(0) int penaliteDue,
   }) = _EtatMembre;
 
-  factory EtatMembre.fromJson(Map<String, dynamic> json) =>
-      _$EtatMembreFromJson(json);
+  const EtatMembre._();
+
+  String get id => payeurId;
+
+  factory EtatMembre.fromJson(Map<String, dynamic> json) => _$EtatMembreFromJson(json);
 }
 
 // ============================================================================
 // SCORE
 // ============================================================================
 
-/// Score de confiance d'un membre
+/// GET /score/:membreId
 @freezed
 class ScoreMembre with _$ScoreMembre {
   const factory ScoreMembre({
+    required String membreId,
     required int score,
-    @JsonKey(name: 'premieresPlacesFermees') bool? premieresPlacesFermees,
-    String? explication,
-    List<EvenementScore>? historique,
+    @Default(0) int cyclesTermines,
+    @Default(0) int defauts,
+    @Default(false) bool premieresPlacesFermees,
+    @Default(<String>[]) List<String> explication,
+    @Default(<EvenementScore>[]) List<EvenementScore> historique,
   }) = _ScoreMembre;
 
-  factory ScoreMembre.fromJson(Map<String, dynamic> json) =>
-      _$ScoreMembreFromJson(json);
+  factory ScoreMembre.fromJson(Map<String, dynamic> json) => _$ScoreMembreFromJson(json);
 }
 
-/// Événement du score
 @freezed
 class EvenementScore with _$EvenementScore {
   const factory EvenementScore({
+    required String date,
     required String type,
-    required int delta,
-    required String cercleId,
-    required String creeLe,
+    String? cercleId,
+    @Default(false) bool cerclePrive,
+    required num points,
+    required num scoreApres,
   }) = _EvenementScore;
 
-  factory EvenementScore.fromJson(Map<String, dynamic> json) =>
-      _$EvenementScoreFromJson(json);
+  factory EvenementScore.fromJson(Map<String, dynamic> json) => _$EvenementScoreFromJson(json);
 }
 
 // ============================================================================
 // LITIGES
 // ============================================================================
 
-/// Litige
+/// GET /litiges/miens, GET /litiges/:id, POST /litiges
 @freezed
 class Litige with _$Litige {
   const factory Litige({
     required String id,
-    @JsonKey(name: 'cotisationId') required String cotisationId,
-    @JsonKey(name: 'cercleId') required String cercleId,
-    @JsonKey(name: 'payeur_id') required String payeurId,
-    @JsonKey(name: 'beneficiaire_id') required String beneficiaireId,
+    required String cotisationId,
+    required String cercleId,
+    required String payeurId,
+    required String beneficiaireId,
+    required String ouvertPar, // payeur, beneficiaire, automatique
     required String motif,
-    @JsonKey(name: 'ouvertPar') required String ouvertPar,
-    @JsonKey(name: 'ouvertLe') required String ouvertLe,
-    required String statut, // "ouvert", "tranche", "clos"
-    String? decision,
-    @JsonKey(name: 'motifDecision') String? motifDecision,
+    required String ouvertLe,
+    required String statut, // ouvert, tranche, clos
+    String? decision, // paiement_valide, paiement_refuse, confirme_par_beneficiaire
+    String? motifDecision,
+    String? tranchePar,
+    String? trancheLe,
   }) = _Litige;
 
-  factory Litige.fromJson(Map<String, dynamic> json) =>
-      _$LitigeFromJson(json);
+  factory Litige.fromJson(Map<String, dynamic> json) => _$LitigeFromJson(json);
 }
 
 // ============================================================================
 // NOTIFICATIONS
 // ============================================================================
 
-/// Notification
 @freezed
 class Notification with _$Notification {
   const factory Notification({
     required String id,
-    @JsonKey(name: 'membre_id') required String membreId,
-    required String titre,
-    required String message,
-    required String type, // "cotisation", "cercle", "litige", "score", "system"
-    @JsonKey(name: 'date_creation') required String dateCreation,
-    @JsonKey(name: 'lue_le') String? lueLe,
+    required String texte,
+    required String creeeLe,
+    String? lueLe,
   }) = _Notification;
 
-  /// Retourne true si la notification a été lue
+  const Notification._();
+
   bool get lue => lueLe != null;
 
-  factory Notification.fromJson(Map<String, dynamic> json) =>
-      _$NotificationFromJson(json);
+  // Affichage : le serveur n'a qu'un texte.
+  String get titre => 'MonDo';
+  String get message => texte;
+  String get type => 'system';
+  String get dateCreation => creeeLe;
+
+  factory Notification.fromJson(Map<String, dynamic> json) => _$NotificationFromJson(json);
 }
 
-/// Réponse pour lister les notifications
+/// GET /notifications
 @freezed
 class NotificationsResponse with _$NotificationsResponse {
   const factory NotificationsResponse({
     required List<Notification> notifications,
-    @JsonKey(name: 'nonLues') int? nonLues,
+    @Default(0) int nonLues,
   }) = _NotificationsResponse;
 
   factory NotificationsResponse.fromJson(Map<String, dynamic> json) =>
       _$NotificationsResponseFromJson(json);
 }
 
-// ============================================================================
-// RÉPONSES GÉNÉRIQUES
-// ============================================================================
-
-/// Réponse de santé du serveur
+/// GET /sommes-dues : frais, remises, remboursements.
 @freezed
-class HealthResponse with _$HealthResponse {
-  const factory HealthResponse({
+class SommeDue with _$SommeDue {
+  const factory SommeDue({
+    required String id,
+    required String cercleId,
+    required String nature,
+    String? debiteurId,
+    String? creancierId,
+    required int montant,
+    int? tour,
+    String? exigibleLe,
+    String? dateLimite,
     required String statut,
-  }) = _HealthResponse;
+  }) = _SommeDue;
 
-  factory HealthResponse.fromJson(Map<String, dynamic> json) =>
-      _$HealthResponseFromJson(json);
+  factory SommeDue.fromJson(Map<String, dynamic> json) => _$SommeDueFromJson(json);
 }
 
-/// Réponse d'erreur générique du serveur
-@freezed
-class ApiError with _$ApiError {
-  const factory ApiError({
-    required String message,
-    String? code,
-    dynamic details,
-  }) = _ApiError;
-
-  factory ApiError.fromJson(Map<String, dynamic> json) =>
-      _$ApiErrorFromJson(json);
-}
+String _milliers(int n) => n.toString().replaceAllMapped(RegExp(r'\B(?=(\d{3})+(?!\d))'), (_) => ' ');

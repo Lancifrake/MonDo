@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/bottom_bar.dart';
 import 'otp_screen.dart';
 
-class SignupScreen extends StatefulWidget {
+class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
 
   @override
-  State<SignupScreen> createState() => _SignupScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _SignupScreenState extends State<SignupScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
+  bool _envoi = false;
   final _nameCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
 
@@ -28,11 +31,23 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _submit() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => OtpScreen(phone: _phoneCtrl.text)),
-    );
+  Future<void> _submit() async {
+    setState(() => _envoi = true);
+    try {
+      await ref.read(authStateProvider.notifier).requestOtp('+237${_phoneCtrl.text}');
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpScreen(phone: _phoneCtrl.text, nom: _nameCtrl.text.trim()),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+    } finally {
+      if (mounted) setState(() => _envoi = false);
+    }
   }
 
   @override
@@ -122,6 +137,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 AppButton(
                   label: 'Recevoir le code par SMS',
                   onPressed: _isValid ? _submit : null,
+                  isLoading: _envoi,
                 ),
                 const SizedBox(height: 12),
                 const Text(

@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/api_models.dart';
+import '../services/api_client.dart';
 import '../services/auth_service.dart';
 import '../services/crypto_service.dart';
+import '../services/local_storage_service.dart';
 import 'api_client_provider.dart';
+import 'storage_provider.dart';
 
 /// État de l'authentification
 class AuthState {
@@ -41,14 +44,37 @@ final authServiceProvider = Provider<AuthService>((ref) {
 final authStateProvider =
     StateNotifierProvider<AuthStateNotifier, AuthState>((ref) {
   final authService = ref.watch(authServiceProvider);
-  return AuthStateNotifier(authService);
+  return AuthStateNotifier(authService, ref.watch(localStorageProvider));
 });
 
 /// Notifier pour gérer l'état de l'authentification
 class AuthStateNotifier extends StateNotifier<AuthState> {
   final AuthService _authService;
+  final LocalStorageService _stockage;
 
-  AuthStateNotifier(this._authService) : super(AuthState());
+  AuthStateNotifier(this._authService, this._stockage) : super(AuthState());
+
+  /// Au démarrage : recharge la clé de l'appareil et le compte, s'il y en a un.
+  /// Renvoie true si une session valide a été restaurée.
+  Future<bool> restaurerSession() async {
+    final session = await _stockage.getSession();
+    if (session == null) return false;
+    await _authService.setCurrentSession(
+      membreId: session.membreId,
+      cryptoService: session.cryptoService,
+    );
+    try {
+      final compte = await _authService.getMoi();
+      state = AuthState(compte: compte);
+      return true;
+    } catch (_) {
+      // Serveur injoignable ou compte inconnu : on garde la clé, on réessaiera.
+      state = AuthState(
+        compte: Compte(id: session.membreId, numero: session.phoneNumber, nom: '', niveau: 1),
+      );
+      return true;
+    }
+  }
 
   /// Demande un code OTP
   Future<void> requestOtp(String phoneNumber) async {
@@ -77,6 +103,12 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
         phoneNumber: phoneNumber,
         nom: nom,
         otp: otp,
+      );
+      // La clé privée doit survivre au redémarrage de l'app, sinon le compte est perdu.
+      await _stockage.saveSession(
+        membreId: compte.id,
+        phoneNumber: phoneNumber,
+        cryptoService: _authService.cryptoService!,
       );
       state = state.copyWith(
         isLoading: false,
@@ -193,8 +225,27 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
   }
 
   /// Déconnecte l'utilisateur
-  void logout() {
+  Future<void> logout() async {
     _authService.logout();
+    await _stockage.clearSession();
     state = AuthState();
   }
+}
+
+/// Message lisible pour l'utilisateur à partir d'une erreur d'appel au serveur.
+String messageErreur(Object e) {
+  if (e is ApiException) {
+    switch (e.statusCode) {
+      case 403:
+        return 'Code incorrect ou expiré. Redemande un code.';
+      case 409:
+        return 'Ce numéro a déjà un compte.';
+      case 429:
+        return 'Trop de demandes. Réessaie plus tard.';
+      case null:
+        return 'Serveur injoignable. Vérifie ta connexion.';
+    }
+    return e.message;
+  }
+  return 'Une erreur est survenue.';
 }

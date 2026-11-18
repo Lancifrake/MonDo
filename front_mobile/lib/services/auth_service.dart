@@ -67,7 +67,8 @@ class AuthService {
         'numero': phoneNumber,
         'nom': nom,
         'clePublique': publicKeyJwk,
-        'preuve': '', // À adapter selon le type de preuve
+        // Preuve : signature de {clePublique, nom, numero, objet: "inscription"}
+        'preuve': _cryptoService!.signInscription(numero: phoneNumber, nom: nom),
         'codeOtp': otp,
       };
 
@@ -203,7 +204,7 @@ class AuthService {
       final request = {
         'numero': phoneNumber,
         'clePublique': publicKeyJwk,
-        'preuve': '',
+        'preuve': _cryptoService!.signRecuperation(numero: phoneNumber),
         'codeSecret': codeSecret,
       };
 

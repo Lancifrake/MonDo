@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'disputes/disputes_list_screen.dart';
 import 'home_screen.dart';
+import 'cotisations/cotisations_list_screen.dart';
+import 'notifications/notifications_screen.dart';
+import 'score/score_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -12,11 +16,13 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
 
+  // Écrans branchés au serveur (requêtes signées)
   static const _pages = <Widget>[
     HomeScreen(),
-    _Placeholder('Activité'),
-    _Placeholder('Cotisations'),
-    _Placeholder('Profil'),
+    CotisationsListScreen(),
+    DisputesListScreen(),
+    NotificationsScreen(),
+    ScoreScreen(),
   ];
 
   @override
@@ -44,37 +50,22 @@ class _MainShellState extends State<MainShell> {
               label: 'Accueil',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.history),
-              label: 'Activité',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.inbox_outlined),
               label: 'Cotisations',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.gavel_outlined),
+              label: 'Litiges',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.notifications_none),
+              label: 'Alertes',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
-              label: 'Profil',
+              label: 'Score',
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-// Écran temporaire en attendant les vraies pages
-class _Placeholder extends StatelessWidget {
-  const _Placeholder(this.title);
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Center(
-        child: Text(
-          title,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
       ),
     );

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../data/tontine_draft.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/counter_row.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/selectable_card.dart';
-import '../../widgets/switch_card.dart';
 
+/// Étape 2 : qui peut rejoindre, combien chacun cotise, combien de membres.
 class InfoStep extends StatefulWidget {
   const InfoStep({super.key, required this.draft, required this.onChanged});
 
@@ -17,21 +18,15 @@ class InfoStep extends StatefulWidget {
 }
 
 class _InfoStepState extends State<InfoStep> {
-  // On remplit les champs avec le brouillon : si l'utilisateur revient
-  // sur cette étape, il retrouve ce qu'il avait écrit.
-  late final _nameCtrl = TextEditingController(text: widget.draft.name);
-  late final _descCtrl = TextEditingController(text: widget.draft.description);
-
   TontineDraft get d => widget.draft;
+  late final _montantCtrl = TextEditingController(text: '${widget.draft.montant}');
 
   @override
   void dispose() {
-    _nameCtrl.dispose();
-    _descCtrl.dispose();
+    _montantCtrl.dispose();
     super.dispose();
   }
 
-  // Applique un changement au brouillon puis prévient l'écran parent
   void _update(VoidCallback change) {
     change();
     widget.onChanged();
@@ -42,75 +37,44 @@ class _InfoStepState extends State<InfoStep> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionLabel('Nom de ta tontine'),
+        const SectionLabel('Combien chacun cotise à chaque tour ?'),
         const SizedBox(height: 8),
         TextField(
-          controller: _nameCtrl,
-          textCapitalization: TextCapitalization.words,
-          onChanged: (value) => _update(() => d.name = value),
-          decoration: const InputDecoration(
-            hintText: 'Ex. Les Bâtisseurs de Bonamoussadi',
-          ),
+          controller: _montantCtrl,
+          keyboardType: TextInputType.number,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          onChanged: (v) => _update(() => d.montant = int.tryParse(v) ?? 0),
+          decoration: const InputDecoration(hintText: '10000', suffixText: 'FCFA'),
         ),
-        const SizedBox(height: 20),
-        const SectionLabel('En quelques mots (facultatif)'),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _descCtrl,
-          minLines: 3,
-          maxLines: 5,
-          textCapitalization: TextCapitalization.sentences,
-          onChanged: (value) => _update(() => d.description = value),
+        const SizedBox(height: 24),
+        const SectionLabel('Combien de membres ?'),
+        const SizedBox(height: 10),
+        CounterRow(
+          label: 'Membres',
+          value: d.nombreMembres,
+          onMinus: d.nombreMembres > 3 ? () => _update(() => d.nombreMembres--) : null,
+          onPlus: d.nombreMembres < 50 ? () => _update(() => d.nombreMembres++) : null,
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'La tontine démarre quand toutes les places sont prises. Un tour par membre.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
         const SizedBox(height: 24),
         const SectionLabel('Qui peut trouver et rejoindre ta tontine ?'),
         const SizedBox(height: 10),
         SelectableCard(
           title: 'Privée',
-          subtitle:
-              'Seulement les personnes que tu invites (lien, QR code ou numéro)',
+          subtitle: 'Seulement les personnes que tu invites par leur numéro',
           selected: d.isPrivate,
           onTap: () => _update(() => d.isPrivate = true),
         ),
         const SizedBox(height: 10),
         SelectableCard(
           title: "Ouverte à d'autres personnes",
-          subtitle:
-              "Elle apparaît dans le catalogue : des inconnus peuvent demander à rejoindre",
+          subtitle: 'Elle apparaît dans le catalogue : des inconnus peuvent la rejoindre selon leur score',
           selected: !d.isPrivate,
           onTap: () => _update(() => d.isPrivate = false),
-        ),
-        const SizedBox(height: 16),
-        SwitchCard(
-          title: 'Je valide chaque nouveau membre',
-          subtitle: 'Sinon, les personnes invitées entrent directement.',
-          value: d.validateMembers,
-          onChanged: (value) => _update(() => d.validateMembers = value),
-        ),
-        const SizedBox(height: 24),
-        const SectionLabel('Combien de personnes ?'),
-        const SizedBox(height: 10),
-        CounterRow(
-          label: 'Au minimum',
-          value: d.minMembers,
-          onMinus: d.minMembers > 2 ? () => _update(() => d.minMembers--) : null,
-          onPlus: d.minMembers < d.maxMembers
-              ? () => _update(() => d.minMembers++)
-              : null,
-        ),
-        const SizedBox(height: 10),
-        CounterRow(
-          label: 'Au maximum',
-          value: d.maxMembers,
-          onMinus: d.maxMembers > d.minMembers
-              ? () => _update(() => d.maxMembers--)
-              : null,
-          onPlus: d.maxMembers < 50 ? () => _update(() => d.maxMembers++) : null,
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'La tontine démarre quand le minimum est atteint.',
-          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
       ],
     );

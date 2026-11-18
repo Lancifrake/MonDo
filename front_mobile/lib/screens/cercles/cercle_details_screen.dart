@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
 import '../../providers/cercles_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/api_client_provider.dart';
+import '../../providers/cotisations_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
@@ -61,6 +64,8 @@ class CercleDetailsScreen extends ConsumerWidget {
           ),
         ),
         data: (cercle) {
+          final moi = ref.read(apiClientProvider).membreId;
+          final estMembre = cercle.membres.contains(moi);
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,24 +91,28 @@ class CercleDetailsScreen extends ConsumerWidget {
 
                 const SizedBox(height: 24),
 
-                // État des cotisations
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _EtatCotisationsSection(cercleId: cercleId),
-                ),
+                // État des cotisations et échanges : réservés aux membres du cercle
+                if (estMembre && cercle.statut != 'en_attente') ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _EtatCotisationsSection(cercleId: cercleId),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _EchangesSection(cercleId: cercleId),
+                  ),
+                  const SizedBox(height: 32),
+                ],
 
-                const SizedBox(height: 24),
-
-                // Historique échanges
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _EchangesSection(cercleId: cercleId),
-                ),
-
-                const SizedBox(height: 32),
+                if (estMembre)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: _ActionsMembre(cercle: cercle, organisateur: cercle.organisateurId == moi),
+                  ),
 
                 // Actions
-                if (cercle.statut == 'en_attente')
+                if (!estMembre && cercle.statut == 'en_attente')
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: SizedBox(
@@ -234,7 +243,7 @@ class _CercleHeader extends StatelessWidget {
             children: [
               _InfoCard(
                 label: 'Organisateur',
-                value: cercle.organisateurId.substring(0, 8) + '...',
+                value: cercle.organisateurId == null ? '—' : '${cercle.organisateurId!.substring(0, 8)}…',
               ),
               _InfoCard(
                 label: 'Membres',
@@ -693,6 +702,89 @@ class _EchangesSection extends ConsumerWidget {
             );
           },
         ),
+      ],
+    );
+  }
+}
+
+
+/// Actions d'un membre : inviter (organisateur, cercle en attente) et démonstration.
+class _ActionsMembre extends ConsumerWidget {
+  const _ActionsMembre({required this.cercle, required this.organisateur});
+
+  final Cercle cercle;
+  final bool organisateur;
+
+  Future<void> _faire(BuildContext context, WidgetRef ref, Future<Object?> Function() action, String ok) async {
+    try {
+      await action();
+      ref.invalidate(cercleProvider(cercle.id));
+      ref.invalidate(mesCerclesRefreshableProvider);
+      ref.invalidate(mesCotisationsRefreshableProvider);
+      ref.invalidate(etatCotisationsCercleProvider(cercle.id));
+      if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(ok)));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+      }
+    }
+  }
+
+  Future<void> _inviter(BuildContext context, WidgetRef ref) async {
+    final ctrl = TextEditingController();
+    final numero = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Inviter par numéro'),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: TextInputType.phone,
+          decoration: const InputDecoration(prefixText: '+237 ', hintText: '6 99 42 18 06'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, '+237${ctrl.text.replaceAll(' ', '')}'),
+            child: const Text('Envoyer le SMS'),
+          ),
+        ],
+      ),
+    );
+    if (numero == null || !context.mounted) return;
+    await _faire(
+      context,
+      ref,
+      () => ref.read(cerclesServiceProvider).inviterMembre(cercleId: cercle.id, numeroTelephone: numero),
+      'Invitation envoyée par SMS.',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final service = ref.read(cerclesServiceProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (organisateur && cercle.statut == 'en_attente') ...[
+          ElevatedButton.icon(
+            onPressed: () => _inviter(context, ref),
+            icon: const Icon(Icons.sms_outlined),
+            label: const Text('Inviter un membre'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            onPressed: () => _faire(context, ref, () => service.demoMembresFictifs(cercle.id),
+                'Tontine complétée avec des membres fictifs.'),
+            child: const Text('Démo : compléter avec des membres fictifs'),
+          ),
+        ],
+        if (cercle.statut == 'complet')
+          OutlinedButton(
+            onPressed: () => _faire(context, ref, () => service.demoSuite(cercle.id),
+                'Les membres fictifs ont joué le tour en cours.'),
+            child: const Text('Démo : les autres membres jouent le tour'),
+          ),
+        const SizedBox(height: 32),
       ],
     );
   }

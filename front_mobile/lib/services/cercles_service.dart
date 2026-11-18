@@ -2,6 +2,7 @@ import 'package:logger/logger.dart';
 import '../config/api_config.dart';
 import '../models/api_models.dart';
 import 'api_client.dart';
+import 'crypto_service.dart';
 
 /// Service pour gérer les cercles (tontines)
 /// 
@@ -20,81 +21,66 @@ class CerclesService {
 
   CerclesService(this._apiClient);
 
-  /// Récupère le barème des frais (avant création)
-  Future<Map<String, dynamic>> getBareme({
+  /// Barème des frais par place (GET /cercles/bareme) : il va TEL QUEL dans le règlement.
+  Future<List<FraisPlace>> getBareme({
     required int nombreMembres,
     required int montant,
   }) async {
-    try {
-      _logger.i('Récupération barème: $nombreMembres membres, $montant francs');
-
-      final response = await _apiClient.get<Map<String, dynamic>>(
-        '${ApiConfig.pathCercles}/bareme',
-        queryParameters: {
-          'nombreMembres': nombreMembres,
-          'montant': montant,
-        },
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
-
-      _logger.i('Barème récupéré');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la récupération du barème: $e');
-      rethrow;
-    }
+    return _apiClient.get<List<FraisPlace>>(
+      '${ApiConfig.pathCercles}/bareme',
+      queryParameters: {'nombreMembres': nombreMembres, 'montant': montant},
+      fromJson: (json) => (json as List)
+          .map((e) => FraisPlace.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
-  /// Crée un nouveau cercle
-  /// 
-  /// Les paramètres du cercle sont dans le règlement
+  /// Crée un cercle : l'organisateur SIGNE le règlement, qui ne se modifie plus ensuite.
+  ///
+  /// Message signé : {objet: "reglement", organisateurId, reglement, placeSouhaitee}.
   Future<Cercle> createCercle({
-    required String nom,
-    required String? description,
     required int montant,
-    required String frequence,
+    required String frequence, // hebdomadaire, mensuelle, jours
+    int? periodeJours,
     required int nombreMembres,
-    required bool isPrivate,
-    required String signature, // Signature du règlement
-    int? penaliteRetard,
-    int? delaiGraceJours,
-    List<String>? ordreFixe,
+    required bool ouvert,
+    required DateTime datePremierTour,
+    required int penaliteRetard,
+    required int delaiGraceJours,
     int? scoreMinimum,
+    int? placeSouhaitee,
   }) async {
-    try {
-      _logger.i('Création cercle: $nom');
-
-      final reglement = {
-        'montant': montant,
-        'frequence': frequence,
-        'nombreMembres': nombreMembres,
-        'ouvert': !isPrivate,
-        if (penaliteRetard != null) 'penaliteRetard': penaliteRetard,
-        if (delaiGraceJours != null) 'delaiGraceJours': delaiGraceJours,
-        if (ordreFixe != null) 'ordreFixe': ordreFixe,
-        if (scoreMinimum != null) 'scoreMinimum': scoreMinimum,
-      };
-
-      final request = {
-        'nom': nom,
-        if (description != null) 'description': description,
-        'reglement': reglement,
-        'signature': signature, // À signer par le créateur
-        'placeSouhaitee': 1, // Première place par défaut
-      };
-
-      final response = await _apiClient.post<Cercle>(
-        ApiConfig.pathCercles,
-        data: request,
-        fromJson: (json) => Cercle.fromJson(json as Map<String, dynamic>),
-      );
-
-      _logger.i('Cercle créé: ${response.id}');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la création du cercle: $e');
-      rethrow;
+    final cle = _apiClient.cryptoService;
+    final organisateurId = _apiClient.membreId;
+    if (cle == null || organisateurId == null) {
+      throw ApiException(message: 'Connecte-toi pour créer une tontine');
     }
+    final bareme = await getBareme(nombreMembres: nombreMembres, montant: montant);
+    final reglement = <String, dynamic>{
+      'montant': montant,
+      'frequence': frequence,
+      if (frequence == 'jours') 'periodeJours': periodeJours,
+      'nombreMembres': nombreMembres,
+      'penaliteRetard': penaliteRetard,
+      'delaiGraceJours': delaiGraceJours,
+      'ouvert': ouvert,
+      'datePremierTour': datePremierTour.toUtc().toIso8601String(),
+      'bareme': bareme.map((b) => b.toJson()).toList(),
+      if (scoreMinimum != null) 'scoreMinimum': scoreMinimum,
+    };
+    // Par défaut la dernière place : toujours permise, quel que soit le score.
+    final place = placeSouhaitee ?? nombreMembres;
+    final signature = cle.signMessage(CryptoService.canonique({
+      'objet': 'reglement',
+      'organisateurId': organisateurId,
+      'reglement': reglement,
+      'placeSouhaitee': place,
+    }));
+    return _apiClient.post<Cercle>(
+      ApiConfig.pathCercles,
+      data: {'reglement': reglement, 'placeSouhaitee': place, 'signature': signature},
+      fromJson: (json) => Cercle.fromJson(json as Map<String, dynamic>),
+    );
   }
 
   /// Récupère la liste des cercles de l'utilisateur
@@ -137,7 +123,7 @@ class CerclesService {
         if (montantMin != null) 'montantMin': montantMin,
         if (montantMax != null) 'montantMax': montantMax,
         if (frequence != null) 'frequence': frequence,
-        if (nombreMembreMax != null) 'nombreMembreMax': nombreMembreMax,
+        if (nombreMembreMax != null) 'nombreMembresMax': nombreMembreMax,
       };
 
       final response = await _apiClient.get<List<Cercle>>(
@@ -177,34 +163,32 @@ class CerclesService {
     }
   }
 
-  /// Adhère à un cercle
-  /// 
-  /// Place souhaitée et signature de l'engagement sont requis
+  /// Rejoint un cercle : le membre SIGNE son engagement, qui reprend l'empreinte du règlement.
+  ///
+  /// Message signé : {objet: "engagement", cercleId, empreinteReglement, membreId, placeSouhaitee}.
   Future<Cercle> adhererAuCercle({
-    required String cercleId,
+    required Cercle cercle,
     required int placeSouhaitee,
-    required String signature, // Signature de l'engagement
   }) async {
-    try {
-      _logger.i('Adhésion au cercle: $cercleId');
-
-      final request = {
-        'placeSouhaitee': placeSouhaitee,
-        'signature': signature,
-      };
-
-      final response = await _apiClient.post<Cercle>(
-        '${ApiConfig.pathCercles}/$cercleId/adhesions',
-        data: request,
-        fromJson: (json) => Cercle.fromJson(json as Map<String, dynamic>),
-      );
-
-      _logger.i('Adhésion réussie au cercle: $cercleId');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de l\'adhésion: $e');
-      rethrow;
+    final cle = _apiClient.cryptoService;
+    final membreId = _apiClient.membreId;
+    if (cle == null || membreId == null) {
+      throw ApiException(message: 'Connecte-toi pour rejoindre une tontine');
     }
+    // Le catalogue ne donne pas l'empreinte du règlement : on relit le cercle.
+    if (cercle.empreinteReglement == null) cercle = await getCercle(cercle.id);
+    final signature = cle.signMessage(CryptoService.canonique({
+      'objet': 'engagement',
+      'cercleId': cercle.id,
+      'empreinteReglement': cercle.empreinteReglement,
+      'membreId': membreId,
+      'placeSouhaitee': placeSouhaitee,
+    }));
+    return _apiClient.post<Cercle>(
+      '${ApiConfig.pathCercles}/${cercle.id}/adhesions',
+      data: {'placeSouhaitee': placeSouhaitee, 'signature': signature},
+      fromJson: (json) => Cercle.fromJson(json as Map<String, dynamic>),
+    );
   }
 
   /// Invite un nouveau membre par SMS
@@ -365,4 +349,20 @@ class CerclesService {
       rethrow;
     }
   }
+
+  // --- Démonstration (refusé en production par le serveur) ---
+
+  /// Complète le cercle avec des membres fictifs, par les vrais services.
+  Future<Map<String, dynamic>> demoMembresFictifs(String cercleId) => _apiClient.post<Map<String, dynamic>>(
+        '/demonstration/cercles/$cercleId/membres-fictifs',
+        data: const {},
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
+
+  /// Les membres fictifs paient le tour en cours et confirment ce que j'ai payé.
+  Future<Map<String, dynamic>> demoSuite(String cercleId) => _apiClient.post<Map<String, dynamic>>(
+        '/demonstration/cercles/$cercleId/suite',
+        data: const {},
+        fromJson: (json) => json as Map<String, dynamic>,
+      );
 }

@@ -1,195 +1,85 @@
-import 'package:logger/logger.dart';
-import 'dart:convert';
-import 'dart:io';
 import '../config/api_config.dart';
 import '../models/api_models.dart';
 import 'api_client.dart';
 
-/// Service pour gérer les cotisations
-/// 
-/// Gère :
-/// - Récupération des cotisations dues
-/// - Déclaration de paiement
-/// - Confirmation de paiement
-/// - État des cotisations par cercle
+/// Cotisations : MonDo ne touche jamais l'argent. Le payeur paie hors de l'app
+/// (Mobile Money, cash), DÉCLARE avec une référence, et le bénéficiaire CONFIRME.
 class CotisationsService {
   final ApiClient _apiClient;
-  final Logger _logger = Logger();
 
   CotisationsService(this._apiClient);
 
-  /// Récupère toutes les cotisations de l'utilisateur
-  Future<List<Cotisation>> getMesCotisations({
-    String? statut, // "due", "declaree", "confirmee"
-  }) async {
-    try {
-      _logger.i('Récupération des cotisations');
+  List<Cotisation> _liste(dynamic json) => (json as List)
+      .map((e) => Cotisation.fromJson(e as Map<String, dynamic>))
+      .toList();
 
-      final queryParams = <String, dynamic>{
-        if (statut != null) 'statut': statut,
-      };
-
-      final response = await _apiClient.get<List<Cotisation>>(
+  /// GET /cotisations?cercleId=… (le serveur exige le cercle).
+  Future<List<Cotisation>> getCotisationsCercle(String cercleId) => _apiClient.get<List<Cotisation>>(
         ApiConfig.pathCotisations,
-        queryParameters: queryParams.isNotEmpty ? queryParams : null,
-        fromJson: (json) {
-          final list = json as List;
-          return list
-              .map((item) =>
-                  Cotisation.fromJson(item as Map<String, dynamic>))
-              .toList();
-        },
+        queryParameters: {'cercleId': cercleId},
+        fromJson: _liste,
       );
 
-      _logger.i('${response.length} cotisations récupérées');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la récupération des cotisations: $e');
-      rethrow;
+  /// Mes cotisations dans tous mes cercles : ce que je dois et ce qu'on me doit.
+  Future<List<Cotisation>> getMesCotisations({String? statut}) async {
+    final cercles = await _apiClient.get<List<dynamic>>(
+      ApiConfig.pathCercles,
+      fromJson: (json) => json as List,
+    );
+    final toutes = <Cotisation>[];
+    for (final c in cercles) {
+      toutes.addAll(await getCotisationsCercle((c as Map)['id'] as String));
     }
+    final filtrees = statut == null ? toutes : toutes.where((c) => c.statut == statut).toList();
+    filtrees.sort((a, b) => a.dateLimite.compareTo(b.dateLimite));
+    return filtrees;
   }
 
-  /// Récupère les détails d'une cotisation
+  /// Pas de route par cotisation : on la retrouve dans mes cotisations.
   Future<Cotisation> getCotisation(String cotisationId) async {
-    try {
-      _logger.i('Récupération cotisation: $cotisationId');
-
-      final response = await _apiClient.get<Cotisation>(
-        '${ApiConfig.pathCotisations}/$cotisationId',
-        fromJson: (json) =>
-            Cotisation.fromJson(json as Map<String, dynamic>),
-      );
-
-      _logger.i('Cotisation récupérée');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la récupération de la cotisation: $e');
-      rethrow;
-    }
+    final toutes = await getMesCotisations();
+    return toutes.firstWhere(
+      (c) => c.id == cotisationId,
+      orElse: () => throw ApiException(message: 'Cotisation introuvable', statusCode: 404),
+    );
   }
 
-  /// Déclare un paiement pour une cotisation
-  /// 
-  /// Le paiement peut être fait via :
-  /// - Mobile Money (Orange Money, MTN Money, etc.)
-  /// - Virement bancaire
-  /// - Autre méthode définie par le serveur
+  /// POST /cotisations/:id/paiement : le payeur déclare, avec la référence de la transaction.
   Future<Cotisation> declarerPaiement({
     required String cotisationId,
-    required String methode, // "mobile_money", "virement", etc.
     required String referenceTransaction,
-    required String signature, // Signature de la déclaration
-  }) async {
-    try {
-      _logger.i('Déclaration paiement: $cotisationId');
-
-      final request = {
-        'methode': methode,
-        'referenceTransaction': referenceTransaction,
-        'signature': signature,
-      };
-
-      final response = await _apiClient.post<Cotisation>(
+    String? methode, // affichage seulement, le serveur ne le garde pas
+    String? signature, // inutile : la requête elle-même est signée
+  }) =>
+      _apiClient.post<Cotisation>(
         '${ApiConfig.pathCotisations}/$cotisationId/paiement',
-        data: request,
-        fromJson: (json) =>
-            Cotisation.fromJson(json as Map<String, dynamic>),
+        data: {'referenceTransaction': referenceTransaction.trim()},
+        fromJson: (json) => Cotisation.fromJson(json as Map<String, dynamic>),
       );
 
-      _logger.i('Paiement déclaré');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la déclaration du paiement: $e');
-      rethrow;
-    }
-  }
-
-  /// Confirme un paiement précédemment déclaré
-  /// 
-  /// Cette confirmation valide le paiement et ferme la transaction
-  /// L'image de preuve est convertie en base64 pour l'envoi
+  /// POST /cotisations/:id/confirmation : le bénéficiaire confirme la réception. Aucun corps.
   Future<Cotisation> confirmerPaiement({
     required String cotisationId,
-    required String proofImagePath, // Chemin local de l'image de preuve
-    required String signature, // Signature de la confirmation
-  }) async {
-    try {
-      _logger.i('Confirmation paiement: $cotisationId');
-
-      // Lire l'image et la convertir en base64
-      // Note: En production, vérifier que le chemin est valide
-      final imageFile = File(proofImagePath);
-      if (!await imageFile.exists()) {
-        throw ApiException(
-          message: 'Fichier image non trouvé: $proofImagePath',
-        );
-      }
-
-      final imageBytes = await imageFile.readAsBytes();
-      final base64Image = base64Encode(imageBytes);
-
-      final request = {
-        'preuve': base64Image,
-        'signature': signature,
-      };
-
-      final response = await _apiClient.post<Cotisation>(
+    String? proofImagePath, // le serveur ne reçoit pas de capture
+    String? signature,
+  }) =>
+      _apiClient.post<Cotisation>(
         '${ApiConfig.pathCotisations}/$cotisationId/confirmation',
-        data: request,
-        fromJson: (json) =>
-            Cotisation.fromJson(json as Map<String, dynamic>),
+        data: const {},
+        fromJson: (json) => Cotisation.fromJson(json as Map<String, dynamic>),
       );
 
-      _logger.i('Paiement confirmé');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la confirmation du paiement: $e');
-      rethrow;
-    }
-  }
-
-  /// Récupère l'état des cotisations d'un cercle
-  /// 
-  /// Montre l'état de toutes les cotisations de chaque tour du cercle
-  Future<EtatCotisations> getEtatCercle(String cercleId) async {
-    try {
-      _logger.i('Récupération état cotisations: $cercleId');
-
-      final response = await _apiClient.get<EtatCotisations>(
+  /// GET /cotisations/cercles/:id/etat : qui a payé, tour par tour.
+  Future<EtatCotisations> getEtatCercle(String cercleId) => _apiClient.get<EtatCotisations>(
         '${ApiConfig.pathCotisations}/cercles/$cercleId/etat',
-        fromJson: (json) =>
-            EtatCotisations.fromJson(json as Map<String, dynamic>),
+        fromJson: (json) => EtatCotisations.fromJson(json as Map<String, dynamic>),
       );
 
-      _logger.i('État récupéré pour ${response.tours.length} tours');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la récupération de l\'état: $e');
-      rethrow;
-    }
-  }
-
-  /// Récupère les cotisations d'un cercle spécifique
-  Future<List<Cotisation>> getCotisationsCercle(String cercleId) async {
-    try {
-      _logger.i('Récupération cotisations cercle: $cercleId');
-
-      final response = await _apiClient.get<List<Cotisation>>(
-        '${ApiConfig.pathCotisations}/cercles/$cercleId',
-        fromJson: (json) {
-          final list = json as List;
-          return list
-              .map((item) =>
-                  Cotisation.fromJson(item as Map<String, dynamic>))
-              .toList();
-        },
+  /// GET /sommes-dues : frais, remises et remboursements.
+  Future<List<SommeDue>> getSommesDues() => _apiClient.get<List<SommeDue>>(
+        '/sommes-dues',
+        fromJson: (json) => (json as List)
+            .map((e) => SommeDue.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
-
-      _logger.i('${response.length} cotisations du cercle récupérées');
-      return response;
-    } catch (e) {
-      _logger.e('Erreur lors de la récupération des cotisations du cercle: $e');
-      rethrow;
-    }
-  }
 }

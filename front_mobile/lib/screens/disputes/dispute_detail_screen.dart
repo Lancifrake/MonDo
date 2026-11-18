@@ -184,23 +184,13 @@ class _DisputeDetailScreenState extends ConsumerState<DisputeDetailScreen> {
                     const SizedBox(height: 24),
                   ],
 
-                  // Formulaire de décision si ouvert et utilisateur peut décider
-                  if (litige.statut == 'ouvert') ...[
-                    const Text(
-                      'Soumettre une Décision',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  // Seul un administrateur MonDo tranche un litige : le membre suit.
+                  if (litige.statut == 'ouvert')
+                    const _DetailCard(
+                      title: 'Et maintenant ?',
+                      content:
+                          'Un administrateur MonDo examine le litige et tranche. Tu seras notifié de sa décision.',
                     ),
-                    const SizedBox(height: 12),
-                    _DecisionForm(
-                      onSubmit: (decision, motif) =>
-                          _submitDecision(decision, motif),
-                      isLoading: _isDeciding,
-                      error: _error,
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -210,11 +200,10 @@ class _DisputeDetailScreenState extends ConsumerState<DisputeDetailScreen> {
     );
   }
 
-  Future<Litige> _fetchLitige() async {
-    // TODO: Implémenter requête GET /litiges/:id
-    // Pour maintenant, retourner un litige mock
-    throw Exception('À implémenter');
-  }
+  late final Future<Litige> _litige =
+      ref.read(litigesServiceProvider).getLitige(widget.litigeId);
+
+  Future<Litige> _fetchLitige() => _litige;
 
   Future<void> _submitDecision(String decision, String motif) async {
     setState(() {
@@ -329,7 +318,7 @@ class _StatusCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(_getColor(), size: 32),
+          Icon(Icons.gavel_rounded, color: _getColor(), size: 32),
           const SizedBox(width: 12),
           Text(
             _getLabel(),

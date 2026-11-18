@@ -35,13 +35,15 @@ class ApiClient {
   String? _membreId;
   CryptoService? _cryptoService;
   
-  // Routes publiques qui ne nécessitent pas de signature
+  // Routes publiques (non signées). Comparaison EXACTE : `/comptes/moi` est signée.
   static const List<String> _publicRoutes = [
     '/comptes/otp',
     '/comptes',
     '/comptes/recuperation',
     '/sante',
   ];
+  static final RegExp _piecesRecuperation =
+      RegExp(r'^/comptes/recuperation/[^/]+/pieces$');
 
   ApiClient() {
     _initializeDio();
@@ -81,6 +83,10 @@ class ApiClient {
     _cryptoService = cryptoService;
     _logger.i('Client API configuré pour le membre: $membreId');
   }
+
+  /// Compte connecté et sa clé, pour signer règlements et engagements.
+  String? get membreId => _membreId;
+  CryptoService? get cryptoService => _cryptoService;
 
   /// Réinitialise le client (déconnexion)
   void reset() {
@@ -204,7 +210,7 @@ class ApiClient {
         }
 
         // Créer les headers de signature
-        final timestamp = DateTime.now().toUtc().toIso8601String();
+        final timestamp = CryptoService.horodatage();
         final signature = await _cryptoService!.signRequest(
           method: method,
           path: fullPath,
@@ -217,11 +223,10 @@ class ApiClient {
         headers['x-mondo-signature'] = signature;
       }
 
-      // Effectuer la requête
+      // Effectuer la requête sur le chemin EXACT qui a été signé (requête comprise)
       final response = await _dio.request(
-        path,
-        data: data != null ? jsonEncode(data) : null,
-        queryParameters: queryParameters,
+        fullPath,
+        data: data != null && data.isNotEmpty ? jsonEncode(data) : null,
         options: Options(
           method: method,
           headers: headers,
@@ -232,8 +237,14 @@ class ApiClient {
       return fromJson(response.data);
     } on DioException catch (e) {
       _logger.e('Erreur Dio: ${e.message}', error: e);
+      final corps = e.response?.data;
+      final duServeur = corps is Map ? corps['message'] : null;
       throw ApiException(
-        message: e.message ?? 'Erreur réseau',
+        message: duServeur is String
+            ? duServeur
+            : duServeur is List
+                ? duServeur.join(', ')
+                : (e.message ?? 'Erreur réseau'),
         statusCode: e.response?.statusCode,
         originalError: e,
       );
@@ -266,7 +277,9 @@ class ApiClient {
 
   /// Vérifie si une route est publique (n'a pas besoin de signature)
   static bool _isPublicRoute(String path) {
-    return _publicRoutes.any((route) => path.startsWith(route));
+    final sansRequete = path.split('?').first;
+    return _publicRoutes.contains(sansRequete) ||
+        _piecesRecuperation.hasMatch(sansRequete);
   }
 
   /// Dispose du client

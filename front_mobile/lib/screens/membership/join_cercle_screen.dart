@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/cercles_provider.dart';
 import '../../models/api_models.dart';
 import '../../providers/api_client_provider.dart';
 import '../../services/api_client.dart';
@@ -208,15 +209,6 @@ class _JoinCercleScreenState extends ConsumerState<JoinCercleScreen> {
       return;
     }
 
-    if (widget.cercle.reglement.ordreFixe == null ||
-        widget.cercle.reglement.ordreFixe!.isEmpty) {
-      if (_selectedPlace == null) {
-        setState(() {
-          _error = 'Veuillez sélectionner une place';
-        });
-        return;
-      }
-    }
 
     setState(() {
       _isLoading = true;
@@ -224,21 +216,12 @@ class _JoinCercleScreenState extends ConsumerState<JoinCercleScreen> {
     });
 
     try {
-      // Appel API pour adhérer
-      // Note: Le service cercles devrait avoir cette méthode
-      // Pour maintenant, on appelle l'API directement
-      final apiClient = ref.read(apiClientProvider);
-
-      final payload = {
-        'placeChoisie': _selectedPlace,
-      };
-
-      // TODO: Utiliser CerclesService.adhesion()
-      final response = await apiClient.post<Map<String, dynamic>>(
-        '/cercles/${widget.cercleId}/adhesions',
-        data: payload,
-        fromJson: (json) => json as Map<String, dynamic>,
-      );
+      // Adhésion signée : l'engagement reprend l'empreinte du règlement.
+      await ref.read(cerclesServiceProvider).adhererAuCercle(
+            cercle: widget.cercle,
+            placeSouhaitee: _selectedPlace ?? widget.cercle.reglement.nombreMembres,
+          );
+      ref.invalidate(mesCerclesRefreshableProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -302,7 +285,10 @@ class _SelectionPlace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final placesDisponibles = cercle.reglement.nombreMembres - cercle.membres.length;
+    final placesDisponibles =
+        cercle.placesRestantes ?? cercle.reglement.nombreMembres - cercle.membres.length;
+    // Le score décide des premières places permises ; l'ordre final est fixé par le serveur.
+    final premiere = cercle.premierePlaceAutorisee ?? 1;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,7 +302,7 @@ class _SelectionPlace extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '$placesDisponibles place(s) disponible(s)',
+          '$placesDisponibles place(s) libre(s). Place souhaitée : à partir de la $premiere selon ton score.',
           style: const TextStyle(
             fontSize: 12,
             color: AppColors.textMuted,
@@ -335,7 +321,7 @@ class _SelectionPlace extends StatelessWidget {
           itemCount: cercle.reglement.nombreMembres,
           itemBuilder: (context, index) {
             final placeNumber = index + 1;
-            final isOccupied = index < cercle.membres.length;
+            final isOccupied = placeNumber < premiere; // non permise pour ce score
             final isSelected = selectedPlace == placeNumber;
 
             return GestureDetector(

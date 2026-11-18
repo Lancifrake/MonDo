@@ -3,7 +3,6 @@ import '../../data/tontine_draft.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/selectable_card.dart';
-import '../../widgets/switch_card.dart';
 
 class ModelStep extends StatelessWidget {
   const ModelStep({super.key, required this.draft, required this.onChanged});
@@ -43,21 +42,15 @@ class ModelStep extends StatelessWidget {
             selected: draft.model == m.id,
             showCheck: true,
             onTap: () {
-              draft.model = m.id;
+              draft.appliquerModele(m.id);
               onChanged();
             },
           ),
           const SizedBox(height: 12),
         ],
-        SwitchCard(
-          title: 'Je veux tout régler moi-même',
-          subtitle:
-              'Ajoute deux étapes : retards et impayés, argent liquide et décisions.',
-          value: draft.customAll,
-          onChanged: (value) {
-            draft.customAll = value;
-            onChanged();
-          },
+        const Text(
+          'Le modèle pré-remplit le montant et le rythme : tu pourras tout changer aux étapes suivantes.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
       ],
     );

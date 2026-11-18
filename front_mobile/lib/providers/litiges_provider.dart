@@ -29,11 +29,6 @@ final litigeProvider =
   return litigesService.getLitige(litigeId);
 });
 
-/// Provider pour récupérer les litiges en attente (pour arbitres)
-final litigesEnAttenteProvider = FutureProvider<List<Litige>>((ref) async {
-  final litigesService = ref.watch(litigesServiceProvider);
-  return litigesService.getLitigesEnAttente();
-});
 
 /// Provider pour rafraîchir les litiges
 final litigesRefreshProvider = StateProvider<int>((ref) => 0);

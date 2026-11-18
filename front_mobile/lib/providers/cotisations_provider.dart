@@ -53,3 +53,4 @@ final mesCotisationsRefreshableProvider =
   final cotisationsService = ref.watch(cotisationsServiceProvider);
   return cotisationsService.getMesCotisations();
 });
+

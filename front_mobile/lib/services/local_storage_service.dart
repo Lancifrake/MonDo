@@ -40,7 +40,11 @@ class LocalStorageService {
       await prefs.setString(_keyPhoneNumber, phoneNumber);
       await prefs.setBool(_keyIsAuthenticated, true);
 
-      // Sauvegarder les clés en stockage sécurisé
+      // Clé privée : UNIQUEMENT dans le stockage sécurisé (Keychain / Keystore)
+      await _secureStorage.write(
+        key: _keyPrivateKeyData,
+        value: cryptoService.privateKeyHex(),
+      );
       final publicKeyJwk = await cryptoService.getPublicKeyAsJwk();
       await _secureStorage.write(
         key: _keyPublicKeyData,
@@ -77,6 +81,11 @@ class LocalStorageService {
       }
 
       final publicKeyJwk = jsonDecode(publicKeyDataStr) as Map<String, dynamic>;
+      final privateKeyHex = await _secureStorage.read(key: _keyPrivateKeyData);
+      if (privateKeyHex == null) {
+        _logger.w('Clé privée non trouvée');
+        return null;
+      }
 
       _logger.i('Session restaurée pour: $membreId');
 
@@ -84,6 +93,7 @@ class LocalStorageService {
         membreId: membreId,
         phoneNumber: phoneNumber,
         publicKeyJwk: publicKeyJwk,
+        cryptoService: CryptoService.fromPrivateHex(privateKeyHex),
       );
     } catch (e) {
       _logger.e('Erreur lors de la récupération de la session: $e');
@@ -184,10 +194,12 @@ class SavedSession {
   final String membreId;
   final String phoneNumber;
   final Map<String, dynamic> publicKeyJwk;
+  final CryptoService cryptoService;
 
   SavedSession({
     required this.membreId,
     required this.phoneNumber,
     required this.publicKeyJwk,
+    required this.cryptoService,
   });
 }
