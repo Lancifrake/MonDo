@@ -233,18 +233,18 @@ class AuthStateNotifier extends StateNotifier<AuthState> {
 }
 
 /// Message lisible pour l'utilisateur à partir d'une erreur d'appel au serveur.
-String messageErreur(Object e) {
+///
+/// Le serveur explique lui-même ce qui ne va pas (en français) : on l'affiche tel quel.
+/// [otp] : à l'inscription, un 403 veut dire « code SMS faux ou expiré » et un 409
+/// « numéro déjà inscrit » ; ailleurs ces codes ont d'autres sens (identité de niveau 2
+/// requise, score trop bas…), d'où le message du serveur.
+String messageErreur(Object e, {bool otp = false}) {
   if (e is ApiException) {
-    switch (e.statusCode) {
-      case 403:
-        return 'Code incorrect ou expiré. Redemande un code.';
-      case 409:
-        return 'Ce numéro a déjà un compte.';
-      case 429:
-        return 'Trop de demandes. Réessaie plus tard.';
-      case null:
-        return 'Serveur injoignable. Vérifie ta connexion.';
-    }
+    if (e.statusCode == null) return 'Serveur injoignable. Vérifie ta connexion.';
+    if (otp && e.statusCode == 403) return 'Code incorrect ou expiré. Redemande un code.';
+    if (otp && e.statusCode == 409) return 'Ce numéro a déjà un compte.';
+    if (e.statusCode == 429) return 'Trop de demandes. Réessaie plus tard.';
+    if (e.statusCode == 423) return 'Ton compte est bloqué : tes échéances sont suspendues jusqu’au déblocage.';
     return e.message;
   }
   return 'Une erreur est survenue.';

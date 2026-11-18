@@ -66,7 +66,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e, otp: true))));
     } finally {
       if (mounted) setState(() => _envoi = false);
     }
@@ -78,7 +78,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       await ref.read(authStateProvider.notifier).requestOtp('+237${widget.phone}');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e, otp: true))));
     }
   }
 

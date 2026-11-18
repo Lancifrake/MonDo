@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
@@ -46,9 +47,22 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
     final c = widget.cercle;
     final r = c.reglement;
     final premiere = c.premierePlaceAutorisee ?? 1;
+    final niveau = ref.watch(authStateProvider).compte?.niveau ?? 1;
+    final identiteManquante = r.ouvert && niveau < 2;
     return Ecran(
       titre: 'Rejoindre',
       enfants: [
+        if (identiteManquante)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: Bloc(enfants: [
+              Ligne(
+                'Cette tontine est ouverte à des inconnus : ton identité doit d’abord être vérifiée (niveau 2). '
+                'Profil, puis « Vérification d’identité » (en démonstration : « Passer au niveau 2 sans pièce »).',
+                accent: true,
+              ),
+            ]),
+          ),
         Bloc(enfants: [
           Ligne('Cotisation', valeur: '${formatAmount(r.montant)} FCFA, ${rythme(r)}'),
           Ligne('Cagnotte à ton tour', valeur: '${formatAmount(r.montant * r.nombreMembres)} FCFA'),
@@ -81,7 +95,11 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
           ),
         ),
       ],
-      bas: AppButton(label: 'Signer et rejoindre', isLoading: _envoi, onPressed: _accepte ? _rejoindre : null),
+      bas: AppButton(
+        label: 'Signer et rejoindre',
+        isLoading: _envoi,
+        onPressed: _accepte && !identiteManquante ? _rejoindre : null,
+      ),
     );
   }
 }

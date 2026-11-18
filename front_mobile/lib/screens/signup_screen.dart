@@ -44,7 +44,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e))));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(messageErreur(e, otp: true))));
     } finally {
       if (mounted) setState(() => _envoi = false);
     }

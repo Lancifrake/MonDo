@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'compte/compte_demo_screen.dart';
 import 'compte/recuperation_screen.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
@@ -63,6 +64,21 @@ class WelcomeScreen extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const RecuperationScreen()),
                   ),
                 ),
+                if (comptesDemoActifs) ...[
+                  const SizedBox(height: 4),
+                  Center(
+                    child: TextButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CompteDemoScreen()),
+                      ),
+                      child: Text(
+                        'Utiliser un compte de démonstration',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
