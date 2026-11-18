@@ -537,6 +537,21 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
         WHERE statut = 'propose';
       CREATE INDEX parrainages_parrain ON comptes.parrainages (parrain_id)`,
   },
+  {
+    // Frais de place payés avant la cagnotte (19/11) : les frais encore dus des cercles existants prennent les
+    // nouvelles dates, sinon le bénéficiaire ne pourrait les régler qu'au jour de sa cagnotte et son tour resterait
+    // fermé jusque-là. Exigibles à la fin du tour précédent (tout de suite pour la place 1), avant la date de son tour.
+    nom: "034_frais_avant_la_cagnotte",
+    sql: `
+      UPDATE cotisations.sommes_dues s SET
+        exigible_le = LEAST(s.exigible_le, COALESCE(
+          (SELECT t.date_limite FROM cotisations.tours t WHERE t.cercle_id = s.cercle_id AND t.numero = s.tour - 1),
+          now())),
+        date_limite = COALESCE(
+          (SELECT t.date_limite FROM cotisations.tours t WHERE t.cercle_id = s.cercle_id AND t.numero = s.tour),
+          s.date_limite)
+      WHERE s.nature IN ('frais_mondo', 'remise') AND s.statut = 'due'`,
+  },
 ];
 
 export async function migrer(base: BaseDeDonnees): Promise<void> {

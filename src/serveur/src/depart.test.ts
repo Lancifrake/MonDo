@@ -172,6 +172,21 @@ describe("départ en cours de cycle, avant d'avoir reçu la cagnotte", () => {
     expect(duPremier.find((s) => s.nature === "frais_mondo")).toMatchObject({ statut: "due" });
   });
 
+  it("frais payés d'avance puis départ avant de recevoir : les remises lui sont rendues, la part de MonDo reste acquise", async () => {
+    const { p, partir, sommes } = await cercle4();
+    const [premier, , , dernier] = p;
+    expect((await partir(premier)).status).toBe(201);
+    const siennes = await sommes(premier);
+    expect(siennes.find((s) => s.nature === "frais_mondo")).toMatchObject({ statut: "confirmee" });
+    const remise = siennes.find((s) => s.nature === "remise")!;
+    expect(siennes.find((s) => s.nature === "remboursement_depart")).toMatchObject({
+      debiteurId: dernier.id,
+      creancierId: premier.id,
+      montant: remise.montant,
+      statut: "due",
+    });
+  });
+
   it("après un départ : pas de défaut pour les cotisations annulées, bonus de fin de cycle pour ceux qui restent", async () => {
     const { cercle, p, partir, payer } = await cercle4();
     const [premier, deuxieme, troisieme, partant] = p;

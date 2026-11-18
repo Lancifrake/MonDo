@@ -318,7 +318,7 @@ export class CotisationsService {
    * refusé s'il a déjà reçu quelque chose de sa cagnotte ou s'il n'est pas à jour ; sinon son tour et ses
    * cotisations futures sont annulés, et chaque bénéficiaire déjà servi lui doit le remboursement de ce qu'il a
    * versé. Frais du modèle A : les sommes non réglées qui le concernent sont annulées, une remise qu'il a déjà
-   * reçue est à rembourser. Une seule fois par membre et par cercle.
+   * reçue est à rembourser, une remise qu'il a déjà versée lui est rendue ; la part de MonDo reste acquise. Une seule fois par membre et par cercle.
    */
   async enregistrerDepart(
     cercleId: string,
@@ -386,6 +386,19 @@ export class CotisationsService {
         ...sommes
           .filter((s) => s.statut === "confirmee" && s.nature === "remise" && s.creancier_id === membreId)
           .map((s): [string, string, number, number, string] => [membreId, s.debiteur_id, Number(s.montant), 0, s.id]),
+        // Frais de place payés d'avance par un membre de tête qui part avant de recevoir (choix de David du 19/11) :
+        // les places de fin lui rendent ses remises ; la part de MonDo reste acquise.
+        ...sommes
+          .filter(
+            (s) => s.statut === "confirmee" && s.nature === "remise" && s.debiteur_id === membreId && s.creancier_id,
+          )
+          .map((s): [string, string, number, number, string] => [
+            s.creancier_id!,
+            membreId,
+            Number(s.montant),
+            0,
+            s.id,
+          ]),
       ];
       for (const [debiteur, creancier, montant, tour, origine] of aRembourser) {
         await tx.requete(

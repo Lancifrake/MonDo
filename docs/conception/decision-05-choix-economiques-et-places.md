@@ -204,7 +204,8 @@ Les frais de place étaient payés après la cagnotte : un bénéficiaire qui ne
 2. **Tour fermé.** Tant que la part de MonDo du bénéficiaire n'est pas confirmée par un Administrateur, ou que l'une de ses remises reste non déclarée, personne ne peut déclarer une cotisation vers lui : le serveur répond 400 « Le bénéficiaire n'a pas encore réglé ses frais de place ».
 3. **Les payeurs ne sont pas punis.** Un tour fermé n'est ni rappelé, ni compté en retard, ni en défaut. Quand le tour s'ouvre, les cotisations encore dues reçoivent une nouvelle date limite (maintenant) et la même durée de grâce.
 4. **Échange de places.** Refusé dès que des frais de l'une des deux places sont déclarés ou réglés ; comme ils se paient maintenant très tôt, l'échange doit se faire avant.
-5. **Départ.** Inchangé : libre avant d'avoir reçu, refusé après. Un membre d'une place de fin qui part rend les remises qu'il a déjà reçues ; les frais déjà versés à MonDo ne sont pas remboursés (à confirmer).
+5. **Départ.** Inchangé : libre avant d'avoir reçu, refusé après. Un membre d'une place de fin qui part rend les remises qu'il a déjà reçues. Un membre de tête qui a payé ses frais d'avance puis part avant de recevoir récupère ses remises (les places de fin les lui rendent) ; la part de MonDo reste acquise (choix de David du 19/11).
+7. **Cercles existants.** La migration 034 donne les nouvelles dates aux frais encore dus des cercles déjà en cours.
 6. **Démonstration.** Les membres fictifs règlent leurs frais de place d'avance, pour que le membre réel puisse payer.
 
-Non couvert, à décider : un bénéficiaire qui ne paie jamais ses frais bloque son tour sans conséquence sur son score ; une pénalité ou un défaut pour frais impayés n'est pas codé. Le remboursement à MonDo de frais déjà payés par un membre qui part avant de recevoir n'est pas défini.
+Non couvert, à décider : un bénéficiaire qui ne paie jamais ses frais bloque son tour sans conséquence sur son score ; une pénalité ou un défaut pour frais impayés n'est pas codé. 
