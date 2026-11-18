@@ -139,7 +139,7 @@ class ReglementStep extends ConsumerWidget {
         const SectionLabel('Frais par place'),
         const SizedBox(height: 6),
         const Text(
-          'Recevoir tôt coûte des frais ; les dernières places reçoivent une remise. Calculé par MonDo.',
+          'Recevoir tôt coûte des frais, à régler avant de recevoir la cagnotte ; les dernières places reçoivent une remise. Calculé par MonDo.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
         const SizedBox(height: 10),
