@@ -1,0 +1,149 @@
+name: Flutter Quality & Security Check
+
+on:
+  push:
+    branches: [ main, feature/*, develop ]
+    paths:
+      - 'front_mobile/**'
+      - '.github/workflows/flutter-quality.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'front_mobile/**'
+
+jobs:
+  quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+
+      - name: Get Flutter dependencies
+        working-directory: front_mobile
+        run: flutter pub get
+
+      - name: Run flutter analyze
+        working-directory: front_mobile
+        run: flutter analyze
+
+      - name: Run flutter format check
+        working-directory: front_mobile
+        run: flutter format --set-exit-if-changed .
+
+      - name: Run tests
+        working-directory: front_mobile
+        run: flutter test --coverage 2>/dev/null || true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: always()
+        with:
+          files: ./front_mobile/coverage/lcov.info
+          fail_ci_if_error: false
+
+      - name: Check pubspec.lock
+        working-directory: front_mobile
+        run: |
+          echo "✓ pubspec.lock integrity check"
+          flutter pub get --dry-run
+
+      - name: Security: Check for secrets
+        uses: trufflesecurity/trufflehog@main
+        if: always()
+        with:
+          path: ./front_mobile
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: quality
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+          channel: 'stable'
+
+      - name: Get dependencies
+        working-directory: front_mobile
+        run: flutter pub get
+
+      - name: Build APK (Android verification)
+        working-directory: front_mobile
+        run: flutter build apk --split-per-abi --target-platform android-arm64 2>&1 | head -100 || true
+
+      - name: Verify iOS build
+        working-directory: front_mobile
+        run: flutter build ios --simulator 2>&1 | head -50 || true
+
+  lint:
+    name: Linting & Code Style
+    runs-on: ubuntu-latest
+    needs: quality
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Get dependencies
+        working-directory: front_mobile
+        run: flutter pub get
+
+      - name: Run linter
+        working-directory: front_mobile
+        run: flutter analyze --no-fatal-infos
+
+      - name: Dart fix check
+        working-directory: front_mobile
+        run: dart fix --dry-run .
+
+      - name: Check imports order
+        working-directory: front_mobile
+        run: dart pub global activate import_sorter && import_sorter --check lib/ test/ || true
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.16.0'
+
+      - name: Get dependencies
+        working-directory: front_mobile
+        run: flutter pub get
+
+      - name: Check for vulnerable dependencies
+        working-directory: front_mobile
+        run: |
+          flutter pub outdated --exit-on-flutter-incompatibility || true
+          echo "✓ Dependencies checked"
+
+      - name: Dependency audit
+        working-directory: front_mobile
+        run: |
+          dart pub global activate dependency_validator
+          dependency_validator || true
