@@ -7,7 +7,8 @@ import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { SommeDue, SommeDuePourAdministrateur } from "./modules/cotisations/sommes-dues.service.js";
 import { calculerBareme } from "./score/frais.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { cercleComplet, creerCercle, reglementDeTest } from "./testing/cercles.js";
+import { cercleComplet, cotisationsDe, creerCercle, reglementDeTest } from "./testing/cercles.js";
+import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -40,14 +41,10 @@ const confirmer = (id: string, qui?: Identite) =>
 
 /** Cercle de trois à 10 000 FCFA : la place 1 doit 800 à MonDo et 800 au membre de la dernière place. */
 async function cercleAvecFrais() {
-  const { membres, cercle } = await cercleComplet(client);
+  const { membres, cercle } = await cercleComplet(client, undefined, { fraisRegles: false });
   const parPlace = (p: number) => membres.find((m) => m.id === cercle.ordre![p - 1]!.membreId)!;
   const [premier, milieu, dernier] = [parPlace(1), parPlace(2), parPlace(3)];
   const dues = await sommes(premier, cercle.id);
-  const exigibles = () =>
-    base.requete("UPDATE cotisations.sommes_dues SET exigible_le = now() - interval '1 hour' WHERE cercle_id = $1", [
-      cercle.id,
-    ]);
   return {
     cercle,
     premier,
@@ -55,7 +52,6 @@ async function cercleAvecFrais() {
     dernier,
     fraisMonDo: dues.find((s) => s.nature === "frais_mondo")!,
     remise: dues.find((s) => s.nature === "remise")!,
-    exigibles,
   };
 }
 
@@ -91,9 +87,9 @@ describe("sommes dues créées quand le cercle est complet", () => {
     expect(fraisMonDo).toMatchObject({ montant: 800, statut: "due", debiteurId: premier.id, tour: 1 });
     expect(fraisMonDo).not.toHaveProperty("creancierId");
     expect(remise).toMatchObject({ montant: 800, statut: "due", debiteurId: premier.id, creancierId: dernier.id });
-    // Exigible le jour de la cagnotte, à régler avant la date limite du tour suivant.
-    expect(Date.parse(remise.exigibleLe)).toBe(Date.parse(cercle.reglement.datePremierTour));
-    expect(Date.parse(remise.dateLimite) - Date.parse(remise.exigibleLe)).toBe(7 * 24 * 3600 * 1000);
+    // Payés avant la cagnotte : exigibles dès que le cercle est complet, à régler avant la date limite de son tour.
+    expect(Date.parse(remise.exigibleLe)).toBeLessThanOrEqual(Date.now());
+    expect(Date.parse(remise.dateLimite)).toBe(Date.parse(cercle.reglement.datePremierTour));
     // Chacun ne voit que ce qui le concerne.
     expect((await sommes(dernier, cercle.id)).map((s) => s.id)).toEqual([remise.id]);
     expect(await sommes(milieu, cercle.id)).toEqual([]);
@@ -123,10 +119,8 @@ describe("sommes dues créées quand le cercle est complet", () => {
 });
 
 describe("suivi d'une somme due, comme une cotisation", () => {
-  it("pas de paiement avant la cagnotte ; déclarée par celui qui doit, confirmée par celui qui reçoit", async () => {
-    const { premier, milieu, dernier, remise, exigibles } = await cercleAvecFrais();
-    expect((await declarer(remise.id, premier)).status).toBe(400);
-    await exigibles();
+  it("déclarée par celui qui doit, confirmée par celui qui reçoit", async () => {
+    const { premier, milieu, dernier, remise } = await cercleAvecFrais();
     expect((await declarer(remise.id, dernier)).status).toBe(403);
     expect((await declarer(remise.id, milieu)).status).toBe(403);
     expect((await declarer(remise.id)).status).toBe(401);
@@ -144,8 +138,7 @@ describe("suivi d'une somme due, comme une cotisation", () => {
   });
 
   it("la part de MonDo est confirmée par un Administrateur, jamais par celui qui la doit", async () => {
-    const { premier, dernier, fraisMonDo, exigibles } = await cercleAvecFrais();
-    await exigibles();
+    const { premier, dernier, fraisMonDo } = await cercleAvecFrais();
     await declarer(fraisMonDo.id, premier);
     expect((await confirmer(fraisMonDo.id, dernier)).status).toBe(403);
     vi.stubEnv("MONDO_ADMINISTRATEURS", `${admin.id},${premier.id}`);
@@ -170,8 +163,7 @@ describe("suivi d'une somme due, comme une cotisation", () => {
   });
 
   it("deux confirmations simultanées : une seule passe ; identifiant inconnu : 404 ; corps strict", async () => {
-    const { premier, dernier, remise, exigibles } = await cercleAvecFrais();
-    await exigibles();
+    const { premier, dernier, remise } = await cercleAvecFrais();
     expect(
       (await client.requete("POST", `/sommes-dues/${remise.id}/paiement`, { referenceTransaction: "A", x: 1 }, premier))
         .status,
@@ -196,5 +188,74 @@ describe("suivi d'une somme due, comme une cotisation", () => {
       await client.requete("GET", `/score/${premier.id}`, undefined, premier),
     );
     expect(s).toMatchObject({ score: 0, defauts: 0 });
+  });
+});
+
+describe("frais de place payés avant la cagnotte (décision du 19/11)", () => {
+  it("les frais d'un tour deviennent exigibles à la fin du tour précédent, pas avant", async () => {
+    const { cercle, membres } = await cercleComplet(client, reglementDeTest({ nombreMembres: 10, montant: 50_000 }), {
+      fraisRegles: false,
+    });
+    const tours = await base.requete<{ numero: number; date_limite: Date }>(
+      "SELECT numero, date_limite FROM cotisations.tours WHERE cercle_id = $1 ORDER BY numero",
+      [cercle.id],
+    );
+    const lignes = await base.requete<{ tour: number; exigible_le: Date; date_limite: Date }>(
+      "SELECT tour, exigible_le, date_limite FROM cotisations.sommes_dues WHERE cercle_id = $1 AND nature = 'frais_mondo' ORDER BY tour",
+      [cercle.id],
+    );
+    expect(lignes.map((l) => l.tour)).toEqual([1, 2, 3]);
+    // Place 1 : dès que le cercle est complet. Places suivantes : à la date limite du tour d'avant.
+    expect(new Date(lignes[0]!.exigible_le).getTime()).toBeLessThanOrEqual(Date.now());
+    expect(new Date(lignes[1]!.exigible_le).getTime()).toBe(new Date(tours[0]!.date_limite).getTime());
+    expect(new Date(lignes[2]!.exigible_le).getTime()).toBe(new Date(tours[1]!.date_limite).getTime());
+    // La place 2 ne peut pas régler ses frais avant : la somme n'est pas encore exigible.
+    const placeDeux = membres.find((m) => m.id === cercle.ordre![1]!.membreId)!;
+    const sienne = (await sommes(placeDeux, cercle.id)).find((x) => x.nature === "frais_mondo")!;
+    const trop = await declarer(sienne.id, placeDeux);
+    expect(trop.status).toBe(400);
+    expect((await json<{ message: string }>(trop)).message).toMatch(/pas encore exigible/);
+  });
+
+  it("les cotisations vers un bénéficiaire restent fermées tant qu'il n'a pas réglé ses frais de place", async () => {
+    const { cercle, premier, milieu, fraisMonDo, remise } = await cercleAvecFrais();
+    const due = async () => (await cotisationsDe(client, cercle.id, milieu)).find((c) => c.tour === 1)!;
+    const declarerCotisation = async () =>
+      client.requete("POST", `/cotisations/${(await due()).id}/paiement`, { referenceTransaction: "OM-G" }, milieu);
+    const refus = await declarerCotisation();
+    expect(refus.status).toBe(400);
+    expect((await json<{ message: string }>(refus)).message).toMatch(/frais de place/);
+    // Remise et part de MonDo déclarées : la part de MonDo doit aussi être confirmée avant d'ouvrir le tour.
+    await declarer(remise.id, premier);
+    await declarer(fraisMonDo.id, premier, "OM-FRAIS-2");
+    expect((await declarerCotisation()).status).toBe(400);
+    expect((await confirmer(fraisMonDo.id, admin)).status).toBe(201);
+    expect((await declarerCotisation()).status).toBe(201);
+  });
+
+  it("un tour fermé ne fait de défaut pour personne, et les payeurs repartent de zéro quand il s'ouvre", async () => {
+    const { cercle, premier, milieu, fraisMonDo, remise } = await cercleAvecFrais();
+    const planificateur = app.get(PlanificateurService);
+    // Le bénéficiaire n'a rien payé et les dates du tour sont passées : les payeurs n'ont pas pu payer.
+    await base.requete(
+      `UPDATE cotisations.cotisations SET date_limite = now() - interval '5 days', fin_grace = now() - interval '3 days'
+       WHERE cercle_id = $1 AND tour = 1`,
+      [cercle.id],
+    );
+    await planificateur.examinerEcheances();
+    const score = async () =>
+      json<{ defauts: number }>(await client.requete("GET", `/score/${milieu.id}`, undefined, milieu));
+    expect((await score()).defauts).toBe(0);
+    // Le tour s'ouvre : les cotisations encore dues reçoivent une nouvelle échéance, avec leur délai de grâce.
+    await declarer(remise.id, premier);
+    await declarer(fraisMonDo.id, premier, "OM-FRAIS-3");
+    expect((await confirmer(fraisMonDo.id, admin)).status).toBe(201);
+    const ouverte = (await cotisationsDe(client, cercle.id, milieu)).find(
+      (c) => c.tour === 1 && c.payeurId === milieu.id,
+    )!;
+    expect(Date.parse(ouverte.dateLimite)).toBeGreaterThanOrEqual(Date.now() - 1000);
+    expect(Date.parse(ouverte.finGrace)).toBeGreaterThan(Date.parse(ouverte.dateLimite));
+    await planificateur.examinerEcheances();
+    expect((await score()).defauts).toBe(0);
   });
 });

@@ -7,6 +7,7 @@ import { CerclesService, messageEngagement, type Cercle } from "../cercles/cercl
 import { ComptesService } from "../comptes/comptes.service.js";
 import { OtpService } from "../comptes/otp.service.js";
 import { CotisationsService } from "../cotisations/cotisations.service.js";
+import { SommesDuesService } from "../cotisations/sommes-dues.service.js";
 import { PlanificateurService } from "../planificateur/planificateur.service.js";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
@@ -34,6 +35,7 @@ export class DemonstrationService {
     @Inject(OtpService) private readonly otp: OtpService,
     @Inject(CerclesService) private readonly cercles: CerclesService,
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
+    @Inject(SommesDuesService) private readonly sommes: SommesDuesService,
     @Inject(PlanificateurService) private readonly planificateur: PlanificateurService,
     @Inject(CONNECTEUR_SMS) private readonly sms: ConnecteurSms,
     @Inject(FileSms) private readonly file: FileSms,
@@ -60,7 +62,16 @@ export class DemonstrationService {
       });
       liste.push(membre);
     }
-    if (manquants > 0) liste.forEach((m, i) => (m.defaillant = i === liste.length - 1));
+    if (manquants > 0) {
+      liste.forEach((m, i) => (m.defaillant = i === liste.length - 1));
+      // Frais de place payés avant la cagnotte : les membres fictifs règlent ceux du premier tour, pour que le
+      // membre réel puisse payer tout de suite.
+      await this.sommes.reglerPourDemonstration(
+        cercleId,
+        1,
+        liste.map((m) => m.id),
+      );
+    }
     return { membresFictifs: manquants };
   }
 
@@ -98,6 +109,12 @@ export class DemonstrationService {
         confirmations++;
       }
     }
+    // Le tour suivant s'ouvre : les membres fictifs qui le reçoivent règlent leurs frais de place d'avance.
+    await this.sommes.reglerPourDemonstration(
+      cercleId,
+      tour + 1,
+      fictifs.map((m) => m.id),
+    );
     return { tour, paiementsDeclares, confirmations, termine: false };
   }
 

@@ -29,8 +29,8 @@ const HEURE_MS = 60 * 60 * 1000;
 const json = async <T>(r: Response) => (await r.json()) as T;
 
 /** Cercle de quatre, hebdomadaire. Membres rendus dans l'ordre de passage. */
-async function cercle4() {
-  const { membres, cercle } = await cercleComplet(client, reglementDeTest({ nombreMembres: 4 }));
+async function cercle4(options: { fraisRegles?: boolean } = {}) {
+  const { membres, cercle } = await cercleComplet(client, reglementDeTest({ nombreMembres: 4 }), options);
   const p = cercle.ordre!.map((place) => membres.find((m) => m.id === place.membreId)!) as [
     Identite,
     Identite,
@@ -67,7 +67,9 @@ describe("départ en cours de cycle, avant d'avoir reçu la cagnotte", () => {
 
     const r = await partir(partant);
     expect(r.status).toBe(201);
-    expect(await json(r)).toMatchObject({ cercleId: cercle.id, remboursements: 1 });
+    // Deux remboursements : ce qu'il a versé (dû par le premier) et la remise de la place 1 qu'il avait déjà reçue,
+    // payée d'avance avec les frais de place, qu'il doit rendre.
+    expect(await json(r)).toMatchObject({ cercleId: cercle.id, remboursements: 2 });
 
     const siennes = await cotisationsDe(client, cercle.id, partant);
     // Ce qu'il devait encore (tours 2 et 3) et ce qu'on lui devait (tour 4) : annulé. Ce qu'il a payé : inchangé.
@@ -86,7 +88,9 @@ describe("départ en cours de cycle, avant d'avoir reçu la cagnotte", () => {
     ]);
 
     // Remboursement dû par celui qui a reçu, suivi comme une cotisation.
-    const remboursement = (await sommes(partant)).find((s) => s.nature === "remboursement_depart")!;
+    const remboursement = (await sommes(partant)).find(
+      (s) => s.nature === "remboursement_depart" && s.creancierId === partant.id,
+    )!;
     expect(remboursement).toMatchObject({
       debiteurId: premier.id,
       creancierId: partant.id,
@@ -160,7 +164,7 @@ describe("départ en cours de cycle, avant d'avoir reçu la cagnotte", () => {
   });
 
   it("frais du modèle A : les remises qu'on lui devait sont annulées, pas la part de MonDo des autres", async () => {
-    const { p, partir, sommes } = await cercle4();
+    const { p, partir, sommes } = await cercle4({ fraisRegles: false });
     const [premier, , , dernier] = p;
     expect((await partir(dernier)).status).toBe(201);
     const duPremier = await sommes(premier);

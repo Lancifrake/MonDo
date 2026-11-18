@@ -1,3 +1,4 @@
+import { BASE_DE_DONNEES, type BaseDeDonnees } from "../base/base-de-donnees.js";
 import type { Cotisation } from "../modules/cotisations/cotisations.service.js";
 import {
   messageEngagement,
@@ -53,14 +54,33 @@ export async function adherer(
   return client.requete("POST", `/cercles/${cercle.id}/adhesions`, { placeSouhaitee, signature }, m);
 }
 
+/**
+ * Frais de place réglés d'avance, comme le veut la règle du 19/11 (payés avant la cagnotte) : les cotisations des
+ * tours s'ouvrent. Les tests qui ne portent pas sur les frais partent de là ; ceux qui en traitent passent
+ * `fraisRegles: false` à `cercleComplet`.
+ */
+export async function reglerLesFrais(client: Client, cercleId: string): Promise<void> {
+  const base = client.app.get<BaseDeDonnees>(BASE_DE_DONNEES);
+  await base.requete(
+    `UPDATE cotisations.sommes_dues SET statut = 'confirmee', declaree_le = now(), confirmee_le = now()
+     WHERE cercle_id = $1 AND nature IN ('frais_mondo', 'remise') AND statut IN ('due', 'declaree')`,
+    [cercleId],
+  );
+}
+
 /** Cercle complet : l'organisateur puis les autres membres, dans l'ordre d'inscription. Rend le cercle avec son ordre figé. */
-export async function cercleComplet(client: Client, r: Reglement = reglementDeTest()) {
+export async function cercleComplet(
+  client: Client,
+  r: Reglement = reglementDeTest(),
+  options: { fraisRegles?: boolean } = {},
+) {
   const membres: Identite[] = [];
   for (let i = 0; i < r.nombreMembres; i++) membres.push(await client.inscrire());
   const [org, ...autres] = membres;
   const cree = (await (await creerCercle(client, org!, r)).json()) as Cercle;
   for (const m of autres) await adherer(client, cree, m);
   const cercle = (await (await client.requete("GET", `/cercles/${cree.id}`, undefined, org)).json()) as Cercle;
+  if (options.fraisRegles ?? true) await reglerLesFrais(client, cree.id);
   return { membres, org: org!, cercle };
 }
 
