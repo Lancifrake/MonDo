@@ -1,4 +1,6 @@
 import 'package:logger/logger.dart';
+import 'dart:convert';
+import 'dart:io';
 import '../config/api_config.dart';
 import '../models/api_models.dart';
 import 'api_client.dart';
@@ -105,16 +107,29 @@ class CotisationsService {
   /// Confirme un paiement précédemment déclaré
   /// 
   /// Cette confirmation valide le paiement et ferme la transaction
+  /// L'image de preuve est convertie en base64 pour l'envoi
   Future<Cotisation> confirmerPaiement({
     required String cotisationId,
-    required String preuve, // Preuve du paiement (screenshot, reçu, etc.)
+    required String proofImagePath, // Chemin local de l'image de preuve
     required String signature, // Signature de la confirmation
   }) async {
     try {
       _logger.i('Confirmation paiement: $cotisationId');
 
+      // Lire l'image et la convertir en base64
+      // Note: En production, vérifier que le chemin est valide
+      final imageFile = File(proofImagePath);
+      if (!await imageFile.exists()) {
+        throw ApiException(
+          message: 'Fichier image non trouvé: $proofImagePath',
+        );
+      }
+
+      final imageBytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
+
       final request = {
-        'preuve': preuve,
+        'preuve': base64Image,
         'signature': signature,
       };
 

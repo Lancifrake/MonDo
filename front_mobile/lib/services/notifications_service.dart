@@ -61,7 +61,7 @@ class NotificationsService {
   }
 
   /// Marque une notification comme lue
-  Future<Notification> marquerCommeEue(String notificationId) async {
+  Future<Notification> marquerCommeLue(String notificationId) async {
     try {
       _logger.i('Marquage notification comme lue: $notificationId');
 
@@ -78,6 +78,11 @@ class NotificationsService {
       _logger.e('Erreur lors du marquage comme lue: $e');
       rethrow;
     }
+  }
+
+  /// Marque toutes les notifications comme lues (alias)
+  Future<Notification> marquerCommeEue(String notificationId) async {
+    return marquerCommeLue(notificationId);
   }
 
   /// Marque toutes les notifications comme lues
