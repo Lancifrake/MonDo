@@ -79,7 +79,30 @@ void main() {
     // L'accueil montre la tontine créée, lue sur le serveur
     expect(find.text('Mes tontines'), findsOneWidget);
 
+    // Fiche de la tontine : compléter avec des membres fictifs, puis le registre
+    await t.tap(find.textContaining('Tontine de 10').first);
+    await attendre(t, find.text('Démo : compléter avec des membres fictifs'));
+    await t.ensureVisible(find.text('Démo : compléter avec des membres fictifs'));
+    await t.tap(find.text('Démo : compléter avec des membres fictifs'));
+    await attendre(t, find.text('Registre et preuve d’intégrité'));
+    await t.ensureVisible(find.text('Registre et preuve d’intégrité'));
+    await t.tap(find.text('Registre et preuve d’intégrité'));
+    await attendre(t, find.textContaining('Intégrité vérifiée'));
+    for (var i = 0; i < 2; i++) {
+      await t.tap(find.byTooltip('Back').last);
+      await t.pumpAndSettle();
+    }
+
+    // Chaque onglet se charge depuis le serveur, sans erreur
+    for (final onglet in ['Cotisations', 'Litiges', 'Alertes', 'Profil']) {
+      await t.tap(find.text(onglet).last);
+      await t.pump(const Duration(seconds: 2));
+      expect(find.textContaining('Exception'), findsNothing, reason: onglet);
+      expect(find.textContaining('Erreur'), findsNothing, reason: onglet);
+    }
+    await attendre(t, find.text('Code secret de récupération'));
+
     // Laisser l'écran affiché pour la capture
-    await t.pump(const Duration(seconds: 25));
+    await t.pump(const Duration(seconds: 20));
   }, timeout: const Timeout(Duration(minutes: 3)));
 }

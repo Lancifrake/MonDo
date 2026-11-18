@@ -47,11 +47,16 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
       await ref.read(cerclesServiceProvider).createCercle(
             montant: d.montant,
             frequence: d.frequence,
+            periodeJours: d.frequence == 'jours' ? d.periodeJours : null,
             nombreMembres: d.nombreMembres,
             ouvert: !d.isPrivate,
             datePremierTour: d.datePremierTour,
             penaliteRetard: d.penaliteRetard,
             delaiGraceJours: d.delaiGraceJours,
+            scoreMinimum: d.isPrivate || (d.scoreMinimum ?? 0) == 0 ? null : d.scoreMinimum,
+            rappelsAvantEcheanceJours: d.rappels ? const [3, 1] : null,
+            parrainageAccepte: !d.isPrivate && d.parrainageAccepte,
+            placeSouhaitee: d.placeSouhaitee == null ? null : d.placeSouhaitee!.clamp(1, d.nombreMembres),
           );
       ref.invalidate(mesCerclesRefreshableProvider);
       ref.invalidate(catalogueCerclesProvider);

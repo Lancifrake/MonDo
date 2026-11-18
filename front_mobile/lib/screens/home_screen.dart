@@ -326,8 +326,45 @@ class _QuickActions extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.vpn_key_outlined,
+            label: "J'ai un code",
+            onTap: () => _codeInvitation(context),
+          ),
+        ),
       ],
     );
+  }
+}
+
+/// Le SMS d'invitation contient le code de la tontine (son identifiant).
+Future<void> _codeInvitation(BuildContext context) async {
+  final ctrl = TextEditingController();
+  final code = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Code d’invitation'),
+      content: TextField(
+        controller: ctrl,
+        decoration: const InputDecoration(hintText: 'Colle le code reçu par SMS'),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Annuler')),
+        TextButton(onPressed: () => Navigator.pop(ctx, ctrl.text.trim()), child: const Text('Voir la tontine')),
+      ],
+    ),
+  );
+  final id = RegExp(r'[0-9a-fA-F-]{36}').firstMatch(code ?? '')?.group(0);
+  if (id == null) {
+    if (code != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Code non reconnu.')));
+    }
+    return;
+  }
+  if (context.mounted) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => CercleDetailsScreen(cercleId: id)));
   }
 }
 

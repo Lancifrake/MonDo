@@ -5,20 +5,19 @@
 /// - Les timeouts
 /// - Les chemins d'accès aux ressources
 class ApiConfig {
-  /// URL de base du backend - À ADAPTER selon l'environnement
-  /// 
-  /// Pour le développement local, utilisez :
-  /// http://localhost:3000 ou http://192.168.1.X:3000
+  /// Adresse du serveur. Par défaut l'instance de démonstration (Render, s'endort
+  /// après 15 min : le premier appel peut prendre 30 s). Pour un serveur local :
+  /// flutter run --dart-define=API_URL=http://127.0.0.1:3000
   static const String baseUrl = String.fromEnvironment(
     'API_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'https://mondo-serveur-demo.onrender.com',
   );
 
   /// Délai d'expiration des requêtes en secondes
-  static const int requestTimeoutSeconds = 30;
+  static const int requestTimeoutSeconds = 60;
 
   /// Délai d'expiration de la connexion en secondes
-  static const int connectTimeoutSeconds = 15;
+  static const int connectTimeoutSeconds = 60;
 
   /// Chemins des endpoints principaux
   static const String pathAuth = '/comptes';

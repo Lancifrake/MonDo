@@ -1,10 +1,28 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_bar.dart';
 import 'main_shell.dart';
 
+/// Le PIN déverrouille l'app sur CE téléphone : il ne part jamais au serveur.
+/// Seule son empreinte est gardée, dans le stockage sécurisé.
+const _cleStockagePin = 'mondo_pin_empreinte';
+const _stockage = FlutterSecureStorage();
+
+String _empreinte(String pin) => sha256.convert(utf8.encode('mondo-pin:$pin')).toString();
+
+Future<bool> pinDefini() async => (await _stockage.read(key: _cleStockagePin)) != null;
+
+Future<void> effacerPin() => _stockage.delete(key: _cleStockagePin);
+
 class PinScreen extends StatefulWidget {
-  const PinScreen({super.key});
+  /// [verifier] : demander le PIN déjà choisi (à l'ouverture) au lieu d'en choisir un.
+  const PinScreen({super.key, this.verifier = false});
+
+  final bool verifier;
 
   @override
   State<PinScreen> createState() => _PinScreenState();
@@ -27,7 +45,22 @@ class _PinScreenState extends State<PinScreen> {
     if (_pin.length == 4) _onComplete();
   }
 
-    void _onComplete() {
+  int _essais = 0;
+
+  Future<void> _onComplete() async {
+    if (widget.verifier) {
+      final attendu = await _stockage.read(key: _cleStockagePin);
+      if (attendu != _empreinte(_pin)) {
+        _essais++;
+        setState(() => _pin = '');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Code PIN incorrect ($_essais).')));
+        }
+        return;
+      }
+    } else {
+      await _stockage.write(key: _cleStockagePin, value: _empreinte(_pin));
+    }
     // Petit délai pour voir le 4e point se remplir
     Future.delayed(const Duration(milliseconds: 200), () {
       if (!mounted) return;
@@ -42,7 +75,7 @@ class _PinScreenState extends State<PinScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: buildAppBar(context, 'Choisis ton code PIN'),
+      appBar: buildAppBar(context, widget.verifier ? 'Ton code PIN' : 'Choisis ton code PIN'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         child: Column(

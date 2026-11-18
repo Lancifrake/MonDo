@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/api_models.dart';
 import '../../providers/cercles_provider.dart';
+import '../../widgets/sobre.dart';
+import 'vie_cercle_screens.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/api_client_provider.dart';
 import '../../providers/cotisations_provider.dart';
@@ -402,74 +404,33 @@ class _ReglementRow extends StatelessWidget {
   }
 }
 
-/// Section membres
-class _MembresSection extends StatelessWidget {
+/// Section membres : l'ordre de passage. Le serveur ne donne pas les noms des autres membres.
+class _MembresSection extends ConsumerWidget {
   final Cercle cercle;
 
   const _MembresSection({required this.cercle});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final moi = ref.read(apiClientProvider).membreId;
+    final ordre = [...?cercle.ordre]..sort((a, b) => a.position.compareTo(b.position));
+    final inscrits = cercle.membres.isNotEmpty
+        ? cercle.membres.length
+        : cercle.reglement.nombreMembres - (cercle.placesRestantes ?? 0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Membres',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: cercle.membres.length,
-            separatorBuilder: (_, __) => Divider(height: 1),
-            itemBuilder: (context, index) {
-              final membreId = cercle.membres[index];
-              return Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: Colors.blue.shade100,
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Center(
-                        child: Text(
-                          membreId.substring(0, 1).toUpperCase(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            color: Colors.blue,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        membreId,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
+        const Titre('Membres'),
+        Bloc(enfants: [
+          Ligne('Inscrits', valeur: '$inscrits sur ${cercle.reglement.nombreMembres}'),
+          for (final o in ordre)
+            Ligne(
+              'Place ${o.position}${o.membreId == moi ? ' · moi' : ''}${o.membreId == cercle.organisateurId ? ' · organisateur' : ''}',
+              valeur: o.position == 1 ? 'reçoit en premier' : null,
+            ),
+        ]),
+        if (ordre.isEmpty)
+          const Note('L’ordre de passage est fixé quand toutes les places sont prises.'),
       ],
     );
   }
@@ -543,19 +504,19 @@ class _EtatCotisationsSection extends ConsumerWidget {
                         switch (membre.statut) {
                           case 'due':
                             statusColor = Colors.red;
-                            statusIcon = '⏳';
+                            statusIcon = 'à payer';
                             break;
                           case 'declaree':
                             statusColor = Colors.orange;
-                            statusIcon = '📝';
+                            statusIcon = 'déclaré';
                             break;
                           case 'confirmee':
                             statusColor = Colors.green;
-                            statusIcon = '✅';
+                            statusIcon = 'payé';
                             break;
                           default:
                             statusColor = Colors.grey;
-                            statusIcon = '❓';
+                            statusIcon = membre.statut;
                         }
                         return Padding(
                           padding: const EdgeInsets.symmetric(vertical: 4),
@@ -565,7 +526,7 @@ class _EtatCotisationsSection extends ConsumerWidget {
                             children: [
                               Expanded(
                                 child: Text(
-                                  membre.id,
+                                  membre.id == ref.read(apiClientProvider).membreId ? 'Moi' : 'Membre ${membre.id.substring(0, 4)}',
                                   style: const TextStyle(fontSize: 12),
                                 ),
                               ),
@@ -762,9 +723,26 @@ class _ActionsMembre extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final service = ref.read(cerclesServiceProvider);
+    final espace = ref.read(espaceServiceProvider);
+    void ouvrir(Widget page) => Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+    final enCours = cercle.statut == 'complet';
+    final autres = [...?cercle.ordre]..sort((a, b) => a.position.compareTo(b.position));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Bloc(enfants: [
+          Ligne('Registre et preuve d’intégrité', onTap: () => ouvrir(RegistreScreen(cercleId: cercle.id))),
+          if (enCours) Ligne('Échanges de places', onTap: () => ouvrir(EchangesScreen(cercle: cercle))),
+          if (organisateur) Ligne('Assistant de l’organisateur', onTap: () => ouvrir(AssistantScreen(cercle: cercle))),
+        ]),
+        if (enCours && autres.isNotEmpty) ...[
+          const Titre('Dossier de preuve d’un membre en défaut'),
+          Bloc(enfants: [
+            for (final o in autres.where((o) => o.membreId != espace.moi))
+              Ligne('Place ${o.position}', onTap: () => ouvrir(DossierPreuveScreen(cercle: cercle, membreId: o.membreId))),
+          ]),
+        ],
+        const SizedBox(height: 16),
         if (organisateur && cercle.statut == 'en_attente') ...[
           ElevatedButton.icon(
             onPressed: () => _inviter(context, ref),
@@ -778,11 +756,59 @@ class _ActionsMembre extends ConsumerWidget {
             child: const Text('Démo : compléter avec des membres fictifs'),
           ),
         ],
-        if (cercle.statut == 'complet')
+        if (enCours) ...[
           OutlinedButton(
             onPressed: () => _faire(context, ref, () => service.demoSuite(cercle.id),
                 'Les membres fictifs ont joué le tour en cours.'),
             child: const Text('Démo : les autres membres jouent le tour'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Quitter la tontine ?'),
+                  content: const Text(
+                    'Possible seulement avant d’avoir reçu. Ce que tu as versé te sera remboursé selon le règlement, '
+                    'et le départ est inscrit au registre.',
+                  ),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Rester')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Quitter')),
+                  ],
+                ),
+              );
+              if (ok == true && context.mounted) {
+                await _faire(context, ref, () => espace.quitter(cercle.id), 'Tu as quitté la tontine.');
+              }
+            },
+            child: const Text('Quitter la tontine', style: TextStyle(color: Color(0xFFB45309))),
+          ),
+        ],
+        if (organisateur && cercle.statut == 'termine')
+          ElevatedButton(
+            onPressed: () async {
+              final r = cercle.reglement;
+              await _faire(
+                context,
+                ref,
+                () => service.createCercle(
+                  montant: r.montant,
+                  frequence: r.frequence,
+                  periodeJours: r.periodeJours,
+                  nombreMembres: r.nombreMembres,
+                  ouvert: r.ouvert,
+                  datePremierTour: DateTime.now().add(const Duration(days: 7)),
+                  penaliteRetard: r.penaliteRetard,
+                  delaiGraceJours: r.delaiGraceJours,
+                  scoreMinimum: r.scoreMinimum,
+                  cerclePrecedentId: cercle.id,
+                ),
+                'Nouveau cycle créé : les anciens membres sont invités à signer de nouveau.',
+              );
+            },
+            child: const Text('Relancer un nouveau cycle'),
           ),
         const SizedBox(height: 32),
       ],

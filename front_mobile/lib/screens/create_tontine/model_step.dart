@@ -10,13 +10,6 @@ class ModelStep extends StatelessWidget {
   final TontineDraft draft;
   final VoidCallback onChanged; // prévient l'écran parent qu'il faut se redessiner
 
-  static const _soon = [
-    'Caisse pour un projet',
-    "Entraide en cas d'événement",
-    'Enchères',
-    'Prêts entre membres',
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -29,7 +22,6 @@ class ModelStep extends StatelessWidget {
           runSpacing: 8,
           children: [
             const _TypeChip(label: 'Tontine classique', selected: true),
-            for (final label in _soon) _TypeChip(label: '$label · bientôt'),
           ],
         ),
         const SizedBox(height: 24),

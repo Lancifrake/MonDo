@@ -111,7 +111,7 @@ class _JoinCercleScreenState extends ConsumerState<JoinCercleScreen> {
                   border: Border.all(color: Colors.amber.shade200),
                 ),
                 child: const Text(
-                  '⚠️ En adhérant, vous vous engagez à participer à tous les tours '
+                  'En adhérant, vous vous engagez à participer à tous les tours '
                   'et à respecter le réglement du cercle. Les défauts de paiement '
                   'affecteront votre score de confiance.',
                   style: TextStyle(
@@ -226,7 +226,7 @@ class _JoinCercleScreenState extends ConsumerState<JoinCercleScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Adhésion réussie ! ✅'),
+            content: Text('Tu as rejoint la tontine. Ton engagement est signé.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
@@ -346,7 +346,7 @@ class _SelectionPlace extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        isOccupied ? '✓' : placeNumber.toString(),
+                        placeNumber.toString(),
                         style: TextStyle(
                           fontSize: isOccupied ? 20 : 18,
                           fontWeight: FontWeight.w700,

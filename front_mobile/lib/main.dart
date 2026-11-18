@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'providers/auth_provider.dart';
 import 'screens/main_shell.dart';
+import 'screens/pin_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -32,18 +33,26 @@ class _Demarrage extends ConsumerStatefulWidget {
 }
 
 class _DemarrageState extends ConsumerState<_Demarrage> {
-  late final Future<bool> _session =
-      ref.read(authStateProvider.notifier).restaurerSession();
+  /// null : pas de compte ; false : compte sans PIN ; true : compte avec PIN à demander.
+  late final Future<bool?> _session = () async {
+    final ok = await ref.read(authStateProvider.notifier).restaurerSession();
+    if (!ok) return null;
+    return pinDefini();
+  }();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<bool>(
+    return FutureBuilder<bool?>(
       future: _session,
       builder: (context, snap) {
-        if (!snap.hasData) {
+        if (snap.connectionState != ConnectionState.done) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
-        return snap.data! ? const MainShell() : const WelcomeScreen();
+        return switch (snap.data) {
+          null => const WelcomeScreen(),
+          true => const PinScreen(verifier: true),
+          false => const MainShell(),
+        };
       },
     );
   }

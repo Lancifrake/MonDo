@@ -45,6 +45,22 @@ class ReglementStep extends ConsumerWidget {
           selected: d.frequence == 'mensuelle',
           onTap: () => _update(() => d.frequence = 'mensuelle'),
         ),
+        const SizedBox(height: 10),
+        SelectableCard(
+          title: 'Tous les X jours',
+          subtitle: 'Un rythme sur mesure, de 1 à 60 jours',
+          selected: d.frequence == 'jours',
+          onTap: () => _update(() => d.frequence = 'jours'),
+        ),
+        if (d.frequence == 'jours') ...[
+          const SizedBox(height: 10),
+          CounterRow(
+            label: 'Jours entre deux tours',
+            value: d.periodeJours,
+            onMinus: d.periodeJours > 2 ? () => _update(() => d.periodeJours--) : null,
+            onPlus: d.periodeJours < 60 ? () => _update(() => d.periodeJours++) : null,
+          ),
+        ],
         const SizedBox(height: 24),
         const SectionLabel('Première échéance'),
         const SizedBox(height: 10),
@@ -80,6 +96,46 @@ class ReglementStep extends ConsumerWidget {
           onPlus: () => _update(() => d.penaliteRetard += 500),
         ),
         const SizedBox(height: 24),
+        const SectionLabel('Options'),
+        const SizedBox(height: 10),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: d.rappels,
+          onChanged: (v) => _update(() => d.rappels = v),
+          title: const Text('Rappels avant chaque échéance'),
+          subtitle: const Text('L’assistant prévient 3 jours puis 1 jour avant.'),
+        ),
+        if (!d.isPrivate) ...[
+          CounterRow(
+            label: 'Score minimum pour entrer',
+            value: d.scoreMinimum ?? 0,
+            onMinus: (d.scoreMinimum ?? 0) > 0 ? () => _update(() => d.scoreMinimum = (d.scoreMinimum ?? 0) - 5) : null,
+            onPlus: (d.scoreMinimum ?? 0) < 100 ? () => _update(() => d.scoreMinimum = (d.scoreMinimum ?? 0) + 5) : null,
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: d.parrainageAccepte,
+            onChanged: (v) => _update(() => d.parrainageAccepte = v),
+            title: const Text('Accepter les filleuls'),
+            subtitle: const Text('Un filleul peut entrer sous le score minimum si son parrain est membre.'),
+          ),
+        ],
+        const SizedBox(height: 10),
+        CounterRow(
+          label: 'Ma place souhaitée',
+          value: d.placeSouhaitee ?? d.nombreMembres,
+          onMinus: (d.placeSouhaitee ?? d.nombreMembres) > 1
+              ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) - 1)
+              : null,
+          onPlus: (d.placeSouhaitee ?? d.nombreMembres) < d.nombreMembres
+              ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) + 1)
+              : null,
+        ),
+        const Text(
+          'Recevoir tôt dépend de ton score : la dernière place est toujours permise.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+        ),
+        const SizedBox(height: 24),
         const SectionLabel('Frais par place'),
         const SizedBox(height: 6),
         const Text(
@@ -95,7 +151,7 @@ class ReglementStep extends ConsumerWidget {
         const SizedBox(height: 16),
         const Text(
           'En créant la tontine, tu signes ce règlement avec la clé de ton téléphone. '
-          'Il ne pourra plus être modifié. Tu prends la dernière place.',
+          'Il ne pourra plus être modifié.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
         ),
       ],

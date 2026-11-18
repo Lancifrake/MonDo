@@ -346,22 +346,6 @@ class _NotificationCard extends StatelessWidget {
                             ],
                           ),
                         ),
-                      PopupMenuItem(
-                        onTap: () {
-                          // TODO: Implémenter suppression
-                        },
-                        child: const Row(
-                          children: [
-                            Icon(Icons.delete_outline,
-                                size: 18, color: Colors.red),
-                            SizedBox(width: 8),
-                            Text(
-                              'Supprimer',
-                              style: TextStyle(color: Colors.red),
-                            ),
-                          ],
-                        ),
-                      ),
                     ],
                   ),
                 ],

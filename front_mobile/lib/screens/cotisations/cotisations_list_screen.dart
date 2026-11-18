@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../cercles/vie_cercle_screens.dart';
 import '../../providers/api_client_provider.dart';
 import '../../services/api_client.dart';
 import '../../models/api_models.dart';
@@ -482,12 +483,16 @@ class _CotisationCard extends StatelessWidget {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: onPay,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                  ),
                   child: const Text("J'ai payé : déclarer"),
                 ),
+              ),
+            if (cotisation.statut == 'due' && _jeDois)
+              TextButton(
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: cotisation)),
+                ),
+                child: const Text('Payer par Mobile Money (démo)'),
               ),
           ],
         ),

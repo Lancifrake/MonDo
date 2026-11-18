@@ -4,7 +4,7 @@ import 'disputes/disputes_list_screen.dart';
 import 'home_screen.dart';
 import 'cotisations/cotisations_list_screen.dart';
 import 'notifications/notifications_screen.dart';
-import 'score/score_screen.dart';
+import 'compte/profil_screen.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key});
@@ -22,7 +22,7 @@ class _MainShellState extends State<MainShell> {
     CotisationsListScreen(),
     DisputesListScreen(),
     NotificationsScreen(),
-    ScoreScreen(),
+    ProfilScreen(),
   ];
 
   @override
@@ -63,7 +63,7 @@ class _MainShellState extends State<MainShell> {
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
-              label: 'Score',
+              label: 'Profil',
             ),
           ],
         ),

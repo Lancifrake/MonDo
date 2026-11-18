@@ -49,6 +49,9 @@ class CerclesService {
     required int delaiGraceJours,
     int? scoreMinimum,
     int? placeSouhaitee,
+    List<int>? rappelsAvantEcheanceJours,
+    bool? parrainageAccepte,
+    String? cerclePrecedentId, // cycle suivant d'une tontine terminée
   }) async {
     final cle = _apiClient.cryptoService;
     final organisateurId = _apiClient.membreId;
@@ -67,6 +70,9 @@ class CerclesService {
       'datePremierTour': datePremierTour.toUtc().toIso8601String(),
       'bareme': bareme.map((b) => b.toJson()).toList(),
       if (scoreMinimum != null) 'scoreMinimum': scoreMinimum,
+      if (rappelsAvantEcheanceJours != null && rappelsAvantEcheanceJours.isNotEmpty)
+        'rappelsAvantEcheanceJours': rappelsAvantEcheanceJours,
+      if (parrainageAccepte == true) 'parrainageAccepte': true,
     };
     // Par défaut la dernière place : toujours permise, quel que soit le score.
     final place = placeSouhaitee ?? nombreMembres;
@@ -78,7 +84,12 @@ class CerclesService {
     }));
     return _apiClient.post<Cercle>(
       ApiConfig.pathCercles,
-      data: {'reglement': reglement, 'placeSouhaitee': place, 'signature': signature},
+      data: {
+        'reglement': reglement,
+        'placeSouhaitee': place,
+        'signature': signature,
+        if (cerclePrecedentId != null) 'cerclePrecedentId': cerclePrecedentId,
+      },
       fromJson: (json) => Cercle.fromJson(json as Map<String, dynamic>),
     );
   }

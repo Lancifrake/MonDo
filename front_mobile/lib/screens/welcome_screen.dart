@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'compte/recuperation_screen.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_button.dart';
@@ -58,7 +59,10 @@ class WelcomeScreen extends StatelessWidget {
                   background: Colors.transparent,
                   foreground: Colors.white,
                   borderColor: Colors.white.withValues(alpha: 0.25),
-                  onPressed: () {}, // écran de connexion à venir
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RecuperationScreen()),
+                  ),
                 ),
               ],
             ),

@@ -87,7 +87,7 @@ class _OpenDisputeScreenState extends ConsumerState<OpenDisputeScreen> {
                       border: Border.all(color: Colors.blue.shade200),
                     ),
                     child: const Text(
-                      '⚠️ Ouvrez un litige pour contester un paiement ou signaler '
+                      'Ouvrez un litige pour contester un paiement ou signaler '
                       'une problématique. Un arbitrage sera effectué selon '
                       'le réglement du cercle.',
                       style: TextStyle(
@@ -273,7 +273,6 @@ class _OpenDisputeScreenState extends ConsumerState<OpenDisputeScreen> {
         'motif': _motifController.text,
       };
 
-      // TODO: Utiliser LitigesService.ouvrirLitige()
       final response = await apiClient.post<Map<String, dynamic>>(
         '/litiges',
         data: payload,
@@ -283,7 +282,7 @@ class _OpenDisputeScreenState extends ConsumerState<OpenDisputeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Litige ouvert avec succès ! ✅'),
+            content: Text('Litige ouvert. Un administrateur MonDo va l’examiner.'),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),

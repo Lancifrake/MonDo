@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>MonDo photographie ta pièce d'identité et ton selfie pour vérifier ton identité.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>MonDo lit la photo de ta pièce d'identité que tu choisis.</string>
 </dict>
 </plist>
