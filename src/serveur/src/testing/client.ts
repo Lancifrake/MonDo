@@ -64,5 +64,5 @@ export async function creerClient(app: INestApplication) {
     return { ...identite, niveau2: () => requete("POST", `/comptes/${id}/niveau2`, undefined, identite) };
   }
 
-  return { requete, inscrire, codeOtp };
+  return { requete, inscrire, codeOtp, app };
 }

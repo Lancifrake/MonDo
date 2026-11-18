@@ -8,7 +8,7 @@ import { FileSms } from "../../sms/file-sms.js";
 import { fcfa } from "../../sms/montant.js";
 import { ComptesService } from "../comptes/comptes.service.js";
 import { calendrierDesTours } from "./calendrier.js";
-import type { NatureSomme } from "./sommes-dues.service.js";
+import { FRAIS_DE_PLACE_EN_ATTENTE, type NatureSomme } from "./sommes-dues.service.js";
 
 const JOUR_MS = 24 * 60 * 60 * 1000;
 
@@ -197,12 +197,14 @@ export class CotisationsService {
           );
         }
       }
-      // Frais du modèle A : le bénéficiaire d'un tour du début doit sa part à MonDo et une remise à chaque
-      // membre d'une place de fin. Exigibles le jour de sa cagnotte, à régler avant le tour suivant.
+      // Frais du modèle A, réglés AVANT la cagnotte (décision du 19/11) : le bénéficiaire d'un tour du début doit sa
+      // part à MonDo et une remise à chaque membre d'une place de fin. Exigibles dès la fin du tour précédent (dès
+      // que le cercle est complet pour la place 1), à régler avant la date limite de son propre tour : tant qu'ils
+      // ne le sont pas, les cotisations vers lui restent fermées.
       for (const f of c.frais ?? []) {
         const tour = tours[f.tour - 1];
-        const suivant = tours[f.tour];
-        if (!tour || !suivant) continue;
+        if (!tour) continue;
+        const exigibleLe = tours[f.tour - 2]?.dateLimite ?? c.completLe;
         const creances: [string | null, NatureSomme, number][] = [
           [null, "frais_mondo", f.partMonDo],
           ...f.remises.map((r): [string, NatureSomme, number] => [r.creancierId, "remise", r.montant]),
@@ -221,8 +223,8 @@ export class CotisationsService {
               creancierId,
               montant,
               tour.numero,
+              exigibleLe,
               tour.dateLimite,
-              suivant.dateLimite,
             ],
           );
         }
@@ -233,6 +235,12 @@ export class CotisationsService {
   async declarerPaiement(id: string, referenceTransaction: string, parMembreId: string): Promise<Cotisation> {
     const c = await this.trouver(id);
     if (parMembreId !== c.payeurId) throw new ForbiddenException("Seul le payeur déclare son paiement");
+    // Frais de place payés avant la cagnotte : tant que le bénéficiaire n'a pas réglé les siens, le tour est fermé.
+    if (c.tour > 0 && (await this.fraisDePlaceEnAttente(c.cercleId, c.tour))) {
+      throw new BadRequestException(
+        "Le bénéficiaire n'a pas encore réglé ses frais de place : la cagnotte de ce tour n'est pas ouverte",
+      );
+    }
     // Pendant un litige ouvert, la déclaration est gelée : l'administrateur tranche sur la pièce d'origine.
     const [l] = await this.base.requete<LigneCotisation>(
       `UPDATE cotisations.cotisations SET reference_transaction = $2, statut = 'declaree', declaree_le = now()
@@ -249,6 +257,14 @@ export class CotisationsService {
       );
     }
     return versCotisation(l);
+  }
+
+  private async fraisDePlaceEnAttente(cercleId: string, tour: number): Promise<boolean> {
+    const l = await this.base.requete(
+      `SELECT 1 FROM cotisations.sommes_dues s WHERE s.cercle_id = $1 AND s.tour = $2 AND ${FRAIS_DE_PLACE_EN_ATTENTE} LIMIT 1`,
+      [cercleId, tour],
+    );
+    return l.length > 0;
   }
 
   /** Litige ouvert sur cette cotisation : le payeur ne peut plus changer sa déclaration jusqu'à la décision. */
@@ -560,8 +576,15 @@ export class CotisationsService {
 
   /** Cotisations ni payées ni déclarées, pour l'examen des échéances. */
   async listerDues(): Promise<Cotisation[]> {
+    // Un tour fermé (frais de place du bénéficiaire non réglés) n'est ni rappelé ni compté en retard ou en défaut :
+    // les payeurs ne peuvent pas payer, ce n'est pas leur faute.
     const lignes = await this.base.requete<LigneCotisation>(
-      "SELECT * FROM cotisations.cotisations WHERE statut = 'due' ORDER BY date_limite, id",
+      `SELECT c.* FROM cotisations.cotisations c
+       WHERE c.statut = 'due'
+         AND NOT EXISTS (
+           SELECT 1 FROM cotisations.sommes_dues s
+           WHERE c.tour > 0 AND s.cercle_id = c.cercle_id AND s.tour = c.tour AND ${FRAIS_DE_PLACE_EN_ATTENTE})
+       ORDER BY c.date_limite, c.id`,
     );
     return lignes.map(versCotisation);
   }

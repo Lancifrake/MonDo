@@ -9,7 +9,7 @@ import { messageEchange, type Cercle } from "./modules/cercles/cercles.service.j
 import type { EchangePlace } from "./modules/cercles/echanges.service.js";
 import type { SommeDue } from "./modules/cotisations/sommes-dues.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { adherer, cotisationsDe, creerCercle, reglementDeTest } from "./testing/cercles.js";
+import { adherer, cotisationsDe, creerCercle, reglementDeTest, reglerLesFrais } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -213,8 +213,13 @@ describe("échange de places après complétion (gratuit, choix de David du 11/1
 
   it("refusé si un des deux tours a commencé (paiement déclaré), et dans un cercle à ordre fixé", async () => {
     const { c, ancien, premier, deuxieme, proposer } = await cercle();
+    // Les frais de la place 1 se règlent avant la cagnotte : le tour ne s'ouvre qu'après, et l'échange est alors déjà refusé.
+    await reglerLesFrais(client, c.id);
     const due = (await cotisationsDe(client, c.id, deuxieme)).find((x) => x.tour === 1 && x.payeurId === deuxieme.id)!;
-    await client.requete("POST", `/cotisations/${due.id}/paiement`, { referenceTransaction: "OM-3" }, deuxieme);
+    expect(
+      (await client.requete("POST", `/cotisations/${due.id}/paiement`, { referenceTransaction: "OM-3" }, deuxieme))
+        .status,
+    ).toBe(201);
     expect((await proposer(ancien, premier)).status).toBe(400);
 
     const [org, b, d] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];

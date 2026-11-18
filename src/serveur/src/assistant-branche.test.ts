@@ -7,7 +7,7 @@ import { messageEngagement, messageReglement, type Cercle, type Reglement } from
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import type { DossierDePreuve } from "./modules/preuve/preuve.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { avecBareme, cotisationsDe, dansJours } from "./testing/cercles.js";
+import { avecBareme, cotisationsDe, dansJours, reglerLesFrais } from "./testing/cercles.js";
 import { randomUUID } from "node:crypto";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 
@@ -67,6 +67,7 @@ async function cercleComplet(r: Reglement = reglementDe()) {
       m,
     );
   }
+  await reglerLesFrais(client, cercle.id);
   return { org, a, b, cercle };
 }
 

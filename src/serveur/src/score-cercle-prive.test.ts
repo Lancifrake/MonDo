@@ -7,7 +7,7 @@ import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { Cercle } from "./modules/cercles/cercles.service.js";
 import { PlanificateurService } from "./modules/planificateur/planificateur.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
-import { adherer, cotisationsDe, creerCercle, reglementDeTest } from "./testing/cercles.js";
+import { adherer, cotisationsDe, creerCercle, reglementDeTest, reglerLesFrais } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -35,6 +35,7 @@ async function premierTour(ouvert: boolean) {
   const [org, ...autres] = membres;
   const cree = (await (await creerCercle(client, org!, reglementDeTest({ ouvert }))).json()) as Cercle;
   for (const m of autres) await adherer(client, cree, m);
+  await reglerLesFrais(client, cree.id);
   const cercle = (await (await client.requete("GET", `/cercles/${cree.id}`, undefined, org)).json()) as Cercle;
   const beneficiaire = membres.find((m) => m.id === cercle.ordre![0]!.membreId)!;
   const [ponctuel, defaillant] = membres.filter((m) => m !== beneficiaire) as [Identite, Identite];
