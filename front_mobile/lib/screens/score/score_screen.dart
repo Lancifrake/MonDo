@@ -15,7 +15,9 @@ class ScoreScreen extends ConsumerWidget {
           'cotisation_a_temps' => 'Cotisation à temps',
           'cotisation_en_retard' => 'Cotisation en retard',
           'defaut' || 'defaut_constate' => 'Défaut',
-          'fin_de_cycle' || 'bonus_fin_de_cycle' => 'Cycle terminé sans défaut',
+          'fin_de_cycle' || 'bonus_fin_de_cycle' || 'cycle_termine' => 'Cycle terminé sans défaut',
+          'depart' => 'Départ d’un cercle',
+          'parrainage_reussi' => 'Parrainage réussi',
           _ => t.replaceAll('_', ' '),
         };
     return Ecran(
@@ -45,14 +47,26 @@ class ScoreScreen extends ConsumerWidget {
             const Titre('Historique'),
             if (s.historique.isEmpty) const Note('Rien encore : ton score évolue à chaque cotisation.'),
             if (s.historique.isNotEmpty)
-              Bloc(enfants: [
-                for (final e in s.historique.reversed)
-                  Ligne(
-                    '${evenement(e.type)} · ${dateCourte(e.date)}',
-                    valeur: '${e.points >= 0 ? '+' : ''}${e.points}  →  ${e.scoreApres}',
-                    accent: e.points < 0,
-                  ),
-              ]),
+              () {
+                final liste = s.historique.reversed.toList();
+                return ListeLimitee(
+                  nombre: liste.length,
+                  marge: 0,
+                  separateur: const TraitRangee(marge: 0),
+                  construire: (i) {
+                    final e = liste[i];
+                    return RangeeIcone(
+                      marge: 0,
+                      icone: e.points >= 0 ? Icons.trending_up : Icons.trending_down,
+                      couleurIcone: e.points >= 0 ? AppColors.green : AppColors.orange,
+                      titre: evenement(e.type),
+                      detail: dateCourte(e.date),
+                      valeur: '${e.points >= 0 ? '+' : ''}${e.points}  →  ${e.scoreApres}',
+                      accent: e.points < 0,
+                    );
+                  },
+                );
+              }(),
           ], reessayer: () => ref.invalidate(monScoreRefreshableProvider)),
     );
   }

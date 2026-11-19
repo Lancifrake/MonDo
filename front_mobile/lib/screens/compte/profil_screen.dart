@@ -623,13 +623,6 @@ class SommesDuesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.read(espaceServiceProvider);
     final data = ref.watch(_sommesProvider);
-    String nature(String n) => switch (n) {
-          'frais_mondo' => 'Part de MonDo (frais de place)',
-          'remise' => 'Remise de place de fin',
-          'remboursement_depart' => 'Remboursement après un départ',
-          _ => n,
-        };
-
     Future<void> declarer(Map<String, dynamic> d) async {
       final ctrl = TextEditingController();
       final ref0 = await showDialog<String>(
@@ -663,36 +656,134 @@ class SommesDuesScreen extends ConsumerWidget {
       }
     }
 
-    return Ecran(
-      titre: 'Sommes dues',
-      enfants: [
-        const Note('Frais de place, part de MonDo, remises aux dernières places et remboursements après un départ.'),
-        ...data.when(
-          loading: () => [const LinearProgressIndicator()],
-          error: (e, _) => [Note(messageErreur(e))],
-          data: (liste) => liste.isEmpty
-              ? [const Note('Rien à payer ni à recevoir.')]
-              : [
-                  for (final d in liste) ...[
-                    const SizedBox(height: 10),
-                    Bloc(enfants: [
-                      Ligne(nature(d['nature'] as String), valeur: '${formatAmount(d['montant'] as int)} FCFA'),
-                      Ligne(
-                        d['debiteurId'] == s.moi ? 'Je dois · tour ${d['tour'] ?? '—'}' : 'On me doit · tour ${d['tour'] ?? '—'}',
-                        valeur: switch (d['statut']) { 'due' => 'avant le ${dateCourte(d['dateLimite'] as String?)}', 'declaree' => 'déclarée', 'confirmee' => 'confirmée', final x => '$x' },
-                        accent: d['statut'] != 'confirmee',
-                      ),
-                      if (d['debiteurId'] == s.moi && d['statut'] == 'due')
-                        TextButton(onPressed: () => declarer(d), child: const Text('J’ai payé : déclarer')),
-                      if (d['creancierId'] == s.moi && d['statut'] == 'declaree')
-                        TextButton(onPressed: () => confirmer(d), child: const Text('Confirmer la réception')),
-                    ]),
-                  ],
-                ],
-        ),
-      ],
+    List<Widget> rangees(List<Map<String, dynamic>> liste) => [
+          for (var i = 0; i < liste.length; i++) ...[
+            if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+            _SommeRangee(
+              somme: liste[i],
+              jeDois: liste[i]['debiteurId'] == s.moi,
+              declarer: () => declarer(liste[i]),
+              confirmer: () => confirmer(liste[i]),
+            ),
+          ],
+        ];
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Sommes dues', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: Note('Frais de place, part de MonDo, remises aux dernières places et remboursements après un départ.'),
+          ),
+          ...data.when(
+            loading: () => [const LinearProgressIndicator()],
+            error: (e, _) => [Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Note(messageErreur(e)))],
+            data: (liste) {
+              if (liste.isEmpty) {
+                return [const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Note('Rien à payer ni à recevoir.'))];
+              }
+              final aPayer = liste.where((d) => d['debiteurId'] == s.moi).toList();
+              final aRecevoir = liste.where((d) => d['debiteurId'] != s.moi).toList();
+              return [
+                if (aPayer.isNotEmpty) ...[const _Section('Je dois'), ...rangees(aPayer)],
+                if (aPayer.isNotEmpty && aRecevoir.isNotEmpty) const _Separation(),
+                if (aRecevoir.isNotEmpty) ...[const _Section('On me doit'), ...rangees(aRecevoir)],
+              ];
+            },
+          ),
+        ],
+      ),
     );
   }
+}
+
+/// Une somme due, à la manière du profil : icône selon la nature, intitulé et montant, échéance en dessous.
+class _SommeRangee extends StatelessWidget {
+  const _SommeRangee({required this.somme, required this.jeDois, required this.declarer, required this.confirmer});
+
+  final Map<String, dynamic> somme;
+  final bool jeDois;
+  final VoidCallback declarer;
+  final VoidCallback confirmer;
+
+  @override
+  Widget build(BuildContext context) {
+    final statut = somme['statut'] as String?;
+    final (IconData icone, String titre) = switch (somme['nature']) {
+      'frais_mondo' => (Icons.confirmation_number_outlined, 'Part de MonDo'),
+      'remise' => (Icons.redeem_outlined, 'Remise de place de fin'),
+      'remboursement_depart' => (Icons.undo, 'Remboursement après un départ'),
+      final n => (Icons.payments_outlined, '$n'),
+    };
+    final aFaire = (jeDois && statut == 'due') || (!jeDois && statut == 'declaree');
+    final etat = switch (statut) {
+      'due' => 'avant le ${dateCourte(somme['dateLimite'] as String?)}',
+      'declaree' => jeDois ? 'déclarée, en attente de confirmation' : 'déclarée, à confirmer',
+      'confirmee' => 'confirmée',
+      'annulee' => 'annulée',
+      final x => '$x',
+    };
+    final montant = '${jeDois ? '−' : '+'}${formatAmount(somme['montant'] as int)} FCFA';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(icone, size: 24, color: aFaire ? AppColors.orange : AppColors.textMuted),
+        ),
+        const SizedBox(width: 26),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(child: Text(titre, style: const TextStyle(fontSize: 16))),
+              Text(
+                montant,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: jeDois ? AppColors.textDark : AppColors.green,
+                ),
+              ),
+            ]),
+            const SizedBox(height: 2),
+            Text(
+              'Tour ${somme['tour'] ?? '—'} · $etat',
+              style: TextStyle(fontSize: 13.5, color: aFaire ? AppColors.orange : AppColors.textMuted),
+            ),
+            if (jeDois && statut == 'due')
+              _Action('J’ai payé : déclarer', declarer)
+            else if (!jeDois && statut == 'declaree')
+              _Action('Confirmer la réception', confirmer),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Action extends StatelessWidget {
+  const _Action(this.texte, this.onTap);
+
+  final String texte;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+          onPressed: onTap,
+          child: Text(texte, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      );
 }
 
 // ----------------------------------------------- Alerte de récupération

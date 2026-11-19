@@ -4,6 +4,7 @@ import '../../models/api_models.dart';
 import '../../providers/api_client_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/sobre.dart';
 import '../cercles/vie_cercle_screens.dart';
@@ -31,24 +32,47 @@ class _CotisationsState extends ConsumerState<CotisationsListScreen> {
         (c.payeurId == moi && c.statut == 'due') || (c.beneficiaireId == moi && c.statut == 'declaree');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cotisations')),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Cotisations', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: RefreshIndicator(
         onRefresh: () async => ref.invalidate(mesCotisationsRefreshableProvider),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+          padding: const EdgeInsets.only(top: 4, bottom: 32),
           children: [
-            Filtres(
-              choix: const {'action': 'À faire', 'due': 'Dues', 'declaree': 'Déclarées', 'confirmee': 'Confirmées'},
-              actif: _filtre,
-              onChange: (v) => setState(() => _filtre = v),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Filtres(
+                choix: const {'action': 'À faire', 'due': 'Dues', 'declaree': 'Déclarées', 'confirmee': 'Confirmées'},
+                actif: _filtre,
+                onChange: (v) => setState(() => _filtre = v),
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ...selon(cotisations, (liste) {
               final vues = liste.where((c) => _filtre == 'action' ? aFaire(c) : c.statut == _filtre).toList();
               if (vues.isEmpty) {
-                return [Note(_filtre == 'action' ? 'Rien à faire pour l’instant.' : 'Aucune cotisation ici.')];
+                return [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Note(_filtre == 'action' ? 'Rien à faire pour l’instant.' : 'Aucune cotisation ici.'),
+                  ),
+                ];
               }
-              return [for (final c in vues) _Cotisation(c: c, moi: moi, nomCercle: noms[c.cercleId])];
+              // Les plus récentes d'abord ; au-delà de 10, « Tout voir ».
+              vues.sort((a, b) => b.dateLimite.compareTo(a.dateLimite));
+              return [
+                ListeLimitee(
+                  key: ValueKey(_filtre),
+                  nombre: vues.length,
+                  separateur: const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                  construire: (i) => _Cotisation(c: vues[i], moi: moi, nomCercle: noms[vues[i].cercleId]),
+                ),
+              ];
             }, reessayer: () => ref.invalidate(mesCotisationsRefreshableProvider)),
           ],
         ),
@@ -67,17 +91,24 @@ class _Cotisation extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final jeDois = c.payeurId == moi;
-    final (statut, ton) = switch (c.statut) {
-      'due' when jeDois => ('à payer', Ton.action),
-      'due' => ('attendue', Ton.gris),
-      'declaree' when !jeDois => ('à confirmer', Ton.action),
-      'declaree' => ('déclarée', Ton.gris),
-      'confirmee' => ('confirmée', Ton.encre),
-      _ => (c.statut, Ton.gris),
+    final aFaire = (c.statut == 'due' && jeDois) || (c.statut == 'declaree' && !jeDois);
+    final statut = switch (c.statut) {
+      'due' when jeDois => 'À payer',
+      'due' => 'Attendue',
+      'declaree' when !jeDois => 'Déclarée, à confirmer',
+      'declaree' => 'Déclarée, en attente de confirmation',
+      'confirmee' => 'Confirmée',
+      'annulee' => 'Annulée',
+      final x => x,
     };
+    final couleur = aFaire
+        ? AppColors.orange
+        : c.statut == 'confirmee'
+            ? AppColors.green
+            : AppColors.textMuted;
     final details = [
-      '${jeDois ? 'Je dois' : 'On me doit'} · tour ${c.tour}',
-      if (nomCercle != null) nomCercle!,
+      ?nomCercle,
+      statut,
       'avant le ${formatDate(c.dateLimite)}',
       if (c.penaliteDue > 0) 'pénalité ${formatAmount(c.penaliteDue)} FCFA',
       if (c.enLitige) 'en litige',
@@ -87,33 +118,65 @@ class _Cotisation extends ConsumerWidget {
     Widget? actions;
     if (c.statut == 'due' && jeDois) {
       actions = Row(children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: c))),
-            child: const Text('Mobile Money (démo)'),
+        TextButton(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PaymentDeclareScreen(cotisationId: c.id, cotisation: c)),
           ),
+          child: const Text('J’ai payé', style: TextStyle(fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => PaymentDeclareScreen(cotisationId: c.id, cotisation: c)),
-            ),
-            child: const Text('J’ai payé'),
-          ),
+        const SizedBox(width: 20),
+        TextButton(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: c))),
+          child: const Text('Mobile Money (démo)'),
         ),
       ]);
     } else if (c.statut == 'declaree' && !jeDois) {
-      actions = ElevatedButton(onPressed: () => _confirmer(context, ref), child: const Text('Confirmer la réception'));
+      actions = Align(
+        alignment: Alignment.centerLeft,
+        child: TextButton(
+          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+          onPressed: () => _confirmer(context, ref),
+          child: const Text('Confirmer la réception', style: TextStyle(fontWeight: FontWeight.w600)),
+        ),
+      );
     }
 
-    return Carte(
-      titre: '${formatAmount(c.montant)} FCFA',
-      detail: details,
-      statut: statut,
-      ton: ton,
-      bas: actions,
+    // Comme le profil : icône à gauche (flèche qui sort si je paie, qui entre si je reçois), intitulé et montant
+    // signé, état et échéance en dessous.
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1),
+          child: Icon(jeDois ? Icons.north_east : Icons.south_west, size: 22, color: couleur),
+        ),
+        const SizedBox(width: 28),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Expanded(
+                child: Text(
+                  'Tour ${c.tour}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${jeDois ? '−' : '+'}${formatAmount(c.montant)} FCFA',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: jeDois ? AppColors.textDark : AppColors.green),
+              ),
+            ]),
+            const SizedBox(height: 2),
+            Text(details, style: TextStyle(fontSize: 13.5, height: 1.35, color: aFaire ? AppColors.orange : AppColors.textMuted)),
+            ?actions,
+          ]),
+        ),
+      ]),
     );
   }
 

@@ -5,6 +5,7 @@ import '../../providers/api_client_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
 import '../../utils/format.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/sobre.dart';
 import '../membership/join_cercle_screen.dart';
 import 'cercles_catalog_screen.dart' show rythme;
@@ -150,18 +151,24 @@ class _EtatCotisations extends ConsumerWidget {
     final etat = ref.watch(etatCotisationsCercleProvider(c.id));
     return Column(
       children: selon(etat, (e) => [
-            Bloc(enfants: [
-              for (final t in e.tours)
-                () {
-                  final payes = t.paiements.where((p) => p.statut == 'confirmee').length;
-                  final retard = t.paiements.where((p) => p.enRetard).length;
-                  return Ligne(
-                    'Tour ${t.numero} · reçoit ${membreLibelle(c, t.beneficiaireId, moi).toLowerCase()}',
-                    valeur: retard > 0 ? '$payes/${t.paiements.length} payés · $retard en retard' : '$payes/${t.paiements.length} payés',
-                    accent: retard > 0,
-                  );
-                }(),
-            ]),
+            for (var i = 0; i < e.tours.length; i++) ...[
+              if (i > 0) const TraitRangee(marge: 0),
+              () {
+                final t = e.tours[i];
+                final payes = t.paiements.where((p) => p.statut == 'confirmee').length;
+                final retard = t.paiements.where((p) => p.enRetard).length;
+                final complet = payes == t.paiements.length && t.paiements.isNotEmpty;
+                return RangeeIcone(
+                  marge: 0,
+                  icone: retard > 0 ? Icons.schedule : (complet ? Icons.check_circle_outline : Icons.hourglass_empty),
+                  couleurIcone: retard > 0 ? AppColors.orange : (complet ? AppColors.green : AppColors.textMuted),
+                  titre: 'Tour ${t.numero}',
+                  detail: 'Reçoit ${membreLibelle(c, t.beneficiaireId, moi).toLowerCase()}',
+                  valeur: retard > 0 ? '$payes/${t.paiements.length} payés · $retard en retard' : '$payes/${t.paiements.length} payés',
+                  accent: retard > 0,
+                );
+              }(),
+            ],
           ]),
     );
   }
@@ -223,17 +230,43 @@ class _ActionsMembre extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Bloc(enfants: [
-          Ligne('Registre et preuve d’intégrité', onTap: () => ouvrir(RegistreScreen(cercleId: cercle.id))),
-          if (enCours) Ligne('Échanges de places', onTap: () => ouvrir(EchangesScreen(cercle: cercle))),
-          if (organisateur) Ligne('Assistant de l’organisateur', onTap: () => ouvrir(AssistantScreen(cercle: cercle))),
-        ]),
+        const Divider(height: 1, thickness: 1, color: AppColors.border),
+        RangeeIcone(
+          marge: 0,
+          icone: Icons.receipt_long_outlined,
+          titre: 'Registre et preuve d’intégrité',
+          detail: 'Chaque paiement et engagement, inscrit et vérifiable',
+          onTap: () => ouvrir(RegistreScreen(cercleId: cercle.id)),
+        ),
+        if (enCours) ...[
+          const TraitRangee(marge: 0),
+          RangeeIcone(
+            marge: 0,
+            icone: Icons.swap_horiz,
+            titre: 'Échanges de places',
+            onTap: () => ouvrir(EchangesScreen(cercle: cercle)),
+          ),
+        ],
+        if (organisateur) ...[
+          const TraitRangee(marge: 0),
+          RangeeIcone(
+            marge: 0,
+            icone: Icons.smart_toy_outlined,
+            titre: 'Assistant de l’organisateur',
+            detail: 'Rappels, relances et mises en demeure',
+            onTap: () => ouvrir(AssistantScreen(cercle: cercle)),
+          ),
+        ],
+        const Divider(height: 1, thickness: 1, color: AppColors.border),
         if (enCours && autres.isNotEmpty) ...[
           const Titre('Dossier de preuve d’un membre en défaut'),
-          Bloc(enfants: [
-            for (final o in autres.where((o) => o.membreId != espace.moi))
-              Ligne('Place ${o.position}', onTap: () => ouvrir(DossierPreuveScreen(cercle: cercle, membreId: o.membreId))),
-          ]),
+          for (final o in autres.where((o) => o.membreId != espace.moi))
+            RangeeIcone(
+              marge: 0,
+              icone: Icons.folder_outlined,
+              titre: 'Place ${o.position}',
+              onTap: () => ouvrir(DossierPreuveScreen(cercle: cercle, membreId: o.membreId)),
+            ),
         ],
         const SizedBox(height: 20),
         if (organisateur && cercle.statut == 'en_attente') ...[
