@@ -47,29 +47,77 @@ class ProfilScreen extends ConsumerWidget {
     final sommesAFaire = sommes.where((s) =>
         (s['debiteurId'] == moi && s['statut'] == 'due') || (s['creancierId'] == moi && s['statut'] == 'declaree')).length;
 
-    return Ecran(
-      titre: 'Profil',
-      enfants: [
-        if (recup != null && recup['statut'] == 'en_attente')
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Bloc(enfants: [
-              Ligne(
-                'Quelqu’un tente de récupérer ton compte sur un autre téléphone',
-                valeur: 'Agir',
-                accent: true,
-                onTap: () => ouvrir(RecuperationAlerteScreen(demande: recup)),
-              ),
-            ]),
+    Future<void> deconnecter() async {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Se déconnecter ?'),
+          content: const Text(
+            'La clé de ce téléphone sera effacée. Sans code secret ni contact de confiance, '
+            'tu ne pourras plus accéder à ce compte.',
           ),
-        if (profil.hasError) Note(messageErreur(profil.error!)),
-        Bloc(enfants: [
-          Ligne('Nom', valeur: compte?.nom ?? '—'),
-          Ligne('Numéro', valeur: compte?.numero ?? '—'),
-          Ligne('Niveau d’identité', valeur: compte == null ? '—' : '${compte.niveau}'),
-          Ligne(
-            'Mon identifiant',
-            valeur: moi.isEmpty ? '—' : '${moi.substring(0, 8)}…  copier',
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Effacer la clé')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await ref.read(authStateProvider.notifier).logout();
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          (_) => false,
+        );
+      }
+    }
+
+    final verifiee = compte?.niveau == 2;
+    final etatIdentite = verifiee
+        ? 'Vérifiée'
+        : switch (identite?['statut']) {
+            'en_attente' => 'En examen',
+            'refusee' => 'Refusée, à refaire',
+            'validee' => 'Vérifiée',
+            _ => 'À faire : pièce d’identité et selfie',
+          };
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Profil', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
+        backgroundColor: AppColors.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          _Entete(nom: compte?.nom ?? '—', numero: compte?.numero ?? '', verifiee: verifiee),
+          if (recup != null && recup['statut'] == 'en_attente')
+            _Rangee(
+              icone: Icons.warning_amber_rounded,
+              titre: 'Quelqu’un tente de récupérer ton compte',
+              detail: 'Sur un autre téléphone. Touche pour agir.',
+              accent: true,
+              onTap: () => ouvrir(RecuperationAlerteScreen(demande: recup)),
+            ),
+          if (profil.hasError)
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Note(messageErreur(profil.error!))),
+          const _Section('Confiance'),
+          _Rangee(icone: Icons.speed_outlined, titre: 'Mon score', onTap: () => ouvrir(const ScoreScreen())),
+          _Rangee(
+            icone: Icons.verified_user_outlined,
+            titre: 'Vérification d’identité',
+            detail: etatIdentite,
+            accent: !verifiee && identite == null,
+            onTap: () => ouvrir(const IdentiteScreen()),
+          ),
+          _Rangee(icone: Icons.group_add_outlined, titre: 'Parrainages', onTap: () => ouvrir(const ParrainagesScreen())),
+          _Rangee(
+            icone: Icons.badge_outlined,
+            titre: 'Mon identifiant',
+            detail: moi.isEmpty ? '—' : '${moi.substring(0, 8)}… · touche pour copier',
             onTap: moi.isEmpty
                 ? null
                 : () {
@@ -77,53 +125,39 @@ class ProfilScreen extends ConsumerWidget {
                     afficherMessage(context, 'Identifiant copié : à donner à ton parrain.');
                   },
           ),
-        ]),
-        const Titre('Confiance'),
-        Bloc(enfants: [
-          Ligne('Mon score', onTap: () => ouvrir(const ScoreScreen())),
-          Ligne(
-            'Vérification d’identité',
-            valeur: compte?.niveau == 2
-                ? 'vérifiée'
-                : switch (identite?['statut']) {
-                    'en_attente' => 'en examen',
-                    'refusee' => 'refusée',
-                    'validee' => 'vérifiée',
-                    _ => 'à faire',
-                  },
-            accent: compte?.niveau != 2 && identite == null,
-            onTap: () => ouvrir(const IdentiteScreen()),
+          const _Separation(),
+          const _Section('Sécurité du compte'),
+          _Rangee(
+            icone: Icons.password_outlined,
+            titre: 'Code secret de récupération',
+            onTap: () => ouvrir(const CodeSecretScreen()),
           ),
-          Ligne('Parrainages', onTap: () => ouvrir(const ParrainagesScreen())),
-        ]),
-        const Titre('Sécurité du compte'),
-        Bloc(enfants: [
-          Ligne('Code secret de récupération', onTap: () => ouvrir(const CodeSecretScreen())),
-          Ligne(
-            'Contact de confiance',
-            valeur: contact == null
-                ? 'aucun'
+          _Rangee(
+            icone: Icons.contact_phone_outlined,
+            titre: 'Contact de confiance',
+            detail: contact == null
+                ? 'Aucun pour l’instant'
                 : contact['statut'] == 'accepte'
                     ? contact['nom'] as String
-                    : 'en attente',
+                    : 'En attente de sa réponse',
             accent: contact == null,
             onTap: () => ouvrir(ContactConfianceScreen(contact: contact)),
           ),
-        ]),
-        const Titre('Argent'),
-        Bloc(enfants: [
-          Ligne(
-            'Sommes dues (frais, remises)',
-            valeur: sommesAFaire > 0 ? '$sommesAFaire à traiter' : null,
+          const _Separation(),
+          const _Section('Argent'),
+          _Rangee(
+            icone: Icons.payments_outlined,
+            titre: 'Sommes dues',
+            detail: sommesAFaire > 0 ? '$sommesAFaire à traiter' : 'Frais de place, remises, remboursements',
             accent: sommesAFaire > 0,
             onTap: () => ouvrir(const SommesDuesScreen()),
           ),
-        ]),
-        if (compte?.niveau == 1) ...[
-          const Titre('Démonstration'),
-          Bloc(enfants: [
-            Ligne(
-              'Passer au niveau 2 sans pièce',
+          if (compte?.niveau == 1) ...[
+            const _Separation(),
+            const _Section('Démonstration'),
+            _Rangee(
+              icone: Icons.science_outlined,
+              titre: 'Passer au niveau 2 sans pièce',
               onTap: () async {
                 try {
                   await ref.read(espaceServiceProvider).demoNiveau2();
@@ -135,39 +169,117 @@ class ProfilScreen extends ConsumerWidget {
                 }
               },
             ),
-          ]),
+          ],
+          const _Separation(),
+          _Rangee(icone: Icons.logout, titre: 'Se déconnecter', couleur: AppColors.orange, onTap: deconnecter),
         ],
-        const SizedBox(height: 28),
-        TextButton(
-          onPressed: () async {
-            final ok = await showDialog<bool>(
-              context: context,
-              builder: (ctx) => AlertDialog(
-                title: const Text('Se déconnecter ?'),
-                content: const Text(
-                  'La clé de ce téléphone sera effacée. Sans code secret ni contact de confiance, '
-                  'tu ne pourras plus accéder à ce compte.',
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Effacer la clé')),
-                ],
-              ),
-            );
-            if (ok != true) return;
-            await ref.read(authStateProvider.notifier).logout();
-            if (context.mounted) {
-              Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const WelcomeScreen()),
-                (_) => false,
-              );
-            }
-          },
-          child: const Text('Se déconnecter', style: TextStyle(color: Color(0xFFB45309))),
-        ),
-      ],
+      ),
     );
   }
+}
+
+/// En-tête du profil : initiales, nom, numéro et niveau d'identité.
+class _Entete extends StatelessWidget {
+  const _Entete({required this.nom, required this.numero, required this.verifiee});
+
+  final String nom;
+  final String numero;
+  final bool verifiee;
+
+  @override
+  Widget build(BuildContext context) {
+    final initiales = nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty).take(2).map((m) => m[0].toUpperCase()).join();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Row(children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: AppColors.darkGreen,
+          child: Text(initiales.isEmpty ? '?' : initiales,
+              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(nom, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Text(numero, style: const TextStyle(fontSize: 14, color: AppColors.textMuted)),
+            const SizedBox(height: 4),
+            Row(children: [
+              Icon(verifiee ? Icons.verified : Icons.info_outline,
+                  size: 15, color: verifiee ? AppColors.green : AppColors.orange),
+              const SizedBox(width: 4),
+              Text(verifiee ? 'Identité vérifiée · niveau 2' : 'Niveau 1 · identité à vérifier',
+                  style: TextStyle(fontSize: 13, color: verifiee ? AppColors.green : AppColors.orange)),
+            ]),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+class _Section extends StatelessWidget {
+  const _Section(this.texte);
+
+  final String texte;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
+        child: Text(texte, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textMuted)),
+      );
+}
+
+class _Separation extends StatelessWidget {
+  const _Separation();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.only(top: 10),
+        child: Divider(height: 1, thickness: 1, color: AppColors.border),
+      );
+}
+
+/// Une ligne du profil, à la manière des réglages de WhatsApp : icône, intitulé, détail en dessous.
+class _Rangee extends StatelessWidget {
+  const _Rangee({
+    required this.icone,
+    required this.titre,
+    this.detail,
+    this.onTap,
+    this.accent = false,
+    this.couleur,
+  });
+
+  final IconData icone;
+  final String titre;
+  final String? detail;
+  final VoidCallback? onTap;
+  final bool accent; // orange : demande une action
+  final Color? couleur;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 13, 20, 13),
+          child: Row(children: [
+            Icon(icone, size: 24, color: couleur ?? (accent ? AppColors.orange : AppColors.textMuted)),
+            const SizedBox(width: 26),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(titre, style: TextStyle(fontSize: 16, color: couleur ?? AppColors.textDark)),
+                if (detail != null) ...[
+                  const SizedBox(height: 2),
+                  Text(detail!,
+                      style: TextStyle(fontSize: 13.5, color: accent ? AppColors.orange : AppColors.textMuted)),
+                ],
+              ]),
+            ),
+          ]),
+        ),
+      );
 }
 
 // ------------------------------------------------------------- Code secret

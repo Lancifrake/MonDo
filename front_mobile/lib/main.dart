@@ -7,6 +7,7 @@ import 'services/recuperation_locale.dart';
 import 'screens/pin_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/logo_mondo.dart';
 
 void main() {
   runApp(const ProviderScope(child: MonDoApp()));
@@ -38,14 +39,20 @@ class _DemarrageState extends ConsumerState<_Demarrage> {
   /// null : pas de compte ; false : compte sans PIN ; true : compte avec PIN à demander.
   RecuperationLocale? _reprise;
 
+  // Le logo tourne au moins un tour et demi, même si la session s'ouvre plus vite.
   late final Future<bool?> _session = () async {
+    final r = await Future.wait<Object?>([_ouvrirSession(), Future<void>.delayed(const Duration(milliseconds: 2100))]);
+    return r[0] as bool?;
+  }();
+
+  Future<bool?> _ouvrirSession() async {
     final ok = await ref.read(authStateProvider.notifier).restaurerSession();
     if (!ok) {
       _reprise = await RecuperationLocale.lire(); // récupération demandée ici et pas encore aboutie
       return null;
     }
     return pinDefini();
-  }();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +60,7 @@ class _DemarrageState extends ConsumerState<_Demarrage> {
       future: _session,
       builder: (context, snap) {
         if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const EcranDeDemarrage();
         }
         return switch (snap.data) {
           null => _reprise != null ? RecuperationScreen(reprise: _reprise) : const WelcomeScreen(),
