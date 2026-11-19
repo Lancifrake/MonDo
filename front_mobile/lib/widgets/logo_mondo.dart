@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 
 /// Le logo MonDo, comme sur la console : huit points en cercle, les membres.
@@ -47,4 +48,45 @@ class _Points extends CustomPainter {
 
   @override
   bool shouldRepaint(_Points old) => old.couleur != couleur;
+}
+
+/// Le logo qui tourne, sur l'écran de démarrage : les membres passent à tour de rôle.
+class LogoQuiTourne extends StatefulWidget {
+  const LogoQuiTourne({super.key, this.taille = 96});
+
+  final double taille;
+
+  @override
+  State<LogoQuiTourne> createState() => _LogoQuiTourneState();
+}
+
+class _LogoQuiTourneState extends State<LogoQuiTourne> with SingleTickerProviderStateMixin {
+  late final AnimationController _tour = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))
+    ..repeat();
+
+  @override
+  void dispose() {
+    _tour.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RotationTransition(
+        turns: CurvedAnimation(parent: _tour, curve: Curves.easeInOutCubic),
+        child: LogoMonDo(taille: widget.taille),
+      );
+}
+
+/// Écran de démarrage : fond vert MonDo, logo qui tourne, le temps d'ouvrir la session.
+class EcranDeDemarrage extends StatelessWidget {
+  const EcranDeDemarrage({super.key});
+
+  @override
+  Widget build(BuildContext context) => const AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle.light, // heure et batterie en blanc sur le vert
+        child: Scaffold(
+          backgroundColor: AppColors.darkGreen,
+          body: Center(child: LogoQuiTourne(taille: 96)),
+        ),
+      );
 }
