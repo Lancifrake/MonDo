@@ -29,8 +29,7 @@ class _Page {
   final Widget illustration;
 }
 
-const _violet = Color(0xFF5B3BF0);
-
+// Un seul fond, sobre : la couleur vient des illustrations, pas de la page.
 const _pages = [
   _Page(
     fond: AppColors.darkGreen,
@@ -38,28 +37,25 @@ const _pages = [
     bouton: AppColors.lime,
     texteBouton: AppColors.darkGreen,
     titre: 'Ta tontine,\nsans palabres.',
-    texte: 'Cotise avec tes proches ou avec des inconnus sérieux. '
-        'Chacun reçoit la cagnotte à son tour, selon des règles connues de tous.',
+    texte: '',
     illustration: IllustrationCercle(),
   ),
   _Page(
-    fond: AppColors.lime,
-    encre: AppColors.darkGreen,
-    bouton: AppColors.darkGreen,
-    texteBouton: AppColors.lime,
+    fond: AppColors.darkGreen,
+    encre: Colors.white,
+    bouton: AppColors.lime,
+    texteBouton: AppColors.darkGreen,
     titre: 'Ton sérieux\ndevient un score.',
-    texte: 'Chaque cotisation payée à l’heure te fait monter. '
-        'Un bon score t’ouvre les premières places.',
+    texte: '',
     illustration: IllustrationScore(),
   ),
   _Page(
-    fond: _violet,
+    fond: AppColors.darkGreen,
     encre: Colors.white,
     bouton: AppColors.lime,
     texteBouton: AppColors.darkGreen,
     titre: 'Chaque franc,\nprouvé.',
-    texte: 'Le paiement est confirmé par celui qui le reçoit et inscrit au registre. '
-        'L’argent ne passe jamais par MonDo.',
+    texte: '',
     illustration: IllustrationPreuve(),
   ),
 ];
@@ -271,15 +267,17 @@ class _Contenu extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Text(
-            page.texte,
-            style: TextStyle(color: page.encre.withValues(alpha: 0.78), fontSize: 16, height: 1.45),
+        if (page.texte.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              page.texte,
+              style: TextStyle(color: page.encre.withValues(alpha: 0.78), fontSize: 16, height: 1.45),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
+        ],
+        const SizedBox(height: 20),
       ],
     );
   }

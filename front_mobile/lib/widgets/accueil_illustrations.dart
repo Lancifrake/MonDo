@@ -240,17 +240,16 @@ class _ScoreState extends State<IllustrationScore> with SingleTickerProviderStat
                       fontSize: s * 0.22,
                       height: 1,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.darkGreen,
+                      color: Colors.white,
                       letterSpacing: -2,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
-                  Text('sur 100', style: TextStyle(fontSize: s * 0.045, color: AppColors.darkGreen.withValues(alpha: 0.7))),
+                  Text('sur 100', style: TextStyle(fontSize: s * 0.045, color: Colors.white.withValues(alpha: 0.6))),
                 ]),
               ),
-              pastille(0.14, const Alignment(-1, -0.55), '+4', 'payée à temps'),
-              pastille(0.28, const Alignment(1, -1), '+10', 'cycle terminé'),
-              pastille(0.5, const Alignment(0, 0.9), '', 'Premières places ouvertes', icone: Icons.lock_open_rounded),
+              pastille(0.14, const Alignment(-1, -0.7), '+4', 'à temps'),
+              pastille(0.5, const Alignment(0, 0.92), '', '1res places', icone: Icons.lock_open_rounded),
             ]);
           },
         ),
@@ -274,7 +273,7 @@ class _Pastille extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: [BoxShadow(color: AppColors.darkGreen.withValues(alpha: 0.16), blurRadius: 24, offset: const Offset(0, 10))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 24, offset: const Offset(0, 10))],
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Container(
@@ -304,14 +303,14 @@ class _PeintreJauge extends CustomPainter {
     const debut = math.pi * 5 / 6;
     const ouverture = math.pi * 4 / 3;
     final epaisseur = s * 0.075;
-    canvas.drawCircle(c, s * 0.29, Paint()..color = Colors.white.withValues(alpha: 0.35));
+    canvas.drawCircle(c, s * 0.29, Paint()..color = Colors.white.withValues(alpha: 0.05));
     canvas.drawArc(
       rect,
       debut,
       ouverture,
       false,
       Paint()
-        ..color = AppColors.darkGreen.withValues(alpha: 0.12)
+        ..color = Colors.white.withValues(alpha: 0.1)
         ..style = PaintingStyle.stroke
         ..strokeWidth = epaisseur
         ..strokeCap = StrokeCap.round,
@@ -327,7 +326,7 @@ class _PeintreJauge extends CustomPainter {
         ..shader = SweepGradient(
           startAngle: debut,
           endAngle: debut + ouverture,
-          colors: const [Color(0xFF2E8B64), AppColors.darkGreen],
+          colors: const [AppColors.mint, AppColors.lime],
           transform: const GradientRotation(0),
         ).createShader(rect)
         ..style = PaintingStyle.stroke
@@ -337,7 +336,7 @@ class _PeintreJauge extends CustomPainter {
     final a = debut + balayage;
     final bout = c + Offset(math.cos(a), math.sin(a)) * s * 0.36;
     canvas.drawCircle(bout, epaisseur * 0.62, Paint()..color = Colors.white);
-    canvas.drawCircle(bout, epaisseur * 0.32, Paint()..color = AppColors.darkGreen);
+    canvas.drawCircle(bout, epaisseur * 0.32, Paint()..color = AppColors.lime);
   }
 
   @override
@@ -384,7 +383,7 @@ class _PreuveState extends State<IllustrationPreuve> with SingleTickerProviderSt
                 height: s,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: RadialGradient(colors: [Colors.white.withValues(alpha: 0.18), Colors.white.withValues(alpha: 0)]),
+                  gradient: RadialGradient(colors: [AppColors.lime.withValues(alpha: 0.12), AppColors.lime.withValues(alpha: 0)]),
                 ),
               ),
               for (var k = 0; k < _recus.length; k++)
@@ -449,7 +448,7 @@ class _Recu extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: const Color(0xFF1B0F5C).withValues(alpha: 0.28), blurRadius: 30, offset: const Offset(0, 14))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 30, offset: const Offset(0, 14))],
       ),
       child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -462,7 +461,7 @@ class _Recu extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Cotisation · $tour', style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+              Text(tour, style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
               const Text('10 000 FCFA',
                   style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600, color: AppColors.textDark, letterSpacing: -0.3)),
             ]),
@@ -477,12 +476,6 @@ class _Recu extends StatelessWidget {
             ]),
           ),
         ]),
-        if (devant) ...[
-          const SizedBox(height: 12),
-          Container(height: 1, color: AppColors.border),
-          const SizedBox(height: 10),
-          Text('Reçue et confirmée par $par', style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
-        ],
       ]),
     );
   }
