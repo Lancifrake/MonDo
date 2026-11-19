@@ -20,10 +20,17 @@ describe("calculerScore", () => {
     expect(calculerScore(ev("cotisation_a_temps", "defaut"))).toBe(0);
   });
 
-  it("ne dépasse jamais 100 (exemple du document : deux cycles de 10 membres)", () => {
+  it("monte de plus en plus lentement et n'atteint pas 100 (cercle de 10 membres, sans retard)", () => {
     const cycle = [...Array(10).fill("cotisation_a_temps"), "cycle_termine"] as TypeEvenementScore[];
-    expect(calculerScore(ev(...cycle))).toBe(50);
-    expect(calculerScore(ev(...cycle, ...cycle))).toBe(100);
+    const apres = (n: number) => calculerScore(ev(...Array(n).fill(cycle).flat()));
+    expect([1, 2, 3, 4, 5].map(apres)).toEqual([34, 51, 61, 67, 72]);
+    expect(apres(10)).toBeLessThan(90);
+  });
+
+  it("les pertes restent entières même en haut de l'échelle", () => {
+    const cycle = [...Array(10).fill("cotisation_a_temps"), "cycle_termine"] as TypeEvenementScore[];
+    const haut = calculerScore(ev(...Array(5).fill(cycle).flat()));
+    expect(calculerScore(ev(...Array(5).fill(cycle).flat(), "defaut"))).toBe(haut - 30);
   });
 
   it("applique le plancher à chaque pas, pas à la fin", () => {
@@ -119,20 +126,20 @@ describe("cercles privés : moitié des gains, pertes entières (choix de David,
   });
 
   it("retard, défaut et départ coûtent autant en cercle privé qu'en cercle ouvert", () => {
-    const base = Array.from({ length: 12 }, () => e("cotisation_a_temps", false));
+    const base = Array.from({ length: 36 }, () => e("cotisation_a_temps", false));
     for (const perte of ["cotisation_en_retard", "defaut", "depart"] as const) {
       expect(calculerScore([...base, e(perte, true)])).toBe(calculerScore([...base, e(perte, false)]));
     }
-    expect(calculerScore([...base, e("defaut", true)])).toBe(18);
+    expect(calculerScore([...base, e("defaut", true)])).toBe(calculerScore(base) - 30);
   });
 
-  it("un cycle privé de dix membres sans retard : 9 × 2 + 5 = 23, contre 46 en cercle ouvert", () => {
+  it("un cycle privé de dix membres sans retard rapporte moitié moins qu'en cercle ouvert", () => {
     const cycle = (prive: boolean) => [
       ...Array.from({ length: 9 }, () => e("cotisation_a_temps", prive)),
       e("cycle_termine", prive),
     ];
-    expect(calculerScore(cycle(true))).toBe(23);
-    expect(calculerScore(cycle(false))).toBe(46);
+    expect(calculerScore(cycle(true))).toBe(19);
+    expect(calculerScore(cycle(false))).toBe(32);
   });
 });
 

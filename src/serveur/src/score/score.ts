@@ -1,4 +1,4 @@
-import { POINTS, SCORE_MAX, SCORE_MIN, pointsDe, type EvenementScore } from "./evenements.js";
+import { POINTS, SCORE_MIN, appliquerPoints, pointsDe, type EvenementScore } from "./evenements.js";
 
 /**
  * Le score n'est jamais écrit à la main : c'est le rejeu, dans l'ordre, des événements.
@@ -7,9 +7,9 @@ import { POINTS, SCORE_MAX, SCORE_MIN, pointsDe, type EvenementScore } from "./e
 export function calculerScore(evenements: readonly EvenementScore[]): number {
   let score = SCORE_MIN;
   for (const e of evenements) {
-    score = Math.min(SCORE_MAX, Math.max(SCORE_MIN, score + pointsDe(e)));
+    score = appliquerPoints(score, pointsDe(e));
   }
-  return score;
+  return Math.round(score);
 }
 
 /** À afficher à côté du score : un nouveau et un défaillant tombé à 0 ne sont pas la même chose. */
@@ -25,7 +25,7 @@ export interface EtapeDuScore {
   type: EvenementScore["type"];
   cercleId: string;
   cerclePrive: boolean;
-  /** Points de l'événement, après la règle des cercles privés. */
+  /** Points de l'événement : pour un gain, ce qui a vraiment compté (règle des cercles privés, baisse en haut de l'échelle). */
   points: number;
   /** Score après l'événement, plancher et plafond appliqués. */
   scoreApres: number;
@@ -35,15 +35,18 @@ export interface EtapeDuScore {
 export function retracerScore(evenements: readonly EvenementScore[]): EtapeDuScore[] {
   let score = SCORE_MIN;
   return evenements.map((e) => {
-    const points = pointsDe(e);
-    score = Math.min(SCORE_MAX, Math.max(SCORE_MIN, score + points));
+    const avant = Math.round(score);
+    const nominal = pointsDe(e);
+    score = appliquerPoints(score, nominal);
+    // Les pertes s'affichent entières (même si le plancher les absorbe) ; les gains, tels qu'ils ont compté.
+    const points = nominal > 0 ? Math.round(score) - avant : nominal;
     return {
       date: e.date,
       type: e.type,
       cercleId: e.cercleId,
       cerclePrive: e.cerclePrive === true,
       points,
-      scoreApres: score,
+      scoreApres: Math.round(score),
     };
   });
 }
@@ -63,12 +66,17 @@ export function expliquerScore(evenements: readonly EvenementScore[]): string[] 
   const defauts = compter("defaut");
   const departs = compter("depart");
   const gains = [
-    aTemps && `${pluriel(aTemps, "cotisation payée à temps", "cotisations payées à temps")} (+4 chacune)`,
-    cycles && `${pluriel(cycles, "cycle terminé sans défaut", "cycles terminés sans défaut")} (+10 chacun)`,
+    aTemps && `${pluriel(aTemps, "cotisation payée à temps", "cotisations payées à temps")} (+4 de base)`,
+    cycles && `${pluriel(cycles, "cycle terminé sans défaut", "cycles terminés sans défaut")} (+10 de base)`,
     compter("parrainage_reussi") &&
-      `${pluriel(compter("parrainage_reussi"), "filleul qui a terminé un cycle", "filleuls qui ont terminé un cycle")} (+2 chacun)`,
+      `${pluriel(compter("parrainage_reussi"), "filleul qui a terminé un cycle", "filleuls qui ont terminé un cycle")} (+2 de base)`,
   ].filter(Boolean);
-  if (gains.length > 0) phrases.push(`Ce qui le fait monter : ${gains.join(", ")}.`);
+  if (gains.length > 0) {
+    phrases.push(`Ce qui le fait monter : ${gains.join(", ")}.`);
+    phrases.push(
+      "Plus le score est haut, moins chaque gain rapporte : il faut plusieurs cycles pour s'approcher de 100.",
+    );
+  }
   const pertes = [
     enRetard && `${pluriel(enRetard, "cotisation payée en retard", "cotisations payées en retard")} (−1 chacune)`,
     defauts && `${pluriel(defauts, "défaut", "défauts")} de paiement (−30 chacun)`,

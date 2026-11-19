@@ -37,16 +37,16 @@ async function historique(membre: Identite, ...types: string[]) {
     ]);
   }
 }
-const vingtQuatreATemps = Array.from({ length: 24 }, () => "cotisation_a_temps");
+const quaranteATemps = Array.from({ length: 40 }, () => "cotisation_a_temps");
 
 describe("premières places fermées après un défaut (S3)", () => {
   it("un membre au bon score mais en défaut récent ne peut pas demander la place 1, et le sait", async () => {
     const surveille = await client.inscrire();
-    await historique(surveille, ...vingtQuatreATemps, "defaut"); // 96 − 30 = 66 : assez pour le début, sans le défaut
+    await historique(surveille, "defaut", ...quaranteATemps); // 62 : assez pour le début, sans le défaut récent
     const s = await json<{ score: number; premieresPlacesFermees: boolean; explication: string[] }>(
       await client.requete("GET", `/score/${surveille.id}`, undefined, surveille),
     );
-    expect(s).toMatchObject({ score: 66, premieresPlacesFermees: true });
+    expect(s).toMatchObject({ score: 62, premieresPlacesFermees: true });
     expect(s.explication.join(" ")).toMatch(/deux cycles terminés sans défaut/);
 
     const org = await client.inscrire();
@@ -63,9 +63,9 @@ describe("premières places fermées après un défaut (S3)", () => {
 
   it("le même score sans défaut ouvre la place 1 ; deux cycles terminés depuis le défaut la rouvrent", async () => {
     const sain = await client.inscrire();
-    await historique(sain, ...vingtQuatreATemps.slice(0, 17)); // 68
+    await historique(sain, ...quaranteATemps); // 62
     const repenti = await client.inscrire();
-    await historique(repenti, ...vingtQuatreATemps, "defaut", "cycle_termine", "cycle_termine");
+    await historique(repenti, "defaut", ...quaranteATemps, "cycle_termine", "cycle_termine");
     const org = await client.inscrire();
     const cercle = await json<Cercle>(await creerCercle(client, org, reglementDeTest({ nombreMembres: 6 })));
     expect((await adherer(client, cercle, sain, 1)).status).toBe(201);
@@ -75,11 +75,11 @@ describe("premières places fermées après un défaut (S3)", () => {
   it("à la complétion, l'attribution ne met jamais en tête un membre dont les premières places sont fermées", async () => {
     // Trois membres : l'organisateur, un bon payeur et un membre qui fait défaut après avoir adhéré.
     const [org, bon, fautif] = [await client.inscrire(), await client.inscrire(), await client.inscrire()];
-    await historique(bon, ...vingtQuatreATemps.slice(0, 16)); // 64
-    await historique(fautif, ...vingtQuatreATemps); // 96
+    await historique(bon, ...quaranteATemps); // 62
+    await historique(fautif, ...Array.from({ length: 96 }, () => "cotisation_a_temps")); // 80
     const cercle = await json<Cercle>(await creerCercle(client, org, reglementDeTest()));
     await adherer(client, cercle, fautif, 1);
-    await historique(fautif, "defaut"); // défaut ailleurs, avant la complétion : 66, premières places fermées
+    await historique(fautif, "defaut"); // défaut ailleurs, avant la complétion : 50, premières places fermées
     // Les deux demandent la place 1 : le fautif a le meilleur score, mais ses premières places sont fermées.
     await adherer(client, cercle, bon, 1);
     const complet = await json<Cercle>(await client.requete("GET", `/cercles/${cercle.id}`, undefined, org));

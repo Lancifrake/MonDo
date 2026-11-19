@@ -28,3 +28,14 @@ export const pointsDe = (e: EvenementScore): number => {
   const points = POINTS[e.type];
   return e.cerclePrive && points > 0 ? Math.trunc(points / 2) : points;
 };
+
+/**
+ * Le score appliqué à un pas. Les pertes sont entières ; les gains sont multipliés par le carré de la
+ * distance qui reste à 100 : plus on est haut, plus chaque point coûte cher, et 100 reste hors d'atteinte
+ * (un cercle hebdomadaire de 10 membres sans retard : 34, 51, 61, 67, 72 après 1 à 5 cycles).
+ * Le calcul garde les décimales ; on arrondit seulement à l'affichage.
+ */
+export const appliquerPoints = (score: number, points: number): number => {
+  const gain = points > 0 ? points * ((SCORE_MAX - score) / SCORE_MAX) ** 2 : points;
+  return Math.min(SCORE_MAX, Math.max(SCORE_MIN, score + gain));
+};

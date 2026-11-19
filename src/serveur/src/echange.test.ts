@@ -25,9 +25,9 @@ afterAll(() => app.close());
 
 const json = async <T>(r: Response) => (await r.json()) as T;
 
-/** Score de 60 (quinze cotisations à temps en cercle ouvert, fictives) : toutes les places sont permises. */
+/** Score de 62 (quarante cotisations à temps en cercle ouvert, fictives) : toutes les places sont permises. */
 async function bienNote(membre: Identite) {
-  for (let i = 0; i < 15; i++) {
+  for (let i = 0; i < 40; i++) {
     await base.requete(
       "INSERT INTO score.evenements (membre_id, type, cercle_id, date) VALUES ($1, 'cotisation_a_temps', $2, now())",
       [membre.id, randomUUID()],

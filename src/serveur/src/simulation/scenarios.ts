@@ -31,10 +31,10 @@ export const SCENARIOS: Scenario[] = [
   {
     nom: "S3-defaut-apres-reception",
     description:
-      "9 membres connus (deux cycles derrière eux) et 1 nouveau qui arrête de payer dès qu'il a reçu sa cagnotte",
+      "9 membres connus (quatre cycles derrière eux, score 67) et 1 nouveau qui arrête de payer dès qu'il a reçu sa cagnotte",
     membres: membres([
       ["defaillant", 1, 0],
-      ["bon_payeur", 9, 2],
+      ["bon_payeur", 9, 4],
     ]),
     cycles: 3,
     montant: 50_000,
@@ -56,9 +56,9 @@ export const SCENARIOS: Scenario[] = [
     description: "6 bons payeurs, 2 retardataires, 1 solde insuffisant, 1 défaillant nouveau",
     membres: membres([
       ["defaillant", 1, 0],
-      ["bon_payeur", 6, 2],
-      ["retardataire", 2, 2],
-      ["solde_insuffisant", 1, 2],
+      ["bon_payeur", 6, 4],
+      ["retardataire", 2, 4],
+      ["solde_insuffisant", 1, 4],
     ]),
     cycles: 3,
     montant: 25_000,
@@ -69,9 +69,9 @@ export const SCENARIOS: Scenario[] = [
     description: "50 membres : 40 bons payeurs, 6 retardataires, 2 soldes insuffisants, 2 défaillants nouveaux",
     membres: membres([
       ["defaillant", 2, 0],
-      ["bon_payeur", 40, 2],
-      ["retardataire", 6, 2],
-      ["solde_insuffisant", 2, 2],
+      ["bon_payeur", 40, 4],
+      ["retardataire", 6, 4],
+      ["solde_insuffisant", 2, 4],
     ]),
     cycles: 2,
     montant: 10_000,
@@ -80,7 +80,7 @@ export const SCENARIOS: Scenario[] = [
   {
     nom: "S7-connus-sous-le-seuil",
     description:
-      "9 membres connus mais avec un seul cycle derrière eux (score 46, sous le seuil de 60 du début) et 1 nouveau défaillant : question ouverte",
+      "9 membres connus mais avec un seul cycle derrière eux (score 34, sous le seuil de 60 du début) et 1 nouveau défaillant : question ouverte",
     membres: membres([
       ["defaillant", 1, 0],
       ["bon_payeur", 9, 1],
