@@ -11,6 +11,7 @@ import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
 import '../score/score_screen.dart';
 import 'compte_demo_screen.dart';
+import '../pin_screen.dart';
 import '../welcome_screen.dart';
 
 /// Ce qu'il faut afficher sur le profil, lu en une fois.
@@ -48,18 +49,31 @@ class ProfilScreen extends ConsumerWidget {
     final sommesAFaire = sommes.where((s) =>
         (s['debiteurId'] == moi && s['statut'] == 'due') || (s['creancierId'] == moi && s['statut'] == 'declaree')).length;
 
+    // Verrouiller : la clé reste dans le téléphone, on revient au code PIN. Reprendre est immédiat.
+    Future<void> verrouiller() async {
+      final avecPin = await pinDefini();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => PinScreen(verifier: avecPin)),
+        (_) => false,
+      );
+    }
+
+    // Retirer le compte du téléphone (téléphone donné ou vendu) : la clé est effacée, et revenir
+    // sur ce compte demande la récupération, avec son délai. C'est le seul cas où ce délai a du sens.
     Future<void> deconnecter() async {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Se déconnecter ?'),
+          title: const Text('Retirer ton compte de ce téléphone ?'),
           content: const Text(
-            'La clé de ce téléphone sera effacée. Sans code secret ni contact de confiance, '
-            'tu ne pourras plus accéder à ce compte.',
+            'À faire seulement si tu donnes ou vends ce téléphone. La clé de ce téléphone sera effacée : '
+            'pour revenir sur ton compte, il faudra le récupérer, avec 48 à 72 h d’attente. '
+            'Pour simplement fermer l’application, utilise plutôt « Verrouiller ».',
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Effacer la clé')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Retirer le compte')),
           ],
         ),
       );
@@ -173,7 +187,13 @@ class ProfilScreen extends ConsumerWidget {
             ),
           ],
           const _Separation(),
-          _Rangee(icone: Icons.logout, titre: 'Se déconnecter', couleur: AppColors.orange, onTap: deconnecter),
+          _Rangee(icone: Icons.lock_outline, titre: 'Verrouiller', onTap: verrouiller),
+          _Rangee(
+            icone: Icons.phonelink_erase_outlined,
+            titre: 'Retirer mon compte de ce téléphone',
+            couleur: AppColors.orange,
+            onTap: deconnecter,
+          ),
         ],
       ),
     );

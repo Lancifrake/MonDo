@@ -3,38 +3,49 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/logo_mondo.dart';
 import 'main_shell.dart';
+import 'welcome_screen.dart';
 
 /// Le PIN déverrouille l'app sur CE téléphone : il ne part jamais au serveur.
 /// Seule son empreinte est gardée, dans le stockage sécurisé.
 const _cleStockagePin = 'mondo_pin_empreinte';
+
+/// Codes faux à la suite, gardés même si l'application est fermée entre deux essais.
+const _cleEchecsPin = 'mondo_pin_echecs';
+
+/// Au-delà, la clé du téléphone est effacée : un téléphone volé ne se déverrouille pas en devinant le PIN.
+const essaisPinMax = 5;
 const _stockage = FlutterSecureStorage();
 
 String _empreinte(String pin) => sha256.convert(utf8.encode('mondo-pin:$pin')).toString();
 
 Future<bool> pinDefini() async => (await _stockage.read(key: _cleStockagePin)) != null;
 
-Future<void> effacerPin() => _stockage.delete(key: _cleStockagePin);
+Future<void> effacerPin() async {
+  await _stockage.delete(key: _cleStockagePin);
+  await _stockage.delete(key: _cleEchecsPin);
+}
 
 /// Choisir son PIN (deux fois, pour éviter une faute de frappe) ou le saisir à l'ouverture.
-class PinScreen extends StatefulWidget {
+class PinScreen extends ConsumerStatefulWidget {
   /// [verifier] : demander le PIN déjà choisi (à l'ouverture) au lieu d'en choisir un.
   const PinScreen({super.key, this.verifier = false});
 
   final bool verifier;
 
   @override
-  State<PinScreen> createState() => _PinScreenState();
+  ConsumerState<PinScreen> createState() => _PinScreenState();
 }
 
-class _PinScreenState extends State<PinScreen> {
+class _PinScreenState extends ConsumerState<PinScreen> {
   String _pin = '';
   String? _premier; // création : le premier code saisi, en attente de confirmation
   String? _erreur;
-  int _essais = 0;
 
   String get _titre => widget.verifier
       ? 'Ton code PIN'
@@ -66,14 +77,20 @@ class _PinScreenState extends State<PinScreen> {
     if (widget.verifier) {
       final attendu = await _stockage.read(key: _cleStockagePin);
       if (attendu != _empreinte(saisi)) {
-        _essais++;
+        final echecs = int.parse(await _stockage.read(key: _cleEchecsPin) ?? '0') + 1;
+        await _stockage.write(key: _cleEchecsPin, value: '$echecs');
         HapticFeedback.heavyImpact();
+        if (echecs >= essaisPinMax) return _effacerApresEchecs();
+        final restants = essaisPinMax - echecs;
         setState(() {
           _pin = '';
-          _erreur = 'Code incorrect${_essais > 1 ? ' ($_essais essais)' : ''}.';
+          _erreur = restants == 1
+              ? 'Code incorrect. Dernier essai : ensuite, ce téléphone oubliera ton compte.'
+              : 'Code incorrect. Encore $restants essais.';
         });
         return;
       }
+      await _stockage.delete(key: _cleEchecsPin);
     } else if (_premier == null) {
       setState(() {
         _premier = saisi;
@@ -95,6 +112,30 @@ class _PinScreenState extends State<PinScreen> {
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MainShell()),
+      (_) => false,
+    );
+  }
+
+  /// Trop de codes faux : la clé est effacée de ce téléphone. Le compte n'est pas perdu, il se récupère
+  /// avec le délai prévu (le titulaire peut s'y opposer depuis un autre téléphone).
+  Future<void> _effacerApresEchecs() async {
+    await ref.read(authStateProvider.notifier).logout();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Trop de codes incorrects'),
+        content: const Text(
+          'Par sécurité, ce téléphone a oublié ton compte. Ton compte et tes tontines ne sont pas perdus : '
+          'choisis « J’ai déjà un compte » pour le récupérer.',
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Compris'))],
+      ),
+    );
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
       (_) => false,
     );
   }
@@ -134,10 +175,11 @@ class _PinScreenState extends State<PinScreen> {
               const SizedBox(height: 32),
               _Points(remplis: _pin.length, erreur: _erreur != null),
               SizedBox(
-                height: 40,
+                height: 64,
                 child: Center(
                   child: Text(
                     _erreur ?? '',
+                    textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.orange, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),

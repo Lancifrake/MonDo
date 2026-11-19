@@ -113,6 +113,7 @@ class LocalStorageService {
       await _secureStorage.delete(key: _keyPublicKeyData);
       await _secureStorage.delete(key: _keyPrivateKeyData);
       await _secureStorage.delete(key: 'mondo_pin_empreinte');
+      await _secureStorage.delete(key: 'mondo_pin_echecs');
 
       _logger.i('Session effacée');
     } catch (e) {
