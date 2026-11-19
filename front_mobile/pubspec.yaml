@@ -62,6 +62,8 @@ dependencies:
   pointycastle: ^4.0.0
   image_picker: ^1.2.4
   crypto: ^3.0.8
+  package_info_plus: ^9.0.1
+  url_launcher: ^6.3.3
 
 dev_dependencies:
   flutter_test:
@@ -87,6 +89,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - shorebird.yaml
 
   # To add assets to your application, add an assets section, like this:
   # assets:
