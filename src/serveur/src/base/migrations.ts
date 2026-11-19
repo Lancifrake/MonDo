@@ -5,6 +5,11 @@ import type { BaseDeDonnees } from "./base-de-donnees.js";
  * les données d'un autre que par identifiant, ce qui permettra d'en extraire un plus tard.
  * Une migration appliquée ne se modifie jamais : on en ajoute une nouvelle.
  */
+/** normaliserNumero (validation/numero.ts) écrit en SQL, pour les numéros déjà en base. */
+const numeroNormaliseSql = (col: string) =>
+  `(CASE WHEN ${col} LIKE '+%' THEN ${col} WHEN ${col} LIKE '00%' THEN '+' || substr(${col}, 3) ` +
+  `WHEN ${col} ~ '^[0-9]{9}$' THEN '+237' || ${col} ELSE '+' || ${col} END)`;
+
 export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
   {
     nom: "001_comptes",
@@ -551,6 +556,22 @@ export const MIGRATIONS: readonly { nom: string; sql: string }[] = [
           (SELECT t.date_limite FROM cotisations.tours t WHERE t.cercle_id = s.cercle_id AND t.numero = s.tour),
           s.date_limite)
       WHERE s.nature IN ('frais_mondo', 'remise') AND s.statut = 'due'`,
+  },
+  {
+    // Un téléphone = une seule écriture de son numéro (validation/numero.ts, même règle). Les codes SMS en cours
+    // sont jetés (5 minutes de vie). Si plusieurs comptes existent déjà pour un même téléphone, seul le plus ancien
+    // prend la forme unique ; les autres gardent leur ancienne écriture (plus aucun code SMS ne peut l'atteindre).
+    nom: "035_numeros_normalises",
+    sql: `
+      DELETE FROM comptes.codes_otp WHERE numero NOT LIKE '+%';
+      UPDATE comptes.comptes c SET numero = ${numeroNormaliseSql("c.numero")}
+      WHERE c.numero NOT LIKE '+%'
+        AND NOT EXISTS (SELECT 1 FROM comptes.comptes d WHERE d.numero = ${numeroNormaliseSql("c.numero")})
+        AND c.id = (SELECT e.id FROM comptes.comptes e
+                    WHERE ${numeroNormaliseSql("e.numero")} = ${numeroNormaliseSql("c.numero")}
+                    ORDER BY e.cree_le, e.id LIMIT 1);
+      UPDATE comptes.contacts_confiance SET numero = ${numeroNormaliseSql("numero")} WHERE numero NOT LIKE '+%';
+      UPDATE sms.envois SET numero = ${numeroNormaliseSql("numero")} WHERE numero NOT LIKE '+%'`,
   },
 ];
 
