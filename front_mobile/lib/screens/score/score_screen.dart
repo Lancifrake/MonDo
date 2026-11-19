@@ -47,18 +47,26 @@ class ScoreScreen extends ConsumerWidget {
             const Titre('Historique'),
             if (s.historique.isEmpty) const Note('Rien encore : ton score évolue à chaque cotisation.'),
             if (s.historique.isNotEmpty)
-              for (final (i, e) in s.historique.reversed.indexed) ...[
-                if (i > 0) const TraitRangee(marge: 0),
-                RangeeIcone(
+              () {
+                final liste = s.historique.reversed.toList();
+                return ListeLimitee(
+                  nombre: liste.length,
                   marge: 0,
-                  icone: e.points >= 0 ? Icons.trending_up : Icons.trending_down,
-                  couleurIcone: e.points >= 0 ? AppColors.green : AppColors.orange,
-                  titre: evenement(e.type),
-                  detail: dateCourte(e.date),
-                  valeur: '${e.points >= 0 ? '+' : ''}${e.points}  →  ${e.scoreApres}',
-                  accent: e.points < 0,
-                ),
-              ],
+                  separateur: const TraitRangee(marge: 0),
+                  construire: (i) {
+                    final e = liste[i];
+                    return RangeeIcone(
+                      marge: 0,
+                      icone: e.points >= 0 ? Icons.trending_up : Icons.trending_down,
+                      couleurIcone: e.points >= 0 ? AppColors.green : AppColors.orange,
+                      titre: evenement(e.type),
+                      detail: dateCourte(e.date),
+                      valeur: '${e.points >= 0 ? '+' : ''}${e.points}  →  ${e.scoreApres}',
+                      accent: e.points < 0,
+                    );
+                  },
+                );
+              }(),
           ], reessayer: () => ref.invalidate(monScoreRefreshableProvider)),
     );
   }

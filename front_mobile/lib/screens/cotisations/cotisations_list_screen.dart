@@ -63,11 +63,15 @@ class _CotisationsState extends ConsumerState<CotisationsListScreen> {
                   ),
                 ];
               }
+              // Les plus récentes d'abord ; au-delà de 10, « Tout voir ».
+              vues.sort((a, b) => b.dateLimite.compareTo(a.dateLimite));
               return [
-                for (var i = 0; i < vues.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
-                  _Cotisation(c: vues[i], moi: moi, nomCercle: noms[vues[i].cercleId]),
-                ],
+                ListeLimitee(
+                  key: ValueKey(_filtre),
+                  nombre: vues.length,
+                  separateur: const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                  construire: (i) => _Cotisation(c: vues[i], moi: moi, nomCercle: noms[vues[i].cercleId]),
+                ),
               ];
             }, reessayer: () => ref.invalidate(mesCotisationsRefreshableProvider)),
           ],

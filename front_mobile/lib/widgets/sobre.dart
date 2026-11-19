@@ -314,3 +314,55 @@ class TraitRangee extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Divider(height: 1, thickness: 1, indent: marge + 46, color: AppColors.border);
 }
+
+/// Liste longue (cotisations confirmées, historique du score, registre) : les `limite` premiers éléments, puis
+/// « Tout voir (N) » pour déplier le reste. Les éléments arrivent déjà triés du plus récent au plus ancien.
+class ListeLimitee extends StatefulWidget {
+  const ListeLimitee({
+    super.key,
+    required this.nombre,
+    required this.construire,
+    this.separateur,
+    this.limite = 10,
+    this.marge = 20,
+  });
+
+  final int nombre;
+  final Widget Function(int i) construire;
+  final Widget? separateur;
+  final int limite;
+  final double marge;
+
+  @override
+  State<ListeLimitee> createState() => _ListeLimiteeState();
+}
+
+class _ListeLimiteeState extends State<ListeLimitee> {
+  bool _tout = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibles = _tout ? widget.nombre : widget.nombre.clamp(0, widget.limite);
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      for (var i = 0; i < visibles; i++) ...[
+        if (i > 0 && widget.separateur != null) widget.separateur!,
+        widget.construire(i),
+      ],
+      if (widget.nombre > widget.limite)
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: widget.marge),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              style: TextButton.styleFrom(padding: EdgeInsets.zero),
+              onPressed: () => setState(() => _tout = !_tout),
+              child: Text(
+                _tout ? 'Voir moins' : 'Tout voir (${widget.nombre})',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+        ),
+    ]);
+  }
+}

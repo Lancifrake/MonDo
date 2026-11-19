@@ -66,17 +66,22 @@ class RegistreScreen extends ConsumerWidget {
               ),
             ],
             const Titre('Événements'),
-            for (final (i, e) in evenements.indexed) ...[
-              if (i > 0) const TraitRangee(marge: 0),
-              RangeeIcone(
-                marge: 0,
-                icone: e['statut'] == 'inscrite' ? Icons.link : Icons.hourglass_empty,
-                couleurIcone: e['statut'] == 'inscrite' ? AppColors.green : AppColors.textMuted,
-                titre: objet(e['objet'] as String),
-                detail: '${dateCourte(e['enregistreLe'] as String?)} · '
-                    '${e['statut'] == 'inscrite' ? 'inscrit sur la chaîne' : 'en attente du lot'}',
-              ),
-            ],
+            ListeLimitee(
+              nombre: evenements.length,
+              marge: 0,
+              separateur: const TraitRangee(marge: 0),
+              construire: (i) {
+                final e = evenements[evenements.length - 1 - i]; // le plus récent d'abord
+                return RangeeIcone(
+                  marge: 0,
+                  icone: e['statut'] == 'inscrite' ? Icons.link : Icons.hourglass_empty,
+                  couleurIcone: e['statut'] == 'inscrite' ? AppColors.green : AppColors.textMuted,
+                  titre: objet(e['objet'] as String),
+                  detail: '${dateCourte(e['enregistreLe'] as String?)} · '
+                      '${e['statut'] == 'inscrite' ? 'inscrit sur la chaîne' : 'en attente du lot'}',
+                );
+              },
+            ),
           ],
         );
       },
