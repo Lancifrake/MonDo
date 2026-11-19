@@ -189,7 +189,7 @@ class ProfilScreen extends ConsumerWidget {
           const _Separation(),
           _Rangee(icone: Icons.lock_outline, titre: 'Verrouiller', onTap: verrouiller),
           _Rangee(
-            icone: Icons.phonelink_erase_outlined,
+            icone: Icons.logout,
             titre: 'Retirer mon compte de ce téléphone',
             couleur: AppColors.rouge,
             onTap: deconnecter,
