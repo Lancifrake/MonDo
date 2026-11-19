@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 /// Fond à motifs discrets, dans l'esprit des fonds de discussion : de petits dessins de la vie
-/// d'une tontine (cagnotte, téléphone, poignée de main, calendrier, groupe, reçu, bouclier et le
+/// d'une tontine (portefeuille, téléphone, cadeau, calendrier, groupe, reçu, bouclier et le
 /// cercle de points du logo), semés sur une tuile qui se répète. Très pâle : il donne de la
 /// matière à la page sans gêner la lecture.
 class FondMotif extends StatelessWidget {
@@ -37,10 +37,10 @@ const _tuile = 168.0;
 
 // Placement fixe (pas de hasard à chaque ouverture) : réparti pour éviter les alignements.
 const List<_Dessin> _dessins = [
-  (icone: Icons.savings_outlined, x: 0.12, y: 0.10, angle: -0.25, taille: 22),
+  (icone: Icons.account_balance_wallet_outlined, x: 0.12, y: 0.10, angle: -0.25, taille: 22),
   (icone: null, x: 0.55, y: 0.08, angle: 0, taille: 18), // cercle de points du logo
-  (icone: Icons.smartphone_outlined, x: 0.86, y: 0.20, angle: 0.3, taille: 20),
-  (icone: Icons.handshake_outlined, x: 0.34, y: 0.33, angle: 0.15, taille: 24),
+  (icone: Icons.phonelink_lock_outlined, x: 0.86, y: 0.20, angle: 0.3, taille: 20),
+  (icone: Icons.redeem_outlined, x: 0.34, y: 0.33, angle: 0.15, taille: 24),
   (icone: Icons.event_outlined, x: 0.72, y: 0.45, angle: -0.2, taille: 20),
   (icone: Icons.groups_outlined, x: 0.10, y: 0.55, angle: 0.1, taille: 24),
   (icone: Icons.receipt_long_outlined, x: 0.45, y: 0.66, angle: -0.35, taille: 20),

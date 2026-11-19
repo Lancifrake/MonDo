@@ -278,7 +278,7 @@ class _CarteTontine extends StatelessWidget {
                 if (c.organisateur)
                   Tooltip(
                     message: 'Tu l’organises',
-                    child: Icon(Icons.star_outline_rounded, size: 20, color: AppColors.textMuted),
+                    child: Icon(Icons.verified_outlined, size: 20, color: AppColors.textMuted),
                   ),
               ],
             ),

@@ -61,7 +61,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     ProfilScreen(),
   ];
 
-  /// Icône d'onglet : contour au repos, pleine quand l'onglet est actif, pastille du nombre en attente.
+  /// Icône d'onglet et pastille du nombre en attente. L'onglet actif se distingue par sa couleur :
+  /// on n'emploie que des icônes déjà livrées, pour rester publiable par correctif Shorebird.
   static BottomNavigationBarItem _onglet(IconData repos, IconData actif, String libelle, {int attente = 0}) {
     Widget icone(IconData i) => attente > 0
         ? Badge(
@@ -111,11 +112,11 @@ class _MainShellState extends ConsumerState<MainShell> {
               const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.6),
           unselectedLabelStyle: const TextStyle(fontSize: 13, height: 1.6),
           items: [
-            _onglet(Icons.home_outlined, Icons.home, 'Accueil'),
-            _onglet(Icons.payments_outlined, Icons.payments, 'Cotisations', attente: cotisationsAFaire),
-            _onglet(Icons.gavel_outlined, Icons.gavel, 'Litiges'),
-            _onglet(Icons.notifications_none, Icons.notifications, 'Alertes', attente: alertesNonLues),
-            _onglet(Icons.person_outline, Icons.person, 'Profil'),
+            _onglet(Icons.grid_view_rounded, Icons.grid_view_rounded, 'Accueil'),
+            _onglet(Icons.payments_outlined, Icons.payments_outlined, 'Cotisations', attente: cotisationsAFaire),
+            _onglet(Icons.gavel_outlined, Icons.gavel_outlined, 'Litiges'),
+            _onglet(Icons.notifications_none, Icons.notifications_none, 'Alertes', attente: alertesNonLues),
+            _onglet(Icons.person_outline, Icons.person_outline, 'Profil'),
           ],
         ),
       ),
