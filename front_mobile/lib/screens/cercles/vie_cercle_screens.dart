@@ -5,6 +5,7 @@ import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/sobre.dart';
 
 /// Libellé d'un membre : « moi » ou sa place, le serveur ne donne pas les noms aux membres.
@@ -53,17 +54,29 @@ class RegistreScreen extends ConsumerWidget {
                 : 'Attention : l’intégrité du registre n’est pas vérifiée.'),
             const Note('Chaque événement est réduit à une empreinte, puis inscrite par lots sur une chaîne publique.'),
             const Titre('Documents vérifiés'),
-            Bloc(enfants: [
-              for (final d in documents) Ligne(objet(d['objet'] as String), valeur: d['conforme'] == true ? 'conforme' : 'non conforme', accent: d['conforme'] != true),
-            ]),
+            for (final (i, d) in documents.indexed) ...[
+              if (i > 0) const TraitRangee(marge: 0),
+              RangeeIcone(
+                marge: 0,
+                icone: d['conforme'] == true ? Icons.verified_outlined : Icons.error_outline,
+                couleurIcone: d['conforme'] == true ? AppColors.green : AppColors.orange,
+                titre: objet(d['objet'] as String),
+                detail: d['conforme'] == true ? 'Conforme à ce qui a été signé' : 'Non conforme',
+                accent: d['conforme'] != true,
+              ),
+            ],
             const Titre('Événements'),
-            Bloc(enfants: [
-              for (final e in evenements)
-                Ligne(
-                  '${objet(e['objet'] as String)} · ${dateCourte(e['enregistreLe'] as String?)}',
-                  valeur: e['statut'] == 'inscrite' ? 'inscrit sur la chaîne' : 'en attente du lot',
-                ),
-            ]),
+            for (final (i, e) in evenements.indexed) ...[
+              if (i > 0) const TraitRangee(marge: 0),
+              RangeeIcone(
+                marge: 0,
+                icone: e['statut'] == 'inscrite' ? Icons.link : Icons.hourglass_empty,
+                couleurIcone: e['statut'] == 'inscrite' ? AppColors.green : AppColors.textMuted,
+                titre: objet(e['objet'] as String),
+                detail: '${dateCourte(e['enregistreLe'] as String?)} · '
+                    '${e['statut'] == 'inscrite' ? 'inscrit sur la chaîne' : 'en attente du lot'}',
+              ),
+            ],
           ],
         );
       },
