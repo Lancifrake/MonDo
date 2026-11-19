@@ -249,3 +249,68 @@ class Carte extends StatelessWidget {
         ),
       );
 }
+
+/// Ligne à la manière du profil : icône à gauche, intitulé (et valeur à droite), détail en dessous, sans cadre.
+/// `marge` : 20 sur un écran sans marge latérale, 0 dans une liste déjà décalée de 20.
+class RangeeIcone extends StatelessWidget {
+  const RangeeIcone({
+    super.key,
+    required this.icone,
+    required this.titre,
+    this.detail,
+    this.valeur,
+    this.onTap,
+    this.couleurIcone,
+    this.accent = false,
+    this.marge = 20,
+  });
+
+  final IconData icone;
+  final String titre;
+  final String? detail;
+  final String? valeur;
+  final VoidCallback? onTap;
+  final Color? couleurIcone;
+  final bool accent; // orange : demande une action
+  final double marge;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(marge, 13, marge, 13),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Icon(icone, size: 24, color: couleurIcone ?? (accent ? AppColors.orange : AppColors.textMuted)),
+            ),
+            const SizedBox(width: 22),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Expanded(child: Text(titre, style: const TextStyle(fontSize: 16))),
+                  if (valeur != null)
+                    Text(valeur!,
+                        style: TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600, color: accent ? AppColors.orange : AppColors.textDark)),
+                ]),
+                if (detail != null) ...[
+                  const SizedBox(height: 2),
+                  Text(detail!, style: TextStyle(fontSize: 13.5, color: accent ? AppColors.orange : AppColors.textMuted)),
+                ],
+              ]),
+            ),
+          ]),
+        ),
+      );
+}
+
+/// Trait fin entre deux `RangeeIcone`, aligné sur le texte.
+class TraitRangee extends StatelessWidget {
+  const TraitRangee({super.key, this.marge = 20});
+
+  final double marge;
+
+  @override
+  Widget build(BuildContext context) => Divider(height: 1, thickness: 1, indent: marge + 46, color: AppColors.border);
+}
