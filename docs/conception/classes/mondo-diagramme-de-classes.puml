@@ -1,5 +1,5 @@
 @startuml
-' MonDo, diagramme de classes (PlantUML), tiré de docs/conception/diagramme-de-classes.md (12/11/2026).
+' MonDo, diagramme de classes (PlantUML), tiré de docs/conception/diagramme-de-classes.md (mis à jour le 19/11/2026).
 ' À coller dans Visual Paradigm Online : Diagram > Import > PlantUML (langage PlantUML), puis OK.
 ' Un paquetage par module du serveur (décision 02). Les liens entre paquetages passent par identifiant.
 
@@ -18,7 +18,7 @@ hide empty members
 package "1 Comptes et identité" {
   class Utilisateur {
     - id : UUID
-    - numero : String
+    - numero : String {forme unique +indicatif}
     - nom : String
     - niveauIdentite : NiveauIdentite
     - creeLe : DateTime
@@ -78,6 +78,17 @@ package "1 Comptes et identité" {
     - avecContact : Boolean
     - statut : StatutRecuperation
   }
+  class CodeSecret {
+    - empreinte : String
+    - echecs : Integer
+    - fenetreDebut : DateTime [0..1]
+  }
+  class Parrainage {
+    - id : UUID
+    - statut : StatutParrainage
+    - proposeLe : DateTime
+    - reponduLe : DateTime [0..1]
+  }
   class Administrateur {
     - id : UUID
     - nom : String
@@ -91,6 +102,10 @@ package "2 Cercles et règlement" {
     - creeLe : DateTime
     - termineLe : DateTime [0..1]
   }
+  class Invitation {
+    - empreinteNumero : String
+    - inviteeLe : DateTime
+  }
   class Reglement {
     - montant : Integer
     - frequence : Frequence
@@ -102,6 +117,8 @@ package "2 Cercles et règlement" {
     - rappelsAvantEcheanceJours : Integer [0..5]
     - datePremierTour : DateTime
     - ordreFixe : UUID [0..50]
+    - scoreMinimum : Integer [0..1]
+    - parrainageAccepte : Boolean [0..1]
     - empreinte : String
   }
   class LigneBareme {
@@ -166,6 +183,16 @@ package "3 Cotisations" {
   }
   class Depart {
     - partiLe : DateTime
+    - motif : MotifDepart [0..1]
+  }
+  class PaiementSimule <<hors production>> {
+    - id : UUID
+    - operateur : Operateur
+    - issue : IssueSimulee
+    - statut : StatutPaiementSimule
+    - referenceOperateur : String [0..1]
+    - motif : String [0..1]
+    - initieLe : DateTime
   }
 }
 
@@ -179,10 +206,17 @@ package "4 Score et ordre de passage" {
     - valeur : Integer
     - cyclesTermines : Integer
     - defauts : Integer
+    - premieresPlacesFermees : Boolean
   }
 }
 
-package "5 Planificateur" {
+package "5 Planificateur et notifications" {
+  class Notification {
+    - id : UUID
+    - texte : String
+    - creeeLe : DateTime
+    - lueLe : DateTime [0..1]
+  }
   class TachePlanifiee {
     - idUnique : String
     - type : TypeTache
@@ -251,6 +285,8 @@ package "9 Registre" {
   class EmpreinteRegistre {
     - id : Integer
     - empreinte : String
+    - objet : String
+    - enregistreeLe : DateTime
   }
   class LotRegistre {
     - id : Integer
@@ -339,6 +375,7 @@ package "11 Types" {
     defaut
     cycle_termine
     depart
+    parrainage_reussi
   }
   enum TypeTache {
     echeance
@@ -387,6 +424,29 @@ package "11 Types" {
     refusee
     hors_reglement
   }
+  enum StatutParrainage {
+    propose
+    accepte
+    refuse
+  }
+  enum Operateur {
+    orange_money
+    mtn_momo
+  }
+  enum IssueSimulee {
+    reussi
+    echoue
+    en_retard
+  }
+  enum StatutPaiementSimule {
+    en_attente_operateur
+    reussi
+    echoue
+  }
+  enum MotifDepart {
+    volontaire
+    frais_impayes
+  }
   enum NomAgent {
     surveillance
     relance
@@ -410,10 +470,15 @@ BlocageCompte "0..*" -down- "1" Utilisateur
 ContactConfiance "0..1" -down- "1" Utilisateur
 DemandeRecuperation "0..*" -down- "1" Utilisateur
 DemandeRecuperation "0..*" -left- "0..1" Administrateur : < tranche
+CodeSecret "0..1" -down- "1" Utilisateur
+Parrainage "0..*" -down- "1" Utilisateur : < parrain
+Parrainage "0..1" -down- "1" Utilisateur : < filleul
 
 ' 2 Cercles et règlement : Cercle à gauche de Utilisateur
 Utilisateur "1" -right- "0..*" Cercle : < organisateur
 Cercle "1" *-down- "1" Reglement
+Cercle "1" *-down- "0..*" Invitation
+Cercle "0..1" -right- "0..1" Cercle : cycle suivant >
 Reglement "1" *-down- "0..*" LigneBareme
 Cercle "1" *-down- "1..50" Adhesion
 Cercle "1" *-down- "0..*" PlaceOrdre
@@ -433,6 +498,7 @@ Cercle "1" -down- "0..*" SommeDue
 Utilisateur "1" -down- "0..*" SommeDue : < débiteur
 Utilisateur "0..1" -down- "0..*" SommeDue : < créancier
 Cercle "1" -down- "0..*" Depart
+Cotisation "1" *-down- "0..*" PaiementSimule
 Utilisateur "1" -down- "0..*" Depart
 
 ' 4 Score et ordre de passage : sous Utilisateur
@@ -443,6 +509,7 @@ EvenementScore "0..*" -up- "1" Cercle
 
 ' 5 Planificateur : sous Cotisation
 Cotisation "0..1" -down- "0..*" TachePlanifiee
+Utilisateur "1" -down- "0..*" Notification
 
 ' 6 Dossier de preuve : sous Cotisation
 Cotisation "1..*" -down- "0..*" MiseEnDemeure
@@ -472,6 +539,7 @@ ActionAssistant "0..1" -down- "0..1" MiseEnDemeure : envoie >
 
 ' 9 Registre
 LotRegistre "0..1" *-down- "1..*" EmpreinteRegistre
+EmpreinteRegistre "0..*" -up- "0..1" Cercle
 
 ' 10 Phase 2
 Cercle "1" -right- "0..1" FondsDeGarantie
@@ -503,11 +571,17 @@ StatutRecuperation -[hidden]right- ModeAssistant
 ModeAssistant -[hidden]right- TypeAction
 TypeAction -[hidden]right- IssueAction
 IssueAction -[hidden]right- NomAgent
+StatutRecuperation -[hidden]down- StatutParrainage
+StatutParrainage -[hidden]right- Operateur
+Operateur -[hidden]right- IssueSimulee
+IssueSimulee -[hidden]right- StatutPaiementSimule
+StatutPaiementSimule -[hidden]right- MotifDepart
 
 note as Regle
   Entre paquetages, les liens passent par identifiant :
   aucune clé étrangère entre schémas (décision 02).
   «calculé» : jamais stocké. «V2» : phase 2, en gris.
+  «hors production» : démonstration seulement.
 end note
 
 @enduml

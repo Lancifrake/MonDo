@@ -176,7 +176,7 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 - EchangePlace : gratuit, plus d'attribut frais.
 - Les stéréotypes «calculé» restent sur Score et DossierDePreuve.
 
-## 13. Ajouts du 13/11 (non encore dans le fichier PlantUML)
+## 13. Ajouts du 13/11 (dans le fichier PlantUML depuis le 19/11)
 | Classe | Attributs | Remarques |
 |---|---|---|
 | **Parrainage** | id : UUID ; statut : StatutParrainage ; proposeLe : DateTime ; reponduLe : DateTime [0..1] | parrain 1 ── filleul 1 ; un parrain accepté par filleul, trois filleuls au plus ; jamais une caution |
@@ -185,6 +185,13 @@ Relations : Cercle 1 ── 0..1 FondsDeGarantie ; Tour 1 ── 0..1 RetenueSur
 | **Notification** | id : UUID ; texte : String ; creeeLe : DateTime ; lueLe : DateTime [0..1] | Utilisateur 1 ── 0..* |
 
 Attributs ajoutés : Reglement.scoreMinimum [0..1], Reglement.parrainageAccepte [0..1] ; Cercle.cerclePrecedent (Cercle 0..1 ── 0..1 Cercle, « cycle suivant ») ; EmpreinteRegistre.objet, EmpreinteRegistre.cercle (identifiant) ; Score.premieresPlacesFermees (calculé). Nouveau type d'événement de score : parrainage_reussi (+2). Énumérations : StatutParrainage (propose, accepte, refuse), Operateur (orange_money, mtn_momo), IssueSimulee (reussi, echoue, en_retard).
+
+## 14. Ajouts du 19/11
+- CodeSecret (empreinte scrypt, échecs, fenêtre de 24 h), lié à Utilisateur 0..1 ── 1.
+- Depart.motif : MotifDepart (volontaire, frais_impayes). Un bénéficiaire qui n'a pas réglé ses frais de place à la date de son tour perd sa place, et ce départ compte comme un défaut (décision 05).
+- Utilisateur.numero : une seule forme, + et l'indicatif ; un téléphone, un compte (audit de sécurité du 19/11).
+- PaiementSimule marqué «hors production» ; StatutPaiementSimule (en_attente_operateur, reussi, echoue).
+- Aperçu rendu : `classes/mondo-diagramme-de-classes-apercu.png`.
 
 ## Écarts entre le modèle et le code (12/11)
 | Dans le modèle | Dans le code |
