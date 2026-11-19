@@ -59,7 +59,7 @@ class RegistreScreen extends ConsumerWidget {
               RangeeIcone(
                 marge: 0,
                 icone: d['conforme'] == true ? Icons.verified_outlined : Icons.error_outline,
-                couleurIcone: d['conforme'] == true ? AppColors.green : AppColors.orange,
+                couleurIcone: d['conforme'] == true ? AppColors.green : AppColors.action,
                 titre: objet(d['objet'] as String),
                 detail: d['conforme'] == true ? 'Conforme à ce qui a été signé' : 'Non conforme',
                 accent: d['conforme'] != true,

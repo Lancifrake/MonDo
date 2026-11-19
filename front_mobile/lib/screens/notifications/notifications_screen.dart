@@ -4,6 +4,7 @@ import '../../providers/notifications_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../widgets/sobre.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Ma boîte de notifications (GET /notifications). Une alerte non lue a son intitulé en gras, sa date en vert
 /// et un point vert ; la toucher la marque comme lue.
@@ -37,7 +38,7 @@ class NotificationsScreen extends ConsumerWidget {
             TextButton(onPressed: () => faire(service.marquerToutesCommeLues), child: const Text('Tout marquer lu')),
         ],
       ),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(meNotificationsRefreshableProvider),
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
@@ -58,7 +59,7 @@ class NotificationsScreen extends ConsumerWidget {
             ];
           }, reessayer: () => ref.invalidate(meNotificationsRefreshableProvider)),
         ),
-      ),
+      )),
     );
   }
 }
@@ -102,7 +103,7 @@ class _Alerte extends StatelessWidget {
     final c = _categorie(texte);
     final brut = texte.replaceFirst(RegExp(r'^MonDo\s*:\s*'), '');
     final message = brut.isEmpty ? brut : brut[0].toUpperCase() + brut.substring(1);
-    final couleurIcone = c.urgent ? AppColors.orange : (lue ? AppColors.textMuted : AppColors.green);
+    final couleurIcone = c.urgent ? AppColors.action : (lue ? AppColors.textMuted : AppColors.green);
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -119,7 +120,7 @@ class _Alerte extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: lue ? FontWeight.w400 : FontWeight.w600,
-                      color: c.urgent && !lue ? AppColors.orange : AppColors.textDark,
+                      color: c.urgent && !lue ? AppColors.action : AppColors.textDark,
                     ),
                   ),
                 ),
@@ -129,14 +130,14 @@ class _Alerte extends StatelessWidget {
                   Container(
                     width: 9,
                     height: 9,
-                    decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
                   ),
                 ],
               ]),
               const SizedBox(height: 3),
               Text(
                 message,
-                style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
               ),
             ]),
           ),

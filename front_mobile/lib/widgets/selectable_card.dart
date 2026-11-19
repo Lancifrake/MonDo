@@ -21,7 +21,7 @@ class SelectableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Rayon.md),
@@ -51,7 +51,7 @@ class SelectableCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.3,
                         color: AppColors.textMuted,
@@ -61,7 +61,7 @@ class SelectableCard extends StatelessWidget {
                 ),
               ),
               if (showCheck && selected)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Icon(Icons.check, color: AppColors.textDark, size: 20),
                 ),

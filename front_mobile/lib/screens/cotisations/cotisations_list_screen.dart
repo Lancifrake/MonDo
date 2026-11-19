@@ -8,8 +8,10 @@ import '../../theme/app_colors.dart';
 import '../../theme/app_spacing.dart';
 import '../../utils/format.dart';
 import '../../widgets/sobre.dart';
+import '../compte/compte_demo_screen.dart' show comptesDemoActifs;
 import '../cercles/vie_cercle_screens.dart';
 import 'payment_declare_screen.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Mes cotisations dans toutes mes tontines : ce que je dois et ce qu'on me doit.
 /// Le payeur déclare, le bénéficiaire confirme ; MonDo ne touche jamais l'argent.
@@ -40,7 +42,7 @@ class _CotisationsState extends ConsumerState<CotisationsListScreen> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(mesCotisationsRefreshableProvider),
         child: ListView(
           padding: const EdgeInsets.only(top: 4, bottom: 32),
@@ -74,10 +76,10 @@ class _CotisationsState extends ConsumerState<CotisationsListScreen> {
                   construire: (i) => _Cotisation(c: vues[i], moi: moi, nomCercle: noms[vues[i].cercleId]),
                 ),
               ];
-            }, reessayer: () => ref.invalidate(mesCotisationsRefreshableProvider)),
+            }, reessayer: () => ref.invalidate(mesCotisationsRefreshableProvider), marge: Espace.ecran),
           ],
         ),
-      ),
+      )),
     );
   }
 }
@@ -103,7 +105,7 @@ class _Cotisation extends ConsumerWidget {
       final x => x,
     };
     final couleur = aFaire
-        ? AppColors.orange
+        ? AppColors.action
         : c.statut == 'confirmee'
             ? AppColors.green
             : AppColors.textMuted;
@@ -127,12 +129,16 @@ class _Cotisation extends ConsumerWidget {
           ),
           child: const Text('J’ai payé', style: TextStyle(fontWeight: FontWeight.w600)),
         ),
-        const SizedBox(width: 20),
-        TextButton(
-          style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: c))),
-          child: const Text('Mobile Money (démo)'),
-        ),
+        // Simulation d'Orange Money / MTN MoMo : seulement dans la version de démonstration,
+        // le serveur la refuse en production.
+        if (comptesDemoActifs) ...[
+          const SizedBox(width: 20),
+          TextButton(
+            style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(0, 36)),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PaiementSimuleScreen(cotisation: c))),
+            child: const Text('Mobile Money (démo)'),
+          ),
+        ],
       ]);
     } else if (c.statut == 'declaree' && !jeDois) {
       actions = Align(
@@ -173,7 +179,7 @@ class _Cotisation extends ConsumerWidget {
               ),
             ]),
             const SizedBox(height: 2),
-            Text(details, style: TextStyle(fontSize: 14, height: 1.35, color: aFaire ? AppColors.orange : AppColors.textMuted)),
+            Text(details, style: TextStyle(fontSize: 14, height: 1.35, color: aFaire ? AppColors.action : AppColors.textMuted)),
             ?actions,
           ]),
         ),

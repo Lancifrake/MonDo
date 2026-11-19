@@ -25,7 +25,7 @@ class ScoreScreen extends ConsumerWidget {
       enfants: selon(score, (s) => [
             Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text('${s.score}', style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w600, height: 1)),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(left: 6, bottom: 8),
                 child: Text('sur 100', style: TextStyle(color: AppColors.textMuted)),
               ),
@@ -58,7 +58,7 @@ class ScoreScreen extends ConsumerWidget {
                     return RangeeIcone(
                       marge: 0,
                       icone: e.points >= 0 ? Icons.trending_up : Icons.trending_down,
-                      couleurIcone: e.points >= 0 ? AppColors.green : AppColors.orange,
+                      couleurIcone: e.points >= 0 ? AppColors.green : AppColors.action,
                       titre: evenement(e.type),
                       detail: dateCourte(e.date),
                       valeur: '${e.points >= 0 ? '+' : ''}${e.points}  →  ${e.scoreApres}',

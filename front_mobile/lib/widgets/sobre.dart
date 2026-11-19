@@ -8,6 +8,7 @@ import '../services/espace_service.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_spacing.dart';
+import 'fond_motif.dart';
 
 export '../providers/auth_provider.dart' show messageErreur;
 
@@ -35,10 +36,10 @@ class Ecran extends StatelessWidget {
         elevation: 0,
         actions: actions,
       ),
-      body: ListView(
+      body: FondMotif(child: ListView(
         padding: const EdgeInsets.fromLTRB(Espace.ecran, Espace.sm, Espace.ecran, Espace.xl),
         children: enfants,
-      ),
+      )),
       bottomNavigationBar: bas == null
           ? null
           : SafeArea(minimum: const EdgeInsets.fromLTRB(Espace.ecran, Espace.sm, Espace.ecran, Espace.base), child: bas!),
@@ -54,7 +55,7 @@ class Titre extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: Espace.lg, bottom: Espace.sm),
-        child: Text(texte, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+        child: Text(texte, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
       );
 }
 
@@ -66,7 +67,7 @@ class Note extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Text(texte, style: const TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4)),
+        child: Text(texte, style: TextStyle(fontSize: 13, color: AppColors.textMuted, height: 1.4)),
       );
 }
 
@@ -79,13 +80,13 @@ class Bloc extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: AppColors.surface,
           borderRadius: BorderRadius.circular(Rayon.md),
           border: Border.all(color: AppColors.border),
         ),
         child: Column(children: [
           for (var i = 0; i < enfants.length; i++) ...[
-            if (i > 0) const Divider(height: 1, color: AppColors.border),
+            if (i > 0) Divider(height: 1, color: AppColors.border),
             enfants[i],
           ],
         ]),
@@ -99,7 +100,7 @@ class Ligne extends StatelessWidget {
   final String libelle;
   final String? valeur;
   final VoidCallback? onTap;
-  final bool accent; // orange : demande une action
+  final bool accent; // vert vif : demande une action
 
   @override
   Widget build(BuildContext context) => InkWell(
@@ -117,11 +118,11 @@ class Ligne extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: accent ? AppColors.orange : AppColors.textDark,
+                    color: accent ? AppColors.action : AppColors.textDark,
                   ),
                 ),
               ),
-            if (onTap != null) const Padding(
+            if (onTap != null) Padding(
               padding: EdgeInsets.only(left: Espace.sm),
               child: Icon(Icons.chevron_right, size: 20, color: AppColors.textMuted),
             ),
@@ -211,13 +212,13 @@ class Champ extends StatelessWidget {
       );
 }
 
-/// Statut en texte seul : encre, gris si inactif, orange si une action est attendue.
+/// Statut en texte seul : encre, gris si inactif, vert vif si une action est attendue.
 enum Ton { encre, gris, action }
 
 TextStyle styleStatut(Ton ton) => TextStyle(
       fontSize: 13,
       fontWeight: FontWeight.w600,
-      color: switch (ton) { Ton.encre => AppColors.textDark, Ton.gris => AppColors.textMuted, Ton.action => AppColors.orange },
+      color: switch (ton) { Ton.encre => AppColors.textDark, Ton.gris => AppColors.textMuted, Ton.action => AppColors.action },
     );
 
 /// Rangée de filtres : le choix actif est en encre pleine, les autres en filet.
@@ -235,10 +236,15 @@ class Filtres extends StatelessWidget {
           for (final e in choix.entries)
             Padding(
               padding: const EdgeInsets.only(right: 8),
+              // Pastilles bien rondes. Seule la pastille choisie se détache (encre foncée le jour,
+              // claire la nuit) ; les autres prennent la couleur du fond, avec un simple filet.
               child: ChoiceChip(
-                label: Text(e.value, style: TextStyle(color: e.key == actif ? Colors.white : AppColors.textDark)),
+                label: Text(e.value, style: TextStyle(color: e.key == actif ? AppColors.surface : AppColors.textDark)),
                 selected: e.key == actif,
                 onSelected: (_) => onChange(e.key),
+                shape: StadiumBorder(side: BorderSide(color: e.key == actif ? AppColors.textDark : AppColors.border)),
+                backgroundColor: AppColors.background,
+                selectedColor: AppColors.textDark,
               ),
             ),
         ]),
@@ -246,14 +252,19 @@ class Filtres extends StatelessWidget {
 }
 
 /// Contenu d'une donnée chargée : chargement, erreur lisible avec « Réessayer », puis les données.
-List<Widget> selon<T>(AsyncValue<T> v, List<Widget> Function(T) donnees, {VoidCallback? reessayer}) => v.when(
-      loading: () => const [Squelette()],
-      error: (e, _) => [
-        Note(messageErreur(e)),
-        if (reessayer != null) Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: reessayer, child: const Text('Réessayer'))),
-      ],
-      data: donnees,
-    );
+/// [marge] : retrait latéral du chargement et de l'erreur, pour une liste qui n'a pas de marge à elle.
+List<Widget> selon<T>(AsyncValue<T> v, List<Widget> Function(T) donnees, {VoidCallback? reessayer, double marge = 0}) {
+  Widget retrait(Widget w) => marge == 0 ? w : Padding(padding: EdgeInsets.symmetric(horizontal: marge), child: w);
+  return v.when(
+    loading: () => [retrait(const Squelette())],
+    error: (e, _) => [
+      retrait(Note(messageErreur(e))),
+      if (reessayer != null)
+        retrait(Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: reessayer, child: const Text('Réessayer')))),
+    ],
+    data: donnees,
+  );
+}
 
 /// Carte cliquable à filet fin : un titre, une ligne de détail, un statut à droite.
 class Carte extends StatelessWidget {
@@ -270,10 +281,10 @@ class Carte extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: Espace.md),
         child: Material(
-          color: Colors.white,
+          color: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Rayon.md),
-            side: const BorderSide(color: AppColors.border),
+            side: BorderSide(color: AppColors.border),
           ),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -287,7 +298,7 @@ class Carte extends StatelessWidget {
                 ]),
                 if (detail != null) ...[
                   const SizedBox(height: Espace.xs),
-                  Text(detail!, style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35)),
+                  Text(detail!, style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35)),
                 ],
                 if (bas != null) ...[const SizedBox(height: Espace.md), bas!],
               ]),
@@ -312,6 +323,7 @@ class RangeeIcone extends StatelessWidget {
     this.couleurIcone,
     this.couleur,
     this.accent = false,
+    this.danger = false,
     this.chevron,
     this.marge = Espace.ecran,
   });
@@ -325,7 +337,10 @@ class RangeeIcone extends StatelessWidget {
 
   /// Couleur de l'icône ET de l'intitulé (rouge pour une action qui efface).
   final Color? couleur;
-  final bool accent; // orange : demande une action
+  final bool accent; // vert vif : demande une action
+
+  /// Avec [accent] : rouge au lieu du vert (quelque chose de dû ou de risqué à traiter).
+  final bool danger;
   final bool? chevron;
   final double marge;
 
@@ -342,7 +357,7 @@ class RangeeIcone extends StatelessWidget {
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Padding(
               padding: const EdgeInsets.only(top: 1),
-              child: Icon(icone, size: 24, color: couleur ?? couleurIcone ?? (accent ? AppColors.orange : AppColors.textMuted)),
+              child: Icon(icone, size: 24, color: couleur ?? couleurIcone ?? (accent ? (danger ? AppColors.rouge : AppColors.action) : AppColors.textMuted)),
             ),
             const SizedBox(width: Espace.iconeTexte),
             Expanded(
@@ -352,16 +367,16 @@ class RangeeIcone extends StatelessWidget {
                   if (valeur != null)
                     Text(valeur!,
                         style: TextStyle(
-                            fontSize: 14, fontWeight: FontWeight.w600, color: accent ? AppColors.orange : AppColors.textDark)),
+                            fontSize: 14, fontWeight: FontWeight.w600, color: accent ? (danger ? AppColors.rouge : AppColors.action) : AppColors.textDark)),
                 ]),
                 if (detail != null) ...[
                   const SizedBox(height: 2),
-                  Text(detail!, style: TextStyle(fontSize: 14, height: 1.35, color: accent ? AppColors.orange : AppColors.textMuted)),
+                  Text(detail!, style: TextStyle(fontSize: 14, height: 1.35, color: accent ? (danger ? AppColors.rouge : AppColors.action) : AppColors.textMuted)),
                 ],
               ]),
             ),
             if (avecChevron)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(left: Espace.sm, top: 1),
                 child: Icon(Icons.chevron_right, size: 22, color: AppColors.textMuted),
               ),
@@ -464,7 +479,7 @@ class EtatVide extends StatelessWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 300),
               child: Text(texte!,
-                  textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, height: 1.4, color: AppColors.textMuted)),
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.4, color: AppColors.textMuted)),
             ),
           ],
           if (action != null && onAction != null) ...[

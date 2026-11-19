@@ -35,7 +35,7 @@ class SwitchCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     height: 1.3,
                     color: AppColors.textMuted,

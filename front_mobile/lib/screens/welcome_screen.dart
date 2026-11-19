@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../widgets/app_button.dart';
 import '../widgets/logo_mondo.dart';
+import '../widgets/fond_motif.dart';
 import 'signup_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -16,7 +17,7 @@ class WelcomeScreen extends StatelessWidget {
       value: SystemUiOverlayStyle.light, // icônes claires sur fond sombre
       child: Scaffold(
         backgroundColor: AppColors.darkGreen,
-        body: SafeArea(
+        body: FondMotif(surFonce: true, child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
@@ -82,7 +83,7 @@ class WelcomeScreen extends StatelessWidget {
               ],
             ),
           ),
-        ),
+        )),
       ),
     );
   }

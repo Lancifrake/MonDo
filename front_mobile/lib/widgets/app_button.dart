@@ -7,7 +7,7 @@ class AppButton extends StatelessWidget {
     super.key,
     required this.label,
     required this.onPressed,
-    this.background = AppColors.green,
+    this.background,
     this.foreground = Colors.white,
     this.borderColor,
     this.isLoading = false,
@@ -15,13 +15,14 @@ class AppButton extends StatelessWidget {
 
   final String label;
   final VoidCallback? onPressed; // null = bouton désactivé
-  final Color background;
+  final Color? background; // vert de l'app par défaut
   final Color foreground;
   final Color? borderColor;
   final bool isLoading; // affiche une roue et bloque le bouton
 
   @override
   Widget build(BuildContext context) {
+    final background = this.background ?? AppColors.green;
     return SizedBox(
       width: double.infinity,
       height: Toucher.bouton,
@@ -31,7 +32,8 @@ class AppButton extends StatelessWidget {
           backgroundColor: background,
           foregroundColor: foreground,
           disabledBackgroundColor: background.withValues(alpha: 0.4),
-          disabledForegroundColor: foreground,
+          // La nuit, un texte vif sur fond estompé ferait croire le bouton actif : on l'estompe aussi.
+          disabledForegroundColor: AppColors.sombre ? foreground.withValues(alpha: 0.45) : foreground,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Rayon.md),

@@ -56,7 +56,7 @@ class _InfoStepState extends State<InfoStep> {
           onPlus: d.nombreMembres < 50 ? () => _update(() => d.nombreMembres++) : null,
         ),
         const SizedBox(height: 10),
-        const Text(
+        Text(
           'La tontine démarre quand toutes les places sont prises. Un tour par membre.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),

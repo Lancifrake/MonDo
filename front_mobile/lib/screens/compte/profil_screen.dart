@@ -14,6 +14,7 @@ import '../score/score_screen.dart';
 import 'compte_demo_screen.dart';
 import '../pin_screen.dart';
 import '../welcome_screen.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Ce qu'il faut afficher sur le profil, lu en une fois.
 final _profilProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -74,7 +75,7 @@ class ProfilScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Retirer le compte', style: TextStyle(color: AppColors.rouge))),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text('Retirer le compte', style: TextStyle(color: AppColors.rouge))),
           ],
         ),
       );
@@ -106,7 +107,7 @@ class ProfilScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      body: ListView(
+      body: FondMotif(child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           _Entete(nom: compte?.nom ?? '—', numero: compte?.numero ?? '', verifiee: verifiee),
@@ -116,6 +117,7 @@ class ProfilScreen extends ConsumerWidget {
               titre: 'Quelqu’un tente de récupérer ton compte',
               detail: 'Sur un autre téléphone. Touche pour agir.',
               accent: true,
+              danger: true,
               onTap: () => ouvrir(RecuperationAlerteScreen(demande: recup)),
             ),
           if (profil.hasError)
@@ -167,6 +169,7 @@ class ProfilScreen extends ConsumerWidget {
             titre: 'Sommes dues',
             detail: sommesAFaire > 0 ? '$sommesAFaire à traiter' : 'Frais de place, remises, remboursements',
             accent: sommesAFaire > 0,
+            danger: true, // dû à traiter : en rouge
             onTap: () => ouvrir(const SommesDuesScreen()),
           ),
           // Raccourci de démonstration : seulement dans une version de démo (--dart-define=DEMO_COMPTES=true).
@@ -199,7 +202,7 @@ class ProfilScreen extends ConsumerWidget {
             onTap: deconnecter,
           ),
         ],
-      ),
+      )),
     );
   }
 }
@@ -226,21 +229,21 @@ class _Entete extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: AppColors.border),
           ),
-          child: const Icon(Icons.person_outline, size: 30, color: AppColors.textMuted),
+          child: Icon(Icons.person_outline, size: 30, color: AppColors.textMuted),
         ),
         const SizedBox(width: 16),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(nom, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600)),
             const SizedBox(height: 2),
-            Text(numero, style: const TextStyle(fontSize: 14, color: AppColors.textMuted)),
+            Text(numero, style: TextStyle(fontSize: 14, color: AppColors.textMuted)),
             const SizedBox(height: 4),
             Row(children: [
               Icon(verifiee ? Icons.verified : Icons.info_outline,
-                  size: 15, color: verifiee ? AppColors.green : AppColors.orange),
+                  size: 15, color: verifiee ? AppColors.green : AppColors.action),
               const SizedBox(width: 4),
               Text(verifiee ? 'Identité vérifiée · niveau 2' : 'Niveau 1 · identité à vérifier',
-                  style: TextStyle(fontSize: 13, color: verifiee ? AppColors.green : AppColors.orange)),
+                  style: TextStyle(fontSize: 13, color: verifiee ? AppColors.green : AppColors.action)),
             ]),
           ]),
         ),
@@ -257,7 +260,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(Espace.ecran, Espace.lg, Espace.ecran, Espace.xs),
-        child: Text(texte, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+        child: Text(texte, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
       );
 }
 
@@ -265,7 +268,7 @@ class _Separation extends StatelessWidget {
   const _Separation();
 
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.only(top: Espace.sm),
         child: Divider(height: 1, thickness: 1, color: AppColors.border),
       );
@@ -279,6 +282,7 @@ class _Rangee extends StatelessWidget {
     this.detail,
     this.onTap,
     this.accent = false,
+    this.danger = false,
     this.couleur,
     this.chevron,
   });
@@ -287,7 +291,8 @@ class _Rangee extends StatelessWidget {
   final String titre;
   final String? detail;
   final VoidCallback? onTap;
-  final bool accent; // orange : demande une action
+  final bool accent; // vert vif : demande une action
+  final bool danger; // avec accent : rouge
   final Color? couleur;
   final bool? chevron;
 
@@ -298,6 +303,7 @@ class _Rangee extends StatelessWidget {
         detail: detail,
         onTap: onTap,
         accent: accent,
+        danger: danger,
         couleur: couleur,
         chevron: chevron,
       );
@@ -719,7 +725,7 @@ class SommesDuesScreen extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
-      body: ListView(
+      body: FondMotif(child: ListView(
         padding: const EdgeInsets.only(bottom: 32),
         children: [
           const Padding(
@@ -743,7 +749,7 @@ class SommesDuesScreen extends ConsumerWidget {
             },
           ),
         ],
-      ),
+      )),
     );
   }
 }
@@ -780,7 +786,7 @@ class _SommeRangee extends StatelessWidget {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.only(top: 1),
-          child: Icon(icone, size: 24, color: aFaire ? AppColors.orange : AppColors.textMuted),
+          child: Icon(icone, size: 24, color: aFaire ? AppColors.rouge : AppColors.textMuted),
         ),
         const SizedBox(width: Espace.iconeTexte),
         Expanded(
@@ -799,7 +805,7 @@ class _SommeRangee extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               'Tour ${somme['tour'] ?? '—'} · $etat',
-              style: TextStyle(fontSize: 14, color: aFaire ? AppColors.orange : AppColors.textMuted),
+              style: TextStyle(fontSize: 14, color: aFaire ? AppColors.rouge : AppColors.textMuted),
             ),
             if (jeDois && statut == 'due')
               _Action('J’ai payé : déclarer', declarer)
@@ -880,4 +886,4 @@ class _RecuperationAlerteState extends ConsumerState<RecuperationAlerteScreen> {
 }
 
 // Couleur d'accent partagée avec les autres écrans
-const accentAction = AppColors.orange;
+Color get accentAction => AppColors.action;

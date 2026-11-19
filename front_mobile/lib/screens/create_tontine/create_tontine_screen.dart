@@ -11,6 +11,7 @@ import '../../widgets/step_progress.dart';
 import 'info_step.dart';
 import 'model_step.dart';
 import 'reglement_step.dart';
+import '../../widgets/fond_motif.dart';
 
 class CreateTontineScreen extends ConsumerStatefulWidget {
   const CreateTontineScreen({super.key});
@@ -115,7 +116,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
           'Créer une tontine',
           onBack: _step == 0 ? null : _back,
         ),
-        body: Column(
+        body: FondMotif(child: Column(
           children: [
             Expanded(
               child: SingleChildScrollView(
@@ -126,7 +127,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
                   children: [
                     Text(
                       'Étape ${_step + 1} sur $_totalSteps',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.textMuted,
@@ -157,7 +158,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
                       opacity: _step == 0 ? 0.5 : 1,
                       child: AppButton(
                         label: 'Retour',
-                        background: Colors.white,
+                        background: AppColors.surface,
                         foreground: AppColors.textDark,
                         borderColor: AppColors.border,
                         onPressed: _step == 0 ? null : _back,
@@ -177,7 +178,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
               ),
             ),
           ],
-        ),
+        )),
       ),
     );
   }

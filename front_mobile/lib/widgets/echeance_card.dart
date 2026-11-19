@@ -29,7 +29,7 @@ class EcheanceCard extends StatelessWidget {
               children: [
                 Text(
                   echeance.day,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textDark,
@@ -37,7 +37,7 @@ class EcheanceCard extends StatelessWidget {
                 ),
                 Text(
                   echeance.month,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w400,
                     color: AppColors.textMuted,
@@ -63,7 +63,7 @@ class EcheanceCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   echeance.subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textMuted,
                   ),
@@ -71,7 +71,7 @@ class EcheanceCard extends StatelessWidget {
               ],
             ),
           ),
-          if (onTap != null) const Icon(Icons.chevron_right, color: AppColors.textMuted),
+          if (onTap != null) Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],
       ),
     );

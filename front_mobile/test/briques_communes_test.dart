@@ -22,4 +22,20 @@ void main() {
       expect(tester.takeException(), isNull);
     }
   });
+
+  testWidgets('CercleDesTours en mode choix : toucher un point choisit la place, pas une place interdite', (tester) async {
+    int? choisie;
+    await tester.pumpWidget(_dans(Center(
+      child: CercleDesTours(membres: 4, maPlace: 4, premierePlace: 2, taille: 200, onPlace: (p) => choisie = p),
+    )));
+    await tester.pumpAndSettle();
+    final centre = tester.getCenter(find.byType(CercleDesTours));
+    // Place 2 : à droite (trois heures). Place 1 : en haut, interdite par le score.
+    await tester.tapAt(centre + const Offset(85, 0));
+    expect(choisie, 2);
+    choisie = null;
+    await tester.tapAt(centre + const Offset(0, -85));
+    expect(choisie, isNull);
+    expect(tester.takeException(), isNull);
+  });
 }

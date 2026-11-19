@@ -59,11 +59,11 @@ class _RoundButton extends StatelessWidget {
       height: Toucher.min,
       child: Center(
         child: Material(
-          color: Colors.white,
+          color: AppColors.surface,
           clipBehavior: Clip.antiAlias,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(Rayon.sm),
-            side: const BorderSide(color: AppColors.border),
+            side: BorderSide(color: AppColors.border),
           ),
           child: InkWell(
             onTap: onTap,
@@ -73,7 +73,7 @@ class _RoundButton extends StatelessWidget {
               child: Icon(
                 icon,
                 size: 20,
-                color: onTap == null ? AppColors.disabled : AppColors.darkGreen,
+                color: onTap == null ? AppColors.disabled : AppColors.vertEncre,
               ),
             ),
           ),

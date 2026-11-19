@@ -8,6 +8,7 @@ import '../../theme/app_spacing.dart';
 import '../../widgets/sobre.dart';
 import 'dispute_detail_screen.dart';
 import 'open_dispute_screen.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Texte d'une décision de litige.
 String decisionLitige(String? d) => switch (d) {
@@ -51,7 +52,7 @@ class _DisputesState extends ConsumerState<DisputesListScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(mesLitigesRefreshableProvider),
         child: ListView(
           padding: const EdgeInsets.only(top: 4, bottom: 32),
@@ -81,10 +82,10 @@ class _DisputesState extends ConsumerState<DisputesListScreen> {
                   _Litige(l: vus[i], moi: moi),
                 ],
               ];
-            }, reessayer: () => ref.invalidate(mesLitigesRefreshableProvider)),
+            }, reessayer: () => ref.invalidate(mesLitigesRefreshableProvider), marge: Espace.ecran),
           ],
         ),
-      ),
+      )),
     );
   }
 }
@@ -99,8 +100,8 @@ class _Litige extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (IconData icone, Color couleur, String etat) = switch (l.statut) {
-      'ouvert' => (Icons.hourglass_top, AppColors.orange, 'En examen par MonDo'),
-      'tranche' when l.decision == 'paiement_refuse' => (Icons.cancel_outlined, AppColors.orange, 'Tranché : ${decisionLitige(l.decision)}'),
+      'ouvert' => (Icons.hourglass_top, AppColors.action, 'En examen par MonDo'),
+      'tranche' when l.decision == 'paiement_refuse' => (Icons.cancel_outlined, AppColors.rouge, 'Tranché : ${decisionLitige(l.decision)}'),
       'tranche' => (Icons.check_circle_outline, AppColors.green, 'Tranché : ${decisionLitige(l.decision)}'),
       'clos' => (Icons.task_alt, AppColors.textMuted, 'Clos'),
       final x => (Icons.gavel_outlined, AppColors.textMuted, x),
@@ -121,7 +122,7 @@ class _Litige extends StatelessWidget {
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
-                Text(dateCourte(l.ouvertLe), style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                Text(dateCourte(l.ouvertLe), style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
               ]),
               const SizedBox(height: 2),
               Text(etat, style: TextStyle(fontSize: 14, color: couleur == AppColors.textMuted ? AppColors.textMuted : couleur)),
@@ -130,7 +131,7 @@ class _Litige extends StatelessWidget {
                 l.motif,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
               ),
             ]),
           ),

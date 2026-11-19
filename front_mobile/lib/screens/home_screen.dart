@@ -18,6 +18,7 @@ import '../widgets/echeance_card.dart';
 import '../widgets/status_badge.dart';
 import '../widgets/sobre.dart' show EtatVide, Note, Squelette;
 import '../widgets/cercle_des_tours.dart';
+import '../widgets/fond_motif.dart';
 import 'cercles/cercle_details_screen.dart';
 import 'cercles/cercles_catalog_screen.dart';
 import 'cotisations/cotisations_list_screen.dart';
@@ -40,6 +41,9 @@ class HomeScreen extends ConsumerWidget {
 
     final cercles = cerclesAsync.valueOrNull ?? const <ResumeCercle>[];
     final cotisations = cotisationsAsync.valueOrNull ?? const <Cotisation>[];
+    // Tant que tontines et cotisations ne sont pas là, on n'affiche aucun chiffre : un « 0 » ou un
+    // « c'est ton tour » calculé sur une liste vide serait faux.
+    final chargement = !cerclesAsync.hasValue || !cotisationsAsync.hasValue;
     final aPayer = cotisations.where((c) => c.payeurId == moi && c.statut == 'due').toList()
       ..sort((a, b) => a.dateLimite.compareTo(b.dateLimite));
     final aValider = cotisations.where((c) => c.beneficiaireId == moi && c.statut == 'declaree').length;
@@ -57,8 +61,8 @@ class HomeScreen extends ConsumerWidget {
 
     // Pas de barre d'app ici : on fixe nous-mêmes les icônes système en foncé (heure, batterie).
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
-      child: SafeArea(
+      value: AppColors.barreSysteme,
+      child: FondMotif(child: SafeArea(
       bottom: false,
       child: RefreshIndicator(
         onRefresh: rafraichir,
@@ -77,7 +81,8 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: Espace.base),
             ],
             _BalanceCard(
-              prochaine: prochaine,
+              chargement: chargement,
+              prochaine: chargement ? null : prochaine,
               tourDe: tours,
               total: verse,
               tontines: cercles.length,
@@ -89,7 +94,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: Espace.xl),
             _SectionTitle('Mes tontines', nombre: cercles.isEmpty ? null : cercles.length),
             const SizedBox(height: Espace.md),
-            if (cerclesAsync.isLoading && cercles.isEmpty) const Squelette(),
+            if (chargement && !cerclesAsync.hasError && !cotisationsAsync.hasError) const Squelette(),
             if (cerclesAsync.hasError) ...[
               Note(messageErreur(cerclesAsync.error!)),
               Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: rafraichir, child: const Text('Réessayer'))),
@@ -102,7 +107,7 @@ class HomeScreen extends ConsumerWidget {
                 action: 'Trouver une tontine',
                 onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CerclesCatalogScreen())),
               ),
-            if (cercles.isNotEmpty)
+            if (!chargement && cercles.isNotEmpty)
               // Le carrousel déborde de la marge de l'écran : les cartes défilent jusqu'au bord.
               LayoutBuilder(
                 builder: (context, contraintes) => SizedBox(
@@ -155,7 +160,7 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-    ),
+    )),
     );
   }
 }
@@ -175,7 +180,7 @@ class _SectionTitle extends StatelessWidget {
         Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
         if (nombre != null) ...[
           const SizedBox(width: Espace.sm),
-          Text('$nombre', style: const TextStyle(fontSize: 16, color: AppColors.textMuted)),
+          Text('$nombre', style: TextStyle(fontSize: 16, color: AppColors.textMuted)),
         ],
       ],
     );
@@ -233,7 +238,7 @@ class _CarteTontine extends StatelessWidget {
     final place = c.maPlace;
     final demarre = tour >= 1 && tour <= n;
     final (String situation, Color couleur) = switch (c.statut) {
-      _ when aPayer != null => ('À payer avant le ${formatDate(aPayer!.dateLimite)}', AppColors.orange),
+      _ when aPayer != null => ('À payer avant le ${formatDate(aPayer!.dateLimite)}', AppColors.action),
       'en_attente' => ('Cherche des membres : ${c.nombreInscrits} sur $n', AppColors.textMuted),
       'termine' => ('Terminée', AppColors.textMuted),
       _ when demarre && place != null && place == tour => ('Tu reçois à ce tour', AppColors.green),
@@ -242,13 +247,13 @@ class _CarteTontine extends StatelessWidget {
       _ => ('À jour', AppColors.textMuted),
     };
     final centre = c.statut == 'termine'
-        ? const Icon(Icons.check, size: 22, color: AppColors.darkGreen)
+        ? Icon(Icons.check, size: 22, color: AppColors.vertEncre)
         : Column(mainAxisSize: MainAxisSize.min, children: [
             Text(
               demarre ? '$tour/$n' : '${c.nombreInscrits}/$n',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.1),
             ),
-            Text(demarre ? 'tour' : 'places', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            Text(demarre ? 'tour' : 'places', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
           ]);
     return SizedBox(
       width: 236,
@@ -271,7 +276,7 @@ class _CarteTontine extends StatelessWidget {
                 ),
                 const Spacer(),
                 if (c.organisateur)
-                  const Tooltip(
+                  Tooltip(
                     message: 'Tu l’organises',
                     child: Icon(Icons.star_outline_rounded, size: 20, color: AppColors.textMuted),
                   ),
@@ -283,14 +288,14 @@ class _CarteTontine extends StatelessWidget {
                 text: formatAmount(c.reglement.montant),
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.1),
               ),
-              const TextSpan(text: ' FCFA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+              TextSpan(text: ' FCFA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
             ])),
             const SizedBox(height: 2),
             Text(
               '${c.frequence == 'hebdomadaire' ? 'chaque semaine' : c.frequence == 'mensuelle' ? 'chaque mois' : 'tous les ${c.reglement.periodeJours} jours'} · $n membres',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
             const SizedBox(height: Espace.sm),
             Text(
@@ -324,7 +329,7 @@ class _Header extends StatelessWidget {
                   final n = DateTime.now();
                   return '${_jours[n.weekday - 1]} ${n.day} ${_mois[n.month - 1]}';
                 }(),
-                style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 13, color: AppColors.textMuted),
               ),
               Text(
                 nom.isEmpty ? 'Bonjour.' : 'Bonjour, ${nom.split(' ').first}.',
@@ -340,6 +345,7 @@ class _Header extends StatelessWidget {
 
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
+    required this.chargement,
     required this.prochaine,
     required this.tourDe,
     required this.total,
@@ -348,6 +354,7 @@ class _BalanceCard extends StatelessWidget {
     required this.enPreparation,
   });
 
+  final bool chargement;
   final ({ResumeCercle cercle, int dans})? prochaine;
   final Map<String, int> tourDe;
   final int total;
@@ -393,7 +400,7 @@ class _BalanceCard extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: formatAmount(total),
+                          text: chargement ? '…' : formatAmount(total),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 38,
@@ -435,9 +442,9 @@ class _BalanceCard extends StatelessWidget {
           const SizedBox(height: Espace.base),
           Row(
             children: [
-              Expanded(child: _Stat(label: 'Tontines', value: '$tontines')),
-              Expanded(child: _Stat(label: 'À payer', value: '$aPayer')),
-              Expanded(child: _Stat(label: 'En préparation', value: '$enPreparation')),
+              Expanded(child: _Stat(label: 'Tontines', value: chargement ? '…' : '$tontines')),
+              Expanded(child: _Stat(label: 'À payer', value: chargement ? '…' : '$aPayer')),
+              Expanded(child: _Stat(label: 'En préparation', value: chargement ? '…' : '$enPreparation')),
             ],
           ),
         ],
@@ -586,11 +593,11 @@ class _PendingPaymentsBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Rayon.md),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ),
       child: InkWell(
         onTap: () => Navigator.push(
@@ -601,7 +608,7 @@ class _PendingPaymentsBanner extends StatelessWidget {
           padding: const EdgeInsets.all(Espace.base),
           child: Row(
             children: [
-              const Icon(Icons.south_west, color: AppColors.orange, size: 24),
+              Icon(Icons.south_west, color: AppColors.action, size: 24),
               const SizedBox(width: Espace.iconeTexte),
               Expanded(
                 child: Column(
@@ -609,14 +616,14 @@ class _PendingPaymentsBanner extends StatelessWidget {
                   children: [
                     Text(
                       nombre == 1 ? '1 paiement à confirmer' : '$nombre paiements à confirmer',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
-                        color: AppColors.orange,
+                        color: AppColors.action,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const Text(
+                    Text(
                       'On t’a déclaré un paiement : confirme ce que tu as reçu.',
                       style: TextStyle(
                         fontSize: 14,
@@ -626,7 +633,7 @@ class _PendingPaymentsBanner extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.textMuted),
+              Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
           ),
         ),

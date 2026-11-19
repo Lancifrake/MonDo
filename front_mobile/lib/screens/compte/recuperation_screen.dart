@@ -186,7 +186,7 @@ class _RecuperationState extends ConsumerState<RecuperationScreen> {
           AppButton(label: 'Ouvrir mon compte', isLoading: _envoi, onPressed: _ouvrirCompte),
           TextButton(
             onPressed: _abandonner,
-            child: const Text('Abandonner cette demande sur ce téléphone', style: TextStyle(color: AppColors.rouge)),
+            child: Text('Abandonner cette demande sur ce téléphone', style: TextStyle(color: AppColors.rouge)),
           ),
           if (d['piecesRequises'] == true) ...[
             const Titre('Pièces à déposer'),

@@ -6,11 +6,13 @@ import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
 import '../../utils/format.dart';
 import '../../theme/app_colors.dart';
+import '../../widgets/cercle_des_tours.dart';
 import '../../widgets/sobre.dart';
 import '../membership/join_cercle_screen.dart';
 import 'cercles_catalog_screen.dart' show rythme;
 import '../compte/compte_demo_screen.dart';
 import 'vie_cercle_screens.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Fiche d'une tontine : règlement signé, membres, état des cotisations et actions.
 /// Les membres et l'ordre ne sont donnés qu'aux membres du cercle.
@@ -25,7 +27,7 @@ class CercleDetailsScreen extends ConsumerWidget {
     final moi = ref.read(apiClientProvider).membreId ?? '';
     return Scaffold(
       appBar: AppBar(title: Text(cercle.valueOrNull?.nom ?? 'Tontine')),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(cercleProvider(cercleId)),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
@@ -33,7 +35,7 @@ class CercleDetailsScreen extends ConsumerWidget {
             final membre = c.membres.contains(moi);
             final organisateur = c.organisateurId == moi;
             return [
-              _Entete(c: c, membre: membre, organisateur: organisateur),
+              _Entete(c: c, moi: moi, membre: membre, organisateur: organisateur),
               const Titre('Règlement signé'),
               _Reglement(r: c.reglement),
               const Titre('Membres'),
@@ -58,35 +60,107 @@ class CercleDetailsScreen extends ConsumerWidget {
             ];
           }, reessayer: () => ref.invalidate(cercleProvider(cercleId))),
         ),
-      ),
+      )),
     );
   }
 }
 
-class _Entete extends StatelessWidget {
-  const _Entete({required this.c, required this.membre, required this.organisateur});
+/// Tour en cours d'après l'état des paiements : le premier tour pas entièrement confirmé.
+int tourDepuisEtat(EtatCotisations e) {
+  final tours = [...e.tours]..sort((a, b) => a.numero.compareTo(b.numero));
+  if (tours.isEmpty) return 1;
+  for (final t in tours) {
+    if (t.paiements.isEmpty || t.paiements.any((p) => p.statut != 'confirmee')) return t.numero;
+  }
+  return tours.last.numero + 1;
+}
+
+/// En tête de la fiche : le cercle des tours en grand, puis la cotisation et l'état de la tontine.
+class _Entete extends ConsumerWidget {
+  const _Entete({required this.c, required this.moi, required this.membre, required this.organisateur});
 
   final Cercle c;
+  final String moi;
   final bool membre;
   final bool organisateur;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final r = c.reglement;
+    final n = r.nombreMembres;
     final (statut, ton) = switch (c.statut) {
       'en_attente' => ('cherche des membres', Ton.encre),
       'complet' => ('en cours', Ton.encre),
       'termine' => ('terminée', Ton.gris),
       _ => (c.statut, Ton.gris),
     };
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('${formatAmount(c.reglement.montant)} FCFA', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600)),
+    final inscrits = c.membres.isNotEmpty ? c.membres.length : n - (c.placesRestantes ?? 0);
+    final maPlace = c.ordre?.where((o) => o.membreId == moi).firstOrNull?.position;
+    // Le tour en cours ne se lit que dans l'état des paiements, réservé aux membres.
+    final etat = membre && c.statut == 'complet' ? ref.watch(etatCotisationsCercleProvider(c.id)).valueOrNull : null;
+    final tour = switch (c.statut) {
+      'termine' => n + 1,
+      'en_attente' => 0,
+      _ => etat == null ? 0 : tourDepuisEtat(etat),
+    };
+    final cagnotte = '${formatAmount(r.montant * n)}\u00A0FCFA'; // insécable : le montant ne se coupe pas
+    final phrase = switch (c.statut) {
+      'en_attente' => n - inscrits <= 1 ? 'Plus qu’une place à prendre' : 'Encore ${n - inscrits} places à prendre',
+      'termine' => 'Les $n tours sont joués',
+      _ when tour == 0 || maPlace == null => null,
+      _ when maPlace == tour => 'C’est ton tour : tu reçois $cagnotte',
+      _ when maPlace > tour => maPlace - tour == 1 ? 'Ta cagnotte au prochain tour : $cagnotte' : 'Ta cagnotte dans ${maPlace - tour} tours : $cagnotte',
+      _ => 'Tu as reçu ta cagnotte au tour $maPlace',
+    };
+    final grand = TextStyle(fontSize: 30, fontWeight: FontWeight.w600, color: AppColors.textDark, height: 1.1);
+    final petit = TextStyle(fontSize: 13, color: AppColors.textMuted);
+    return Container(
+      margin: const EdgeInsets.only(top: 4),
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(children: [
+        CercleDesTours(
+          membres: n,
+          tourEnCours: tour,
+          maPlace: maPlace,
+          // Places prises : seulement avant le départ (sinon les points pleins sont les tours joués).
+          inscrits: c.statut == 'en_attente' ? inscrits : null,
+          taille: 196,
+          centre: switch (tour) {
+            0 when c.statut == 'en_attente' => Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('$inscrits/$n', style: grand),
+                Text('places prises', style: petit),
+              ]),
+            0 => Text('…', style: grand), // état des paiements en cours de lecture
+            _ when tour > n => Icon(Icons.check, size: 36, color: AppColors.vertEncre),
+            _ => Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('Tour $tour', style: grand),
+                Text('sur $n', style: petit),
+              ]),
+          },
+        ),
+        if (phrase != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            phrase,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.vertEncre),
+          ),
+        ],
+        const SizedBox(height: 16),
+        Divider(height: 1, color: AppColors.border),
+        const SizedBox(height: 16),
+        Text('${formatAmount(r.montant)}\u00A0FCFA', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.textDark)),
         const SizedBox(height: 2),
-        Text('par membre, ${rythme(c.reglement)}', style: const TextStyle(color: AppColors.textMuted)),
-        const SizedBox(height: 10),
+        Text('par membre, ${rythme(r)}', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: AppColors.textMuted)),
+        const SizedBox(height: 8),
         Text(
-          [statut, if (organisateur) 'tu l’organises' else if (membre) 'tu en es membre', c.reglement.ouvert ? 'ouverte' : 'privée'].join(' · '),
+          [statut, if (organisateur) 'tu l’organises' else if (membre) 'tu en es membre', r.ouvert ? 'ouverte' : 'privée'].join(' · '),
+          textAlign: TextAlign.center,
           style: styleStatut(ton),
         ),
       ]),
@@ -132,7 +206,7 @@ class _Membres extends StatelessWidget {
           'Place ${o.position}${o.membreId == moi ? ' · moi' : ''}${o.membreId == c.organisateurId ? ' · organisateur' : ''}',
         ),
       if (ordre.isEmpty)
-        const Padding(
+        Padding(
           padding: EdgeInsets.all(16),
           child: Text('L’ordre de passage est fixé quand toutes les places sont prises.',
               style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
@@ -162,7 +236,7 @@ class _EtatCotisations extends ConsumerWidget {
                 return RangeeIcone(
                   marge: 0,
                   icone: retard > 0 ? Icons.schedule : (complet ? Icons.check_circle_outline : Icons.hourglass_empty),
-                  couleurIcone: retard > 0 ? AppColors.orange : (complet ? AppColors.green : AppColors.textMuted),
+                  couleurIcone: retard > 0 ? AppColors.action : (complet ? AppColors.green : AppColors.textMuted),
                   titre: 'Tour ${t.numero}',
                   detail: 'Reçoit ${membreLibelle(c, t.beneficiaireId, moi).toLowerCase()}',
                   valeur: retard > 0 ? '$payes/${t.paiements.length} payés · $retard en retard' : '$payes/${t.paiements.length} payés',
@@ -231,7 +305,7 @@ class _ActionsMembre extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Divider(height: 1, thickness: 1, color: AppColors.border),
+        Divider(height: 1, thickness: 1, color: AppColors.border),
         RangeeIcone(
           marge: 0,
           icone: Icons.receipt_long_outlined,
@@ -258,7 +332,7 @@ class _ActionsMembre extends ConsumerWidget {
             onTap: () => ouvrir(AssistantScreen(cercle: cercle)),
           ),
         ],
-        const Divider(height: 1, thickness: 1, color: AppColors.border),
+        Divider(height: 1, thickness: 1, color: AppColors.border),
         if (enCours && autres.isNotEmpty) ...[
           const Titre('Dossier de preuve d’un membre en défaut'),
           for (final o in autres.where((o) => o.membreId != espace.moi))
@@ -307,7 +381,7 @@ class _ActionsMembre extends ConsumerWidget {
                     TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Rester')),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text('Quitter', style: TextStyle(color: AppColors.rouge)),
+                      child: Text('Quitter', style: TextStyle(color: AppColors.rouge)),
                     ),
                   ],
                 ),
@@ -316,7 +390,7 @@ class _ActionsMembre extends ConsumerWidget {
                 await _faire(context, ref, () => espace.quitter(cercle.id), 'Tu as quitté la tontine.');
               }
             },
-            child: const Text('Quitter la tontine', style: TextStyle(color: AppColors.rouge)),
+            child: Text('Quitter la tontine', style: TextStyle(color: AppColors.rouge)),
           ),
         ],
         if (organisateur && cercle.statut == 'termine')

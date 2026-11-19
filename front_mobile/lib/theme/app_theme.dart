@@ -16,42 +16,48 @@ class AppTheme {
   static final _forme = RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rayon.md));
   static const _texteBouton = TextStyle(fontSize: 16, fontWeight: FontWeight.w600);
 
-  static ThemeData get light {
-    final base = ThemeData(useMaterial3: true);
+  static ThemeData get light => _construire(Palette.clair, Brightness.light);
+  static ThemeData get dark => _construire(Palette.sombre, Brightness.dark);
+
+  static ThemeData _construire(Palette c, Brightness luminosite) {
+    final base = ThemeData(useMaterial3: true, brightness: luminosite);
     return ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: AppColors.green).copyWith(
-        primary: AppColors.green,
-        surface: Colors.white,
+      brightness: luminosite,
+      colorScheme: ColorScheme.fromSeed(seedColor: c.green, brightness: luminosite).copyWith(
+        primary: c.green,
+        onPrimary: Colors.white,
+        surface: c.surface,
+        onSurface: c.textDark,
         surfaceTint: Colors.transparent,
         // Rouge : ce qui bloque (champ invalide). L'orange reste réservé à « une action est attendue ».
-        error: AppColors.rouge,
+        error: c.rouge,
       ),
-      scaffoldBackgroundColor: AppColors.background,
-      textTheme: base.textTheme.apply(bodyColor: AppColors.textDark, displayColor: AppColors.textDark),
-      appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.background,
+      scaffoldBackgroundColor: c.background,
+      textTheme: base.textTheme.apply(bodyColor: c.textDark, displayColor: c.textDark),
+      appBarTheme: AppBarTheme(
+        backgroundColor: c.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
-        foregroundColor: AppColors.textDark,
-        systemOverlayStyle: SystemUiOverlayStyle.dark,
-        titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppColors.textDark),
+        foregroundColor: c.textDark,
+        systemOverlayStyle: luminosite == Brightness.dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+        titleTextStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: c.textDark),
       ),
       cardTheme: CardThemeData(
-        color: Colors.white,
+        color: c.surface,
         elevation: 0,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Rayon.md),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: c.border),
         ),
       ),
-      dividerTheme: const DividerThemeData(color: AppColors.border, thickness: 1, space: 1),
+      dividerTheme: DividerThemeData(color: c.border, thickness: 1, space: 1),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.green,
+          backgroundColor: c.green,
           foregroundColor: Colors.white,
           elevation: 0,
           minimumSize: const Size.fromHeight(Toucher.bouton),
@@ -61,45 +67,54 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.textDark,
-          side: const BorderSide(color: AppColors.border),
+          foregroundColor: c.textDark,
+          side: BorderSide(color: c.border),
           minimumSize: const Size.fromHeight(Toucher.bouton),
           shape: _forme,
           textStyle: _texteBouton,
         ),
       ),
       textButtonTheme: TextButtonThemeData(
-        style: TextButton.styleFrom(foregroundColor: AppColors.green, textStyle: _texteBouton),
+        // La nuit, le vert des boutons pleins est trop sombre pour du texte : on l'éclaircit.
+        style: TextButton.styleFrom(
+          foregroundColor: luminosite == Brightness.dark ? const Color(0xFF6CC79C) : c.green,
+          textStyle: _texteBouton,
+        ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: Colors.white,
-        selectedColor: AppColors.textDark,
+        backgroundColor: c.surface,
+        selectedColor: c.textDark,
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: c.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(Rayon.sm)),
         showCheckmark: false,
       ),
-      snackBarTheme: const SnackBarThemeData(
-        backgroundColor: AppColors.textDark,
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: c.textDark,
+        contentTextStyle: TextStyle(color: c.surface, fontSize: 14),
+        actionTextColor: c.surface,
         behavior: SnackBarBehavior.floating,
       ),
-      navigationBarTheme: const NavigationBarThemeData(backgroundColor: Colors.white),
+      dialogTheme: DialogThemeData(backgroundColor: c.surface, surfaceTintColor: Colors.transparent),
+      bottomSheetTheme: BottomSheetThemeData(backgroundColor: c.surface, surfaceTintColor: Colors.transparent),
+      popupMenuTheme: PopupMenuThemeData(color: c.surface, surfaceTintColor: Colors.transparent),
+      navigationBarTheme: NavigationBarThemeData(backgroundColor: c.surface),
       // Un seul retour dans toute l'app : le chevron, quelle que soit la plateforme.
       actionIconTheme: ActionIconThemeData(
         backButtonIconBuilder: (_) => const Icon(Icons.chevron_left, size: 32),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: c.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        hintStyle: const TextStyle(color: AppColors.hint),
-        helperStyle: const TextStyle(fontSize: 13, color: AppColors.textMuted),
-        errorStyle: const TextStyle(fontSize: 13, color: AppColors.rouge),
-        border: _border(AppColors.border),
-        enabledBorder: _border(AppColors.border),
-        focusedBorder: _border(AppColors.green, width: 1.5),
-        errorBorder: _border(AppColors.rouge),
-        focusedErrorBorder: _border(AppColors.rouge, width: 1.5),
+        hintStyle: TextStyle(color: c.hint),
+        helperStyle: TextStyle(fontSize: 13, color: c.textMuted),
+        errorStyle: TextStyle(fontSize: 13, color: c.rouge),
+        border: _border(c.border),
+        enabledBorder: _border(c.border),
+        focusedBorder: _border(c.green, width: 1.5),
+        errorBorder: _border(c.rouge),
+        focusedErrorBorder: _border(c.rouge, width: 1.5),
       ),
     );
   }

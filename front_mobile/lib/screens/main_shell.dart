@@ -66,7 +66,8 @@ class _MainShellState extends ConsumerState<MainShell> {
     Widget icone(IconData i) => attente > 0
         ? Badge(
             label: Text(attente > 9 ? '9+' : '$attente'),
-            backgroundColor: AppColors.orange,
+            backgroundColor: AppColors.green,
+            textColor: Colors.white,
             child: Icon(i),
           )
         : Icon(i);
@@ -91,20 +92,24 @@ class _MainShellState extends ConsumerState<MainShell> {
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        // Un peu plus haute que la barre standard : cibles plus confortables, libellés plus lisibles.
+        padding: const EdgeInsets.only(top: 6, bottom: 4),
+        color: AppColors.surface,
+        foregroundDecoration: BoxDecoration(
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
         child: BottomNavigationBar(
           currentIndex: _index,
           onTap: (i) => setState(() => _index = i),
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           elevation: 0,
+          iconSize: 27,
           selectedItemColor: AppColors.green,
           unselectedItemColor: AppColors.textMuted,
           selectedLabelStyle:
-              const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontSize: 12),
+              const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, height: 1.6),
+          unselectedLabelStyle: const TextStyle(fontSize: 13, height: 1.6),
           items: [
             _onglet(Icons.home_outlined, Icons.home, 'Accueil'),
             _onglet(Icons.payments_outlined, Icons.payments, 'Cotisations', attente: cotisationsAFaire),
