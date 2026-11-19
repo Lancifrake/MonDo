@@ -178,7 +178,7 @@ class ProfilScreen extends ConsumerWidget {
   }
 }
 
-/// En-tête du profil : initiales, nom, numéro et niveau d'identité.
+/// En-tête du profil : silhouette, nom, numéro et niveau d'identité.
 class _Entete extends StatelessWidget {
   const _Entete({required this.nom, required this.numero, required this.verifiee});
 
@@ -188,15 +188,19 @@ class _Entete extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initiales = nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty).take(2).map((m) => m[0].toUpperCase()).join();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
       child: Row(children: [
-        CircleAvatar(
-          radius: 30,
-          backgroundColor: AppColors.darkGreen,
-          child: Text(initiales.isEmpty ? '?' : initiales,
-              style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w600)),
+        // Comme la console : pas d'initiales, une silhouette neutre dans un rond clair.
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: AppColors.mint,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: const Icon(Icons.person_outline, size: 30, color: AppColors.textMuted),
         ),
         const SizedBox(width: 16),
         Expanded(
