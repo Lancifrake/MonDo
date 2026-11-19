@@ -18,8 +18,9 @@ class AppColors {
   static const pinkBg = Color(0xFFF9DCE3);
   static const pinkText = Color(0xFFB23A5C);
 
-  /// Les deux seuls accents : orange = action requise, violet = ce qui croît.
+  /// Accents : orange = action requise, violet = ce qui croît, rouge = danger (ce qui efface ou bloque).
   static const orange = Color(0xFFB45309);
+  static const rouge = Color(0xFFC62828);
   static const violet = Color(0xFF6D4AFF);
   static const encre = textDark;
 }
