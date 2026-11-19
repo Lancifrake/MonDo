@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { BASE_DE_DONNEES, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { EvenementsInternes, type EvenementInterne } from "../../evenements/evenements-internes.js";
+import { CerclesService } from "../cercles/cercles.service.js";
 import { BlocagesService } from "../comptes/blocages.service.js";
 import { PaiementsSimulesService } from "../cotisations/paiements-simules.service.js";
 import { CotisationsService, type Cotisation } from "../cotisations/cotisations.service.js";
@@ -17,6 +18,7 @@ export class PlanificateurService {
     @Inject(CotisationsService) private readonly cotisations: CotisationsService,
     @Inject(BlocagesService) private readonly blocages: BlocagesService,
     @Inject(PaiementsSimulesService) private readonly paiements: PaiementsSimulesService,
+    @Inject(CerclesService) private readonly cercles: CerclesService,
   ) {}
 
   constaterDefaut(cercleId: string, membreId: string, tour: number, maintenant: Date = new Date()): Promise<boolean> {
@@ -44,6 +46,15 @@ export class PlanificateurService {
     await this.blocages.leverEchus(maintenant);
     // Retours d'opérateur arrivés (Mobile Money simulé, issue « en retard ») : déclarés avant l'examen.
     await this.paiements.traiterRetoursEnAttente(maintenant);
+    // Frais de place toujours pas réglés à la fin de grâce de son tour : le bénéficiaire perd sa place (19/11).
+    for (const b of await this.cotisations.beneficiairesSansFrais(maintenant)) {
+      try {
+        await this.cercles.quitter(b.cercleId, b.membreId, maintenant, "frais_impayes");
+        traitees++;
+      } catch {
+        echecs++;
+      }
+    }
     const bloques = await this.blocages.comptesBloques();
     for (const c of await this.cotisations.listerDues()) {
       if (bloques.has(c.payeurId)) continue;

@@ -406,7 +406,7 @@ export class CerclesService {
    * impossible après. Le module Cotisations vérifie et applique d'abord (tout ou rien) ; ensuite le départ est
    * noté ici, inscrit au registre, publié (score −15) et annoncé aux autres membres.
    */
-  async quitter(cercleId: string, membreId: string, maintenant: Date = new Date()) {
+  async quitter(cercleId: string, membreId: string, maintenant: Date = new Date(), motif?: "frais_impayes") {
     const cercle = await this.trouver(cercleId);
     if (cercle.partis?.includes(membreId)) throw new BadRequestException("Vous avez déjà quitté ce cercle");
     if (!cercle.membres.includes(membreId)) throw new ForbiddenException("Réservé aux membres du cercle");
@@ -419,7 +419,13 @@ export class CerclesService {
     }
     const { frequence, periodeJours } = cercle.reglement;
     const limite = new Date(maintenant.getTime() + periodeMinimaleJours(frequence, periodeJours) * 24 * 60 * 60 * 1000);
-    const { remboursements } = await this.cotisations.enregistrerDepart(cercleId, membreId, maintenant, limite);
+    const { remboursements } = await this.cotisations.enregistrerDepart(
+      cercleId,
+      membreId,
+      maintenant,
+      limite,
+      motif === "frais_impayes",
+    );
     const partiLe = maintenant.toISOString();
     // Une seule demande note le départ ici : la suite (registre, score, SMS) n'a lieu qu'une fois, y compris
     // quand une demande est rejouée après une panne survenue juste après l'étape des cotisations.
@@ -428,15 +434,29 @@ export class CerclesService {
       [cercleId, membreId, partiLe],
     );
     if (note.length === 0) throw new BadRequestException("Vous avez déjà quitté ce cercle");
-    await this.registre.enregistrer(canonique({ objet: "depart", cercleId, membreId, partiLe }));
-    await this.evenements.publier({ type: "depart_enregistre", cercleId, membreId, partiLe });
+    await this.registre.enregistrer(
+      canonique(
+        motif
+          ? { objet: "depart", cercleId, membreId, partiLe, motif }
+          : { objet: "depart", cercleId, membreId, partiLe },
+      ),
+    );
+    await this.evenements.publier({
+      type: "depart_enregistre",
+      cercleId,
+      membreId,
+      partiLe,
+      ...(motif ? { motif } : {}),
+    });
     for (const autre of cercle.membres.filter((m) => m !== membreId)) {
       const compte = await this.comptes.chercher(autre);
       if (compte) {
         await this.sms.mettreEnFile(
           `depart:${cercleId}:${membreId}:${autre}`,
           compte.numero,
-          "MonDo : un membre a quitté votre cercle avant son tour. Son tour est supprimé, ses cotisations à venir sont annulées. Le détail est dans l'application.",
+          motif === "frais_impayes"
+            ? "MonDo : un membre n'a pas réglé ses frais de place à temps et perd sa place. Son tour est supprimé, ses cotisations à venir sont annulées. Le détail est dans l'application."
+            : "MonDo : un membre a quitté votre cercle avant son tour. Son tour est supprimé, ses cotisations à venir sont annulées. Le détail est dans l'application.",
           autre,
         );
       }

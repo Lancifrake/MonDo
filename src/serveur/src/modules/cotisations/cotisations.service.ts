@@ -318,13 +318,14 @@ export class CotisationsService {
    * refusé s'il a déjà reçu quelque chose de sa cagnotte ou s'il n'est pas à jour ; sinon son tour et ses
    * cotisations futures sont annulés, et chaque bénéficiaire déjà servi lui doit le remboursement de ce qu'il a
    * versé. Frais du modèle A : les sommes non réglées qui le concernent sont annulées, une remise qu'il a déjà
-   * reçue est à rembourser. Une seule fois par membre et par cercle.
+   * reçue est à rembourser, une remise qu'il a déjà versée lui est rendue ; la part de MonDo reste acquise. Une seule fois par membre et par cercle.
    */
   async enregistrerDepart(
     cercleId: string,
     membreId: string,
     maintenant: Date,
     limiteRemboursement: Date,
+    force = false,
   ): Promise<{ remboursements: number; dejaEnregistre?: true }> {
     return this.base.transaction(async (tx) => {
       // La ligne de départ sert de verrou : une seconde demande simultanée s'arrête ici.
@@ -363,15 +364,17 @@ export class CotisationsService {
         aPayer.some((c) => c.statut === "declaree" || c.enLitige) ||
         aPayer.some((c) => c.statut === "due" && Date.parse(c.dateLimite) <= maintenant.getTime()) ||
         sommes.some((s) => s.statut === "declaree");
-      if (pasAJour) {
+      // Place perdue faute de frais (force) : ses retards de payeur restent dus, ils ne sont pas effacés.
+      if (pasAJour && !force) {
         throw new BadRequestException(
           "Départ impossible pour le moment : une cotisation échue, un paiement en attente de confirmation ou un litige est en cours",
         );
       }
       await tx.requete(
         `UPDATE cotisations.cotisations SET statut = 'annulee'
-         WHERE cercle_id = $1 AND tour > 0 AND statut = 'due' AND (payeur_id = $2 OR beneficiaire_id = $2)`,
-        [cercleId, membreId],
+         WHERE cercle_id = $1 AND tour > 0 AND statut = 'due'
+           AND (beneficiaire_id = $2 OR (payeur_id = $2 AND (NOT $3::boolean OR date_limite > $4)))`,
+        [cercleId, membreId, force, maintenant.toISOString()],
       );
       await tx.requete(
         `UPDATE cotisations.sommes_dues SET statut = 'annulee'
@@ -386,6 +389,19 @@ export class CotisationsService {
         ...sommes
           .filter((s) => s.statut === "confirmee" && s.nature === "remise" && s.creancier_id === membreId)
           .map((s): [string, string, number, number, string] => [membreId, s.debiteur_id, Number(s.montant), 0, s.id]),
+        // Frais de place payés d'avance par un membre de tête qui part avant de recevoir (choix de David du 19/11) :
+        // les places de fin lui rendent ses remises ; la part de MonDo reste acquise.
+        ...sommes
+          .filter(
+            (s) => s.statut === "confirmee" && s.nature === "remise" && s.debiteur_id === membreId && s.creancier_id,
+          )
+          .map((s): [string, string, number, number, string] => [
+            s.creancier_id!,
+            membreId,
+            Number(s.montant),
+            0,
+            s.id,
+          ]),
       ];
       for (const [debiteur, creancier, montant, tour, origine] of aRembourser) {
         await tx.requete(
@@ -575,6 +591,24 @@ export class CotisationsService {
   }
 
   /** Cotisations ni payées ni déclarées, pour l'examen des échéances. */
+  /**
+   * Bénéficiaires qui n'ont toujours pas réglé leurs frais de place à la fin de grâce de leur tour, et n'ont rien
+   * reçu : ils perdent leur place (choix de David du 19/11). Un paiement déclaré mais pas encore confirmé par un
+   * Administrateur ne compte pas : le retard serait alors celui de MonDo.
+   */
+  async beneficiairesSansFrais(maintenant: Date): Promise<{ cercleId: string; membreId: string; tour: number }[]> {
+    const lignes = await this.base.requete<{ cercle_id: string; debiteur_id: string; tour: number }>(
+      `SELECT DISTINCT s.cercle_id, s.debiteur_id, s.tour FROM cotisations.sommes_dues s
+       JOIN cotisations.cotisations c ON c.cercle_id = s.cercle_id AND c.tour = s.tour AND c.beneficiaire_id = s.debiteur_id
+       WHERE s.nature IN ('frais_mondo', 'remise') AND s.statut = 'due' AND c.statut = 'due' AND c.fin_grace < $1
+         AND NOT EXISTS (
+           SELECT 1 FROM cotisations.cotisations r
+           WHERE r.cercle_id = s.cercle_id AND r.beneficiaire_id = s.debiteur_id AND r.statut NOT IN ('due', 'annulee'))`,
+      [maintenant.toISOString()],
+    );
+    return lignes.map((l) => ({ cercleId: l.cercle_id, membreId: l.debiteur_id, tour: Number(l.tour) }));
+  }
+
   async listerDues(): Promise<Cotisation[]> {
     // Un tour fermé (frais de place du bénéficiaire non réglés) n'est ni rappelé ni compté en retard ou en défaut :
     // les payeurs ne peuvent pas payer, ce n'est pas leur faute.

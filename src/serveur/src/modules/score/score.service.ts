@@ -33,7 +33,11 @@ export class ScoreService implements OnModuleInit {
       this.depot.ajouterMembre(e.cercleId, e.membreId, e.cerclePrive),
     );
     this.evenements.ecouter("depart_enregistre", (e) =>
-      this.depot.ajouter(e.membreId, { type: "depart", cercleId: e.cercleId, date: e.partiLe }),
+      this.depot.ajouter(e.membreId, {
+        type: e.motif === "frais_impayes" ? "defaut" : "depart",
+        cercleId: e.cercleId,
+        date: e.partiLe,
+      }),
     );
     this.evenements.ecouter("parrainage_reussi", (e) =>
       this.depot.ajouter(e.parrainId, { type: "parrainage_reussi", cercleId: e.cercleId, date: date() }),

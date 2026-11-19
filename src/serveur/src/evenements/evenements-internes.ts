@@ -37,8 +37,11 @@ export type EvenementInterne =
   /** Compte bloqué puis débloqué (règle du 03/11) : échéances suspendues, autres membres prévenus. */
   | { type: "compte_bloque"; membreId: string; bloqueLe: string }
   | { type: "compte_debloque"; membreId: string; bloqueLe: string; debloqueLe: string }
-  /** Un membre a quitté un cercle en cours, avant d'avoir reçu sa cagnotte (score −15). */
-  | { type: "depart_enregistre"; cercleId: string; membreId: string; partiLe: string }
+  /**
+   * Un membre a quitté un cercle en cours, avant d'avoir reçu sa cagnotte (score −15). Motif « frais_impayes » :
+   * il a perdu sa place faute d'avoir réglé ses frais de place à la fin de grâce de son tour (compté comme un défaut).
+   */
+  | { type: "depart_enregistre"; cercleId: string; membreId: string; partiLe: string; motif?: "frais_impayes" }
   /** Le filleul d'un parrain a terminé un cycle sans défaut : +2 pour le parrain. */
   | { type: "parrainage_reussi"; parrainId: string; filleulId: string; cercleId: string }
   | { type: "cercle_termine"; cercleId: string; termineLe: string }

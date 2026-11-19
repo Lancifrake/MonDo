@@ -236,19 +236,21 @@ describe("frais de place payés avant la cagnotte (décision du 19/11)", () => {
   it("un tour fermé ne fait de défaut pour personne, et les payeurs repartent de zéro quand il s'ouvre", async () => {
     const { cercle, premier, milieu, fraisMonDo, remise } = await cercleAvecFrais();
     const planificateur = app.get(PlanificateurService);
-    // Le bénéficiaire n'a rien payé et les dates du tour sont passées : les payeurs n'ont pas pu payer.
+    // Le bénéficiaire a déclaré ses frais, l'Administrateur n'a pas encore confirmé, et les dates du tour sont passées :
+    // les payeurs n'ont pas pu payer, et le retard est celui de MonDo, donc personne ne perd rien.
+    await declarer(remise.id, premier);
+    await declarer(fraisMonDo.id, premier, "OM-FRAIS-3");
     await base.requete(
       `UPDATE cotisations.cotisations SET date_limite = now() - interval '5 days', fin_grace = now() - interval '3 days'
        WHERE cercle_id = $1 AND tour = 1`,
       [cercle.id],
     );
     await planificateur.examinerEcheances();
-    const score = async () =>
-      json<{ defauts: number }>(await client.requete("GET", `/score/${milieu.id}`, undefined, milieu));
-    expect((await score()).defauts).toBe(0);
+    const score = async (qui: Identite) =>
+      json<{ defauts: number }>(await client.requete("GET", `/score/${qui.id}`, undefined, qui));
+    expect((await score(milieu)).defauts).toBe(0);
+    expect((await score(premier)).defauts).toBe(0);
     // Le tour s'ouvre : les cotisations encore dues reçoivent une nouvelle échéance, avec leur délai de grâce.
-    await declarer(remise.id, premier);
-    await declarer(fraisMonDo.id, premier, "OM-FRAIS-3");
     expect((await confirmer(fraisMonDo.id, admin)).status).toBe(201);
     const ouverte = (await cotisationsDe(client, cercle.id, milieu)).find(
       (c) => c.tour === 1 && c.payeurId === milieu.id,
@@ -256,6 +258,33 @@ describe("frais de place payés avant la cagnotte (décision du 19/11)", () => {
     expect(Date.parse(ouverte.dateLimite)).toBeGreaterThanOrEqual(Date.now() - 1000);
     expect(Date.parse(ouverte.finGrace)).toBeGreaterThan(Date.parse(ouverte.dateLimite));
     await planificateur.examinerEcheances();
-    expect((await score()).defauts).toBe(0);
+    expect((await score(milieu)).defauts).toBe(0);
+  });
+
+  it("frais toujours pas payés à la fin de grâce de son tour : le bénéficiaire perd sa place, compté comme un défaut", async () => {
+    const { cercle, premier, milieu, fraisMonDo, remise } = await cercleAvecFrais();
+    await base.requete(
+      `UPDATE cotisations.cotisations SET date_limite = now() - interval '5 days', fin_grace = now() - interval '3 days'
+       WHERE cercle_id = $1 AND tour = 1`,
+      [cercle.id],
+    );
+    await app.get(PlanificateurService).examinerEcheances();
+    const vu = await json<{ partis?: string[] }>(
+      await client.requete("GET", `/cercles/${cercle.id}`, undefined, milieu),
+    );
+    expect(vu.partis).toEqual([premier.id]);
+    // Son tour est supprimé, ses frais annulés ; c'est un défaut sur son score, pas un simple départ.
+    const versLui = (await cotisationsDe(client, cercle.id, milieu)).filter((c) => c.beneficiaireId === premier.id);
+    expect(versLui.every((c) => c.statut === "annulee")).toBe(true);
+    const siennes = await sommes(premier, cercle.id);
+    expect(siennes.find((s) => s.id === fraisMonDo.id)).toMatchObject({ statut: "annulee" });
+    expect(siennes.find((s) => s.id === remise.id)).toMatchObject({ statut: "annulee" });
+    const types = await base.requete<{ type: string }>("SELECT type FROM score.evenements WHERE membre_id = $1", [
+      premier.id,
+    ]);
+    expect(types.map((t) => t.type)).toEqual(["defaut"]);
+    // Rejouer l'examen ne change rien.
+    await app.get(PlanificateurService).examinerEcheances();
+    expect((await base.requete("SELECT type FROM score.evenements WHERE membre_id = $1", [premier.id])).length).toBe(1);
   });
 });
