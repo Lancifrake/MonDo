@@ -17,6 +17,7 @@ import { RegistreService } from "../../registre/registre.service.js";
 import { canonique } from "../../signature/canonique.js";
 import { verifierSignature } from "../../signature/signature.js";
 import { FileSms } from "../../sms/file-sms.js";
+import { normaliserNumero } from "../../validation/numero.js";
 import { BlocagesService } from "./blocages.service.js";
 import { ComptesService } from "./comptes.service.js";
 import { ContactConfianceService } from "./contact-confiance.service.js";
@@ -107,9 +108,11 @@ export class RecuperationService {
     ) {
       throw new ForbiddenException(REFUS);
     }
+    // La preuve porte sur le numéro tel qu'écrit ; le code SMS et le compte, sur sa forme unique.
+    const numero = normaliserNumero(d.numero);
     // Le code SMS d'abord : on ne dit pas si un numéro est inscrit à qui ne le possède pas.
-    if (!(await this.otp.verifier(d.numero, d.codeOtp, maintenant))) throw new ForbiddenException(REFUS);
-    const compte = await this.comptes.chercherParNumero(d.numero);
+    if (!(await this.otp.verifier(numero, d.codeOtp, maintenant))) throw new ForbiddenException(REFUS);
+    const compte = await this.comptes.chercherParNumero(numero);
     if (!compte) throw new ForbiddenException(REFUS);
     if (await this.blocages.estBloque(compte.id, maintenant)) {
       throw new HttpException("Compte bloqué : récupération impossible pour le moment", HttpStatus.LOCKED);

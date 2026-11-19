@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { messageInscription } from "../../authentification/messages.js";
 import { BASE_DE_DONNEES, estDoublon, type BaseDeDonnees } from "../../base/base-de-donnees.js";
 import { verifierSignature } from "../../signature/signature.js";
+import { normaliserNumero } from "../../validation/numero.js";
 import { OtpService } from "./otp.service.js";
 
 export interface Compte {
@@ -46,10 +47,12 @@ export class ComptesService {
     preuve: string;
     codeOtp: string;
   }): Promise<Compte> {
-    const { preuve, codeOtp, ...donnees } = d;
-    if (!verifierSignature(donnees.clePublique, messageInscription(donnees), preuve)) {
+    const { preuve, codeOtp, ...signees } = d;
+    // La preuve porte sur le numéro tel que le téléphone l'a écrit ; le compte garde sa forme unique.
+    if (!verifierSignature(signees.clePublique, messageInscription(signees), preuve)) {
       throw new ForbiddenException("Preuve de détention de la clé invalide");
     }
+    const donnees = { ...signees, numero: normaliserNumero(signees.numero) };
     // Le code SMS d'abord : on ne dit pas si un numéro est inscrit à qui ne le possède pas.
     if (!(await this.otp.verifier(donnees.numero, codeOtp))) {
       throw new ForbiddenException("Code SMS invalide, expiré ou trop d'essais");
@@ -83,7 +86,9 @@ export class ComptesService {
   }
 
   async chercherParNumero(numero: string): Promise<Compte | undefined> {
-    const [ligne] = await this.base.requete<LigneCompte>("SELECT * FROM comptes.comptes WHERE numero = $1", [numero]);
+    const [ligne] = await this.base.requete<LigneCompte>("SELECT * FROM comptes.comptes WHERE numero = $1", [
+      normaliserNumero(numero),
+    ]);
     return ligne && versCompte(ligne);
   }
 

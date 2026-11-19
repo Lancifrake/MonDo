@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { periodeMinimaleJours } from "../modules/cotisations/calendrier.js";
+import { normaliserNumero, numeroValide } from "./numero.js";
 
 export const schemaClePublique = z.strictObject({
   kty: z.literal("EC"),
@@ -10,7 +11,11 @@ export const schemaClePublique = z.strictObject({
   key_ops: z.array(z.string()).optional(),
 });
 
-const schemaNumero = z.string().regex(/^\+?\d{8,15}$/, "Numéro de téléphone invalide");
+const MESSAGE_NUMERO = "Numéro de téléphone invalide";
+/** Numéro tel qu'envoyé : seulement là où le téléphone l'a signé (inscription, récupération). Le service le normalise. */
+const schemaNumeroSigne = z.string().refine((n) => numeroValide(n) !== undefined, MESSAGE_NUMERO);
+/** Numéro ramené à sa forme unique (+237…) : partout ailleurs. */
+const schemaNumero = schemaNumeroSigne.transform(normaliserNumero);
 
 export const schemaDemandeOtp = z.strictObject({ numero: schemaNumero });
 
@@ -44,7 +49,7 @@ export const schemaCodeSecret = z.strictObject({
   code: z.string().regex(/^\d{4,8}$/, "Code secret de 4 à 8 chiffres"),
 });
 export const schemaDemandeRecuperation = z.strictObject({
-  numero: schemaNumero,
+  numero: schemaNumeroSigne,
   clePublique: schemaClePublique,
   preuve: z.string().min(1).max(200),
   codeOtp: z.string().regex(/^\d{6}$/, "Code SMS à 6 chiffres"),
@@ -63,7 +68,7 @@ export const schemaDecisionRecuperation = z.strictObject({
 });
 
 export const schemaInscription = z.strictObject({
-  numero: schemaNumero,
+  numero: schemaNumeroSigne,
   nom: z.string().trim().min(1).max(100),
   clePublique: schemaClePublique,
   preuve: z.string().min(1),
