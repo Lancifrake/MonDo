@@ -56,7 +56,7 @@ Choix de David, 11/11 : après complétion, deux membres peuvent échanger leurs
 
 ## Cas limites
 - **Cercle composé uniquement de nouveaux** : les premiers inscrits obtiennent les places de fin qu'ils ont demandées, les suivants prennent les places restantes dans l'ordre d'inscription (choix de David, 08/11).
-- **Faux compte** : un défaillant qui recrée un compte repart à 0, donc en fin de cycle. Mais avec seulement un numéro de téléphone, il peut revenir sans limite avec une nouvelle carte SIM. La vérification d'identité de niveau 2 (carte d'identité) est exigée pour les cercles d'inconnus et pour recevoir une cagnotte, ce qui rend le retour beaucoup plus difficile.
+- **Faux compte** : un défaillant qui recrée un compte repart à 0, donc en fin de cycle. Mais avec seulement un numéro de téléphone, il peut revenir sans limite avec une nouvelle carte SIM. La vérification d'identité de niveau 2 (carte d'identité) est exigée pour organiser ou rejoindre un cercle ouvert (contrôle à la création depuis le 20/11, il n'existait qu'à l'adhésion), ce qui rend le retour beaucoup plus difficile. Elle n'est pas exigée au moment de recevoir une cagnotte : un cercle privé reste accessible au niveau 1.
 - **Groupe qui gonfle ses scores puis prend une grosse cagnotte** : le seuil qui monte avec la cagnotte limite le risque sans le supprimer. À tester en simulation.
 
 ## À faire

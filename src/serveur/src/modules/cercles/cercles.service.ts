@@ -271,6 +271,9 @@ export class CerclesService {
       );
     }
     const organisateur = await this.comptes.trouver(d.organisateurId);
+    if (d.reglement.ouvert && organisateur.niveau < 2) {
+      throw new ForbiddenException("Identité vérifiée (niveau 2) requise pour organiser un cercle ouvert");
+    }
     if (d.reglement.ordreFixe) {
       for (const id of d.reglement.ordreFixe) {
         if (!(await this.comptes.chercher(id))) throw new BadRequestException("Ordre fixé : un membre est inconnu");
