@@ -4,14 +4,17 @@ import '../theme/app_colors.dart';
 import 'app_card.dart';
 
 class EcheanceCard extends StatelessWidget {
-  const EcheanceCard({super.key, required this.echeance});
+  const EcheanceCard({super.key, required this.echeance, this.onTap});
 
   final Echeance echeance;
+
+  /// Ouvre la déclaration du paiement ; la carte porte alors un chevron.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      radius: 16,
+      onTap: onTap,
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
@@ -68,6 +71,7 @@ class EcheanceCard extends StatelessWidget {
               ],
             ),
           ),
+          if (onTap != null) const Icon(Icons.chevron_right, color: AppColors.textMuted),
         ],
       ),
     );

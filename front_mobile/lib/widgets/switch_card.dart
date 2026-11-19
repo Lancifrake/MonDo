@@ -52,7 +52,7 @@ class SwitchCard extends StatelessWidget {
             trackColor: WidgetStateProperty.resolveWith(
               (states) => states.contains(WidgetState.selected)
                   ? AppColors.green
-                  : const Color(0xFFD9DDD6),
+                  : AppColors.switchOff,
             ),
             trackOutlineColor:
                 const WidgetStatePropertyAll(Colors.transparent),

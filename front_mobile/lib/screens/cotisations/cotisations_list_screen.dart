@@ -5,6 +5,7 @@ import '../../providers/api_client_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../providers/cotisations_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../utils/format.dart';
 import '../../widgets/sobre.dart';
 import '../cercles/vie_cercle_screens.dart';
@@ -69,7 +70,7 @@ class _CotisationsState extends ConsumerState<CotisationsListScreen> {
                 ListeLimitee(
                   key: ValueKey(_filtre),
                   nombre: vues.length,
-                  separateur: const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                  separateur: const TraitRangee(),
                   construire: (i) => _Cotisation(c: vues[i], moi: moi, nomCercle: noms[vues[i].cercleId]),
                 ),
               ];
@@ -153,7 +154,7 @@ class _Cotisation extends ConsumerWidget {
           padding: const EdgeInsets.only(top: 1),
           child: Icon(jeDois ? Icons.north_east : Icons.south_west, size: 22, color: couleur),
         ),
-        const SizedBox(width: 28),
+        const SizedBox(width: Espace.iconeTexte),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -172,7 +173,7 @@ class _Cotisation extends ConsumerWidget {
               ),
             ]),
             const SizedBox(height: 2),
-            Text(details, style: TextStyle(fontSize: 13.5, height: 1.35, color: aFaire ? AppColors.orange : AppColors.textMuted)),
+            Text(details, style: TextStyle(fontSize: 14, height: 1.35, color: aFaire ? AppColors.orange : AppColors.textMuted)),
             ?actions,
           ]),
         ),

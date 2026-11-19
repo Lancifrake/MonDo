@@ -1,18 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../data/mock_data.dart' show Tontine, Echeance, PaymentStatus;
+import 'dart:math' as math;
+
+import '../data/mock_data.dart' show Echeance;
 import '../models/api_models.dart';
 import '../providers/api_client_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/cercles_provider.dart';
 import '../providers/cotisations_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../utils/format.dart';
 import '../widgets/app_button.dart';
 import '../widgets/app_card.dart';
 import '../widgets/echeance_card.dart';
 import '../widgets/status_badge.dart';
-import '../widgets/tontine_card.dart';
+import '../widgets/sobre.dart' show EtatVide, Note, Squelette;
+import '../widgets/cercle_des_tours.dart';
 import 'cercles/cercle_details_screen.dart';
 import 'cercles/cercles_catalog_screen.dart';
 import 'cotisations/cotisations_list_screen.dart';
@@ -42,73 +47,101 @@ class HomeScreen extends ConsumerWidget {
         .where((c) => c.payeurId == moi && c.statut == 'confirmee')
         .fold<int>(0, (t, c) => t + c.montant);
     final nomDe = {for (final c in cercles) c.id: c.nom};
+    final tours = {for (final c in cercles) c.id: tourEnCours(c, cotisations)};
+    final prochaine = _prochaineCagnotte(cercles, tours);
 
     Future<void> rafraichir() async {
       ref.invalidate(mesCerclesRefreshableProvider);
       ref.invalidate(mesCotisationsRefreshableProvider);
     }
 
-    return SafeArea(
+    // Pas de barre d'app ici : on fixe nous-mêmes les icônes système en foncé (heure, batterie).
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: SafeArea(
       bottom: false,
       child: RefreshIndicator(
         onRefresh: rafraichir,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+          padding: const EdgeInsets.fromLTRB(Espace.ecran, Espace.base, Espace.ecran, Espace.lg),
           children: [
             _Header(nom: compte?.nom ?? ''),
-            const SizedBox(height: 20),
+            const SizedBox(height: Espace.lg),
+            // L'action à faire (payer) passe avant le solde.
+            if (aPayer.isNotEmpty) ...[
+              _NextContributionCard(cotisation: aPayer.first, nomCercle: nomDe[aPayer.first.cercleId] ?? 'ta tontine'),
+              const SizedBox(height: Espace.base),
+            ],
+            if (aValider > 0) ...[
+              _PendingPaymentsBanner(nombre: aValider),
+              const SizedBox(height: Espace.base),
+            ],
             _BalanceCard(
+              prochaine: prochaine,
+              tourDe: tours,
               total: verse,
               tontines: cercles.length,
               aPayer: aPayer.length,
               enPreparation: cercles.where((c) => c.statut == 'en_attente').length,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Espace.base),
             const _QuickActions(),
-            if (aValider > 0) ...[
-              const SizedBox(height: 16),
-              _PendingPaymentsBanner(nombre: aValider),
+            const SizedBox(height: Espace.xl),
+            _SectionTitle('Mes tontines', nombre: cercles.isEmpty ? null : cercles.length),
+            const SizedBox(height: Espace.md),
+            if (cerclesAsync.isLoading && cercles.isEmpty) const Squelette(),
+            if (cerclesAsync.hasError) ...[
+              Note(messageErreur(cerclesAsync.error!)),
+              Align(alignment: Alignment.centerLeft, child: TextButton(onPressed: rafraichir, child: const Text('Réessayer'))),
             ],
-            if (aPayer.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              _NextContributionCard(cotisation: aPayer.first, nomCercle: nomDe[aPayer.first.cercleId] ?? 'ta tontine'),
-            ],
-            const SizedBox(height: 28),
-            const _SectionTitle('Mes tontines'),
-            const SizedBox(height: 12),
-            if (cerclesAsync.isLoading && cercles.isEmpty) const LinearProgressIndicator(),
-            if (cerclesAsync.hasError)
-              Text(messageErreur(cerclesAsync.error!), style: const TextStyle(color: AppColors.orange)),
             if (!cerclesAsync.isLoading && cercles.isEmpty && !cerclesAsync.hasError)
-              const Text(
-                'Aucune tontine pour l’instant. Crées-en une ou trouve-en une ouverte.',
-                style: TextStyle(color: AppColors.textMuted),
+              EtatVide(
+                icone: Icons.groups_outlined,
+                titre: 'Aucune tontine pour l’instant',
+                texte: 'Crée la tienne avec tes proches, ou rejoins une tontine ouverte qui cherche des membres.',
+                action: 'Trouver une tontine',
+                onAction: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CerclesCatalogScreen())),
               ),
-            for (final c in cercles) ...[
-              TontineCard(
-                tontine: Tontine(
-                  name: c.nom,
-                  frequency: c.frequence == 'hebdomadaire' ? 'Chaque semaine' : 'Chaque mois',
-                  members: c.nombreInscrits,
-                  totalMembers: c.nombreMembresCible,
-                  amount: c.reglement.montant,
-                  status: aPayer.any((x) => x.cercleId == c.id) ? PaymentStatus.aPayer : PaymentStatus.aJour,
-                  isTreasurer: c.organisateur,
-                  progress: c.nombreMembresCible == 0 ? 0 : c.nombreInscrits / c.nombreMembresCible,
+            if (cercles.isNotEmpty)
+              // Le carrousel déborde de la marge de l'écran : les cartes défilent jusqu'au bord.
+              LayoutBuilder(
+                builder: (context, contraintes) => SizedBox(
+                height: 232,
+                child: OverflowBox(
+                maxWidth: contraintes.maxWidth + 2 * Espace.ecran,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: Espace.ecran),
+                  itemCount: cercles.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: Espace.md),
+                  itemBuilder: (context, i) {
+                    final c = cercles[i];
+                    final aPayerIci = aPayer.where((x) => x.cercleId == c.id).firstOrNull;
+                    return _CarteTontine(
+                      cercle: c,
+                      tour: tours[c.id] ?? 0,
+                      aPayer: aPayerIci,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => CercleDetailsScreen(cercleId: c.id)),
+                      ),
+                    );
+                  },
                 ),
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => CercleDetailsScreen(cercleId: c.id)),
+                ),
                 ),
               ),
-              const SizedBox(height: 12),
-            ],
-            if (aPayer.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const _SectionTitle('Prochaines échéances'),
-              const SizedBox(height: 12),
-              for (final e in aPayer.take(5)) ...[
+            // La première échéance est déjà dans la carte du haut : on liste les suivantes.
+            if (aPayer.length > 1) ...[
+              const SizedBox(height: Espace.lg),
+              const _SectionTitle('Échéances suivantes'),
+              const SizedBox(height: Espace.md),
+              for (final e in aPayer.skip(1).take(5)) ...[
                 EcheanceCard(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => PaymentDeclareScreen(cotisationId: e.id, cotisation: e)),
+                  ),
                   echeance: Echeance(
                     day: DateTime.parse(e.dateLimite).toLocal().day.toString().padLeft(2, '0'),
                     month: _mois[DateTime.parse(e.dateLimite).toLocal().month - 1],
@@ -116,26 +149,159 @@ class HomeScreen extends ConsumerWidget {
                     subtitle: 'Tour ${e.tour} · ${formatAmount(e.montant)} FCFA',
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: Espace.sm),
               ],
             ],
           ],
         ),
       ),
+    ),
     );
   }
 }
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
+  const _SectionTitle(this.text, {this.nombre});
 
   final String text;
+  final int? nombre;
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(text, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+        if (nombre != null) ...[
+          const SizedBox(width: Espace.sm),
+          Text('$nombre', style: const TextStyle(fontSize: 16, color: AppColors.textMuted)),
+        ],
+      ],
+    );
+  }
+}
+
+/// Tour en cours d'une tontine, déduit de mes cotisations : 0 si elle n'a pas commencé,
+/// au-delà du nombre de membres si elle est terminée.
+int tourEnCours(ResumeCercle c, List<Cotisation> cotisations) {
+  final n = c.nombreMembresCible;
+  if (c.statut == 'termine') return n + 1;
+  if (c.statut == 'en_attente') return 0;
+  final ici = cotisations.where((x) => x.cercleId == c.id && x.statut != 'annulee').toList();
+  if (ici.isEmpty) return 1;
+  final ouverts = ici.where((x) => x.statut != 'confirmee').map((x) => x.tour);
+  if (ouverts.isNotEmpty) return ouverts.reduce(math.min);
+  return ici.map((x) => x.tour).reduce(math.max) + 1;
+}
+
+/// La cagnotte qui m'arrive le plus tôt, toutes tontines confondues.
+({ResumeCercle cercle, int dans})? _prochaineCagnotte(List<ResumeCercle> cercles, Map<String, int> tours) {
+  ({ResumeCercle cercle, int dans})? meilleure;
+  for (final c in cercles) {
+    final t = tours[c.id] ?? 0;
+    final place = c.maPlace;
+    if (place == null || t < 1 || t > c.nombreMembresCible || place < t) continue;
+    final dans = place - t;
+    if (meilleure == null || dans < meilleure.dans) meilleure = (cercle: c, dans: dans);
+  }
+  return meilleure;
+}
+
+String _phraseCagnotte(({ResumeCercle cercle, int dans}) p) {
+  final montant = '${formatAmount(p.cercle.reglement.montant * p.cercle.nombreMembresCible)} FCFA';
+  return switch (p.dans) {
+    0 => 'C’est ton tour : tu reçois $montant',
+    1 => 'Ta cagnotte au prochain tour : $montant',
+    final n => 'Ta cagnotte dans $n tours : $montant',
+  };
+}
+
+/// Une tontine dans le carrousel : son cercle des tours, le montant, où elle en est pour moi.
+class _CarteTontine extends StatelessWidget {
+  const _CarteTontine({required this.cercle, required this.tour, required this.onTap, this.aPayer});
+
+  final ResumeCercle cercle;
+  final int tour;
+  final Cotisation? aPayer;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = cercle;
+    final n = c.nombreMembresCible;
+    final place = c.maPlace;
+    final demarre = tour >= 1 && tour <= n;
+    final (String situation, Color couleur) = switch (c.statut) {
+      _ when aPayer != null => ('À payer avant le ${formatDate(aPayer!.dateLimite)}', AppColors.orange),
+      'en_attente' => ('Cherche des membres : ${c.nombreInscrits} sur $n', AppColors.textMuted),
+      'termine' => ('Terminée', AppColors.textMuted),
+      _ when demarre && place != null && place == tour => ('Tu reçois à ce tour', AppColors.green),
+      _ when demarre && place != null && place > tour => ('Tu reçois au tour $place', AppColors.textMuted),
+      _ when place != null => ('Tu as reçu au tour $place', AppColors.textMuted),
+      _ => ('À jour', AppColors.textMuted),
+    };
+    final centre = c.statut == 'termine'
+        ? const Icon(Icons.check, size: 22, color: AppColors.darkGreen)
+        : Column(mainAxisSize: MainAxisSize.min, children: [
+            Text(
+              demarre ? '$tour/$n' : '${c.nombreInscrits}/$n',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.1),
+            ),
+            Text(demarre ? 'tour' : 'places', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          ]);
+    return SizedBox(
+      width: 236,
+      child: AppCard(
+        onTap: onTap,
+        padding: const EdgeInsets.all(Espace.ecran),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CercleDesTours(
+                  membres: n,
+                  tourEnCours: tour,
+                  maPlace: place,
+                  inscrits: c.nombreInscrits,
+                  taille: 100,
+                  centre: centre,
+                ),
+                const Spacer(),
+                if (c.organisateur)
+                  const Tooltip(
+                    message: 'Tu l’organises',
+                    child: Icon(Icons.star_outline_rounded, size: 20, color: AppColors.textMuted),
+                  ),
+              ],
+            ),
+            const Spacer(),
+            Text.rich(TextSpan(children: [
+              TextSpan(
+                text: formatAmount(c.reglement.montant),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600, height: 1.1),
+              ),
+              const TextSpan(text: ' FCFA', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
+            ])),
+            const SizedBox(height: 2),
+            Text(
+              '${c.frequence == 'hebdomadaire' ? 'chaque semaine' : c.frequence == 'mensuelle' ? 'chaque mois' : 'tous les ${c.reglement.periodeJours} jours'} · $n membres',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
+            const SizedBox(height: Espace.sm),
+            Text(
+              situation,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: couleur),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -144,11 +310,6 @@ class _Header extends StatelessWidget {
   const _Header({required this.nom});
 
   final String nom;
-
-  String get _initiales {
-    final mots = nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty).toList();
-    return mots.take(2).map((m) => m[0].toUpperCase()).join();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +328,7 @@ class _Header extends StatelessWidget {
               ),
               Text(
                 nom.isEmpty ? 'Bonjour.' : 'Bonjour, ${nom.split(' ').first}.',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -179,12 +340,16 @@ class _Header extends StatelessWidget {
 
 class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
+    required this.prochaine,
+    required this.tourDe,
     required this.total,
     required this.tontines,
     required this.aPayer,
     required this.enPreparation,
   });
 
+  final ({ResumeCercle cercle, int dans})? prochaine;
+  final Map<String, int> tourDe;
   final int total;
   final int tontines;
   final int aPayer;
@@ -192,11 +357,12 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = prochaine;
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Espace.ecran),
       decoration: BoxDecoration(
         color: AppColors.darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(Rayon.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,39 +374,65 @@ class _BalanceCard extends StatelessWidget {
                 size: 16,
                 color: Colors.white70,
               ),
-              SizedBox(width: 8),
+              SizedBox(width: Espace.sm),
               Text(
                 'Total de mes cotisations confirmées',
                 style: TextStyle(color: Colors.white70, fontSize: 14),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(
-                  text: formatAmount(total),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 38,
-                    fontWeight: FontWeight.w600,
+          const SizedBox(height: Espace.md),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: formatAmount(total),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 38,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: '  FCFA',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const TextSpan(
-                  text: '  FCFA',
-                  style: TextStyle(
-                    color: Colors.white54,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              if (p != null)
+                CercleDesTours(
+                  membres: p.cercle.nombreMembresCible,
+                  tourEnCours: tourDe[p.cercle.id] ?? 0,
+                  maPlace: p.cercle.maPlace,
+                  taille: 72,
+                  surFonce: true,
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(height: 16),
+          if (p != null) ...[
+            const SizedBox(height: Espace.sm),
+            Text(
+              _phraseCagnotte(p),
+              style: const TextStyle(color: AppColors.lime, fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ],
+          const SizedBox(height: Espace.base),
           const Divider(color: Colors.white24, height: 1),
-          const SizedBox(height: 16),
+          const SizedBox(height: Espace.base),
           Row(
             children: [
               Expanded(child: _Stat(label: 'Tontines', value: '$tontines')),
@@ -269,7 +461,7 @@ class _Stat extends StatelessWidget {
           label,
           style: const TextStyle(color: Colors.white70, fontSize: 12),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: Espace.xs),
         Text(
           value,
           style: const TextStyle(
@@ -290,7 +482,7 @@ class _QuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-                Expanded(
+        Expanded(
           child: _ActionTile(
             icon: Icons.add,
             label: 'Créer',
@@ -302,7 +494,7 @@ class _QuickActions extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Espace.md),
         Expanded(
           child: _ActionTile(
             icon: Icons.search,
@@ -313,7 +505,7 @@ class _QuickActions extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: Espace.md),
         Expanded(
           child: _ActionTile(
             icon: Icons.vpn_key_outlined,
@@ -370,11 +562,11 @@ class _ActionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppCard(
       onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      padding: const EdgeInsets.symmetric(vertical: Espace.base, horizontal: Espace.sm),
       child: Column(
         children: [
-          Icon(icon, color: AppColors.textDark, size: 22),
-          const SizedBox(height: 8),
+          Icon(icon, color: AppColors.green, size: 24),
+          const SizedBox(height: Espace.sm),
           Text(
             label,
             textAlign: TextAlign.center,
@@ -397,7 +589,7 @@ class _PendingPaymentsBanner extends StatelessWidget {
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Rayon.md),
         side: const BorderSide(color: AppColors.border),
       ),
       child: InkWell(
@@ -406,9 +598,11 @@ class _PendingPaymentsBanner extends StatelessWidget {
           MaterialPageRoute(builder: (_) => const CotisationsListScreen()),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Espace.base),
           child: Row(
             children: [
+              const Icon(Icons.south_west, color: AppColors.orange, size: 24),
+              const SizedBox(width: Espace.iconeTexte),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,14 +619,14 @@ class _PendingPaymentsBanner extends StatelessWidget {
                     const Text(
                       'On t’a déclaré un paiement : confirme ce que tu as reçu.',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 14,
                         color: AppColors.textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
           ),
         ),
@@ -450,10 +644,10 @@ class _NextContributionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(Espace.ecran),
       decoration: BoxDecoration(
         color: AppColors.darkGreen,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(Rayon.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -506,7 +700,7 @@ class _NextContributionCard extends StatelessWidget {
             label: 'À payer avant le ${formatDate(cotisation.dateLimite)}',
             foreground: AppColors.lime,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: Espace.ecran),
           AppButton(
             label: 'Déclarer mon paiement',
             background: AppColors.lime,

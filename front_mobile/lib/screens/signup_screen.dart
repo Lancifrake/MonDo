@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/drapeau_cameroun.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/app_button.dart';
@@ -103,8 +104,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         height: 56,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6ECE6),
-                          borderRadius: BorderRadius.circular(14),
+                          color: AppColors.surfaceNeutre,
+                          borderRadius: BorderRadius.circular(Rayon.md),
                         ),
                         child: const DrapeauCameroun(largeur: 32),
                       ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class AppButton extends StatelessWidget {
   const AppButton({
@@ -23,7 +24,7 @@ class AppButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 56,
+      height: Toucher.bouton,
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
@@ -33,7 +34,7 @@ class AppButton extends StatelessWidget {
           disabledForegroundColor: foreground,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(Rayon.md),
             side: borderColor != null
                 ? BorderSide(color: borderColor!)
                 : BorderSide.none,

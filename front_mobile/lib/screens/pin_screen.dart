@@ -142,15 +142,16 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark, // icônes système foncées, même sans barre d'app
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: widget.verifier
           ? null
           : AppBar(
               leading: _premier == null
                   ? null
-                  : IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                  : BackButton(
                       onPressed: () => setState(() {
                         _premier = null;
                         _pin = '';
@@ -191,6 +192,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

@@ -9,6 +9,7 @@ import '../../utils/format.dart';
 import '../../widgets/counter_row.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/selectable_card.dart';
+import '../../widgets/sobre.dart' show Squelette;
 
 /// Étape 3 : le rythme, la première échéance, les pénalités et les frais par place.
 /// Tout ce qui est ici est signé et ne se modifie plus.
@@ -163,7 +164,7 @@ class ReglementStep extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         bareme.when(
-          loading: () => const LinearProgressIndicator(),
+          loading: () => const Squelette(),
           error: (e, _) => Text('Barème indisponible : $e', style: const TextStyle(color: AppColors.orange)),
           data: (liste) => _Bareme(liste: liste),
         ),

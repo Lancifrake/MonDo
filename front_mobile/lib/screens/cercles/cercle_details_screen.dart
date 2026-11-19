@@ -83,7 +83,7 @@ class _Entete extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('${formatAmount(c.reglement.montant)} FCFA', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w600)),
         const SizedBox(height: 2),
-        Text('par membre, ${rythme(c.reglement)}', style: const TextStyle(color: Color(0xFF5F6B65))),
+        Text('par membre, ${rythme(c.reglement)}', style: const TextStyle(color: AppColors.textMuted)),
         const SizedBox(height: 10),
         Text(
           [statut, if (organisateur) 'tu l’organises' else if (membre) 'tu en es membre', c.reglement.ouvert ? 'ouverte' : 'privée'].join(' · '),
@@ -135,7 +135,7 @@ class _Membres extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.all(16),
           child: Text('L’ordre de passage est fixé quand toutes les places sont prises.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF5F6B65))),
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
         ),
     ]);
   }
@@ -305,7 +305,10 @@ class _ActionsMembre extends ConsumerWidget {
                   ),
                   actions: [
                     TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Rester')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Quitter')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Quitter', style: TextStyle(color: AppColors.rouge)),
+                    ),
                   ],
                 ),
               );
@@ -313,7 +316,7 @@ class _ActionsMembre extends ConsumerWidget {
                 await _faire(context, ref, () => espace.quitter(cercle.id), 'Tu as quitté la tontine.');
               }
             },
-            child: const Text('Quitter la tontine', style: TextStyle(color: Color(0xFFB45309))),
+            child: const Text('Quitter la tontine', style: TextStyle(color: AppColors.rouge)),
           ),
         ],
         if (organisateur && cercle.statut == 'termine')

@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../providers/api_client_provider.dart';
+import '../providers/cotisations_provider.dart';
+import '../providers/notifications_provider.dart';
 import '../services/mise_a_jour.dart';
 import '../theme/app_colors.dart';
 import 'disputes/disputes_list_screen.dart';
@@ -8,14 +12,14 @@ import 'cotisations/cotisations_list_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'compte/profil_screen.dart';
 
-class MainShell extends StatefulWidget {
+class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
   @override
-  State<MainShell> createState() => _MainShellState();
+  ConsumerState<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends ConsumerState<MainShell> {
   int _index = 0;
 
   @override
@@ -57,8 +61,33 @@ class _MainShellState extends State<MainShell> {
     ProfilScreen(),
   ];
 
+  /// Icône d'onglet : contour au repos, pleine quand l'onglet est actif, pastille du nombre en attente.
+  static BottomNavigationBarItem _onglet(IconData repos, IconData actif, String libelle, {int attente = 0}) {
+    Widget icone(IconData i) => attente > 0
+        ? Badge(
+            label: Text(attente > 9 ? '9+' : '$attente'),
+            backgroundColor: AppColors.orange,
+            child: Icon(i),
+          )
+        : Icon(i);
+    return BottomNavigationBarItem(
+      icon: icone(repos),
+      activeIcon: icone(actif),
+      label: libelle,
+      tooltip: attente > 0 ? '$libelle, $attente en attente' : libelle,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final moi = ref.read(apiClientProvider).membreId;
+    final cotisationsAFaire = ref
+            .watch(mesCotisationsRefreshableProvider)
+            .valueOrNull
+            ?.where((c) => (c.payeurId == moi && c.statut == 'due') || (c.beneficiaireId == moi && c.statut == 'declaree'))
+            .length ??
+        0;
+    final alertesNonLues = ref.watch(meNotificationsRefreshableProvider).valueOrNull?.where((n) => !n.lue).length ?? 0;
     return Scaffold(
       body: IndexedStack(index: _index, children: _pages),
       bottomNavigationBar: Container(
@@ -76,27 +105,12 @@ class _MainShellState extends State<MainShell> {
           selectedLabelStyle:
               const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontSize: 12),
-          items: const [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.grid_view_rounded),
-              label: 'Accueil',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.inbox_outlined),
-              label: 'Cotisations',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.gavel_outlined),
-              label: 'Litiges',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications_none),
-              label: 'Alertes',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              label: 'Profil',
-            ),
+          items: [
+            _onglet(Icons.home_outlined, Icons.home, 'Accueil'),
+            _onglet(Icons.payments_outlined, Icons.payments, 'Cotisations', attente: cotisationsAFaire),
+            _onglet(Icons.gavel_outlined, Icons.gavel, 'Litiges'),
+            _onglet(Icons.notifications_none, Icons.notifications, 'Alertes', attente: alertesNonLues),
+            _onglet(Icons.person_outline, Icons.person, 'Profil'),
           ],
         ),
       ),

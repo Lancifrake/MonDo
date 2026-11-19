@@ -18,6 +18,16 @@ class AppColors {
   static const pinkBg = Color(0xFFF9DCE3);
   static const pinkText = Color(0xFFB23A5C);
 
+  /// Texte indicatif des champs : 4,5:1 sur blanc, plus clair que [textMuted].
+  static const hint = Color(0xFF6F7973);
+
+  /// Élément désactivé (icône, piste d'interrupteur éteint).
+  static const disabled = Color(0xFFB3B9B5);
+  static const switchOff = Color(0xFFD9DDD6);
+
+  /// Fond neutre d'une case non saisissable (indicatif du pays).
+  static const surfaceNeutre = Color(0xFFE6ECE6);
+
   /// Accents : orange = action requise, violet = ce qui croît, rouge = danger (ce qui efface ou bloque).
   static const orange = Color(0xFFB45309);
   static const rouge = Color(0xFFC62828);

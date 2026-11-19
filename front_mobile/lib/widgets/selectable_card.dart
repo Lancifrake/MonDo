@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class SelectableCard extends StatelessWidget {
   const SelectableCard({
@@ -23,7 +24,7 @@ class SelectableCard extends StatelessWidget {
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Rayon.md),
         side: BorderSide(
           color: selected ? AppColors.textDark : AppColors.border,
           width: selected ? 1.5 : 1,
@@ -32,7 +33,7 @@ class SelectableCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Espace.base),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

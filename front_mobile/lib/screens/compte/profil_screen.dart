@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
@@ -132,6 +133,7 @@ class ProfilScreen extends ConsumerWidget {
           _Rangee(
             icone: Icons.badge_outlined,
             titre: 'Mon identifiant',
+            chevron: false,
             detail: moi.isEmpty ? '—' : '${moi.substring(0, 8)}… · touche pour copier',
             onTap: moi.isEmpty
                 ? null
@@ -174,6 +176,7 @@ class ProfilScreen extends ConsumerWidget {
             _Rangee(
               icone: Icons.science_outlined,
               titre: 'Passer au niveau 2 sans pièce',
+              chevron: false,
               onTap: () async {
                 try {
                   await ref.read(espaceServiceProvider).demoNiveau2();
@@ -187,11 +190,12 @@ class ProfilScreen extends ConsumerWidget {
             ),
           ],
           const _Separation(),
-          _Rangee(icone: Icons.lock_outline, titre: 'Verrouiller', onTap: verrouiller),
+          _Rangee(icone: Icons.lock_outline, titre: 'Verrouiller', chevron: false, onTap: verrouiller),
           _Rangee(
             icone: Icons.logout,
             titre: 'Retirer mon compte de ce téléphone',
             couleur: AppColors.rouge,
+            chevron: false,
             onTap: deconnecter,
           ),
         ],
@@ -252,8 +256,8 @@ class _Section extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
-        child: Text(texte, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: AppColors.textMuted)),
+        padding: const EdgeInsets.fromLTRB(Espace.ecran, Espace.lg, Espace.ecran, Espace.xs),
+        child: Text(texte, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textMuted)),
       );
 }
 
@@ -262,12 +266,12 @@ class _Separation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Padding(
-        padding: EdgeInsets.only(top: 10),
+        padding: EdgeInsets.only(top: Espace.sm),
         child: Divider(height: 1, thickness: 1, color: AppColors.border),
       );
 }
 
-/// Une ligne du profil, à la manière des réglages de WhatsApp : icône, intitulé, détail en dessous.
+/// Une ligne du profil, à la manière des réglages de WhatsApp : la même brique que les autres écrans.
 class _Rangee extends StatelessWidget {
   const _Rangee({
     required this.icone,
@@ -276,6 +280,7 @@ class _Rangee extends StatelessWidget {
     this.onTap,
     this.accent = false,
     this.couleur,
+    this.chevron,
   });
 
   final IconData icone;
@@ -284,27 +289,17 @@ class _Rangee extends StatelessWidget {
   final VoidCallback? onTap;
   final bool accent; // orange : demande une action
   final Color? couleur;
+  final bool? chevron;
 
   @override
-  Widget build(BuildContext context) => InkWell(
+  Widget build(BuildContext context) => RangeeIcone(
+        icone: icone,
+        titre: titre,
+        detail: detail,
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 13, 20, 13),
-          child: Row(children: [
-            Icon(icone, size: 24, color: couleur ?? (accent ? AppColors.orange : AppColors.textMuted)),
-            const SizedBox(width: 26),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(titre, style: TextStyle(fontSize: 16, color: couleur ?? AppColors.textDark)),
-                if (detail != null) ...[
-                  const SizedBox(height: 2),
-                  Text(detail!,
-                      style: TextStyle(fontSize: 13.5, color: accent ? AppColors.orange : AppColors.textMuted)),
-                ],
-              ]),
-            ),
-          ]),
-        ),
+        accent: accent,
+        couleur: couleur,
+        chevron: chevron,
       );
 }
 
@@ -321,6 +316,15 @@ class _CodeSecretState extends ConsumerState<CodeSecretScreen> {
   final _code = TextEditingController();
   final _confirmation = TextEditingController();
   bool _envoi = false;
+  String? _erreurCode;
+  String? _erreurConfirmation;
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -331,18 +335,35 @@ class _CodeSecretState extends ConsumerState<CodeSecretScreen> {
           'Ce code de 4 à 8 chiffres te permet de récupérer ton compte depuis un nouveau téléphone. '
           'Il n’est pas affiché ensuite : note-le dans un endroit sûr. Le définir de nouveau remplace l’ancien.',
         ),
-        const SizedBox(height: 12),
-        Champ(controleur: _code, libelle: 'Code secret', clavier: TextInputType.number),
-        Champ(controleur: _confirmation, libelle: 'Confirmer le code', clavier: TextInputType.number),
+        const SizedBox(height: Espace.md),
+        Champ(
+          controleur: _code,
+          libelle: 'Code secret',
+          aide: '4 à 8 chiffres',
+          erreur: _erreurCode,
+          secret: true,
+          chiffresMax: 8,
+          onChanged: (_) => setState(() => _erreurCode = null),
+        ),
+        Champ(
+          controleur: _confirmation,
+          libelle: 'Confirmer le code',
+          erreur: _erreurConfirmation,
+          secret: true,
+          chiffresMax: 8,
+          onChanged: (_) => setState(() => _erreurConfirmation = null),
+        ),
       ],
       bas: AppButton(
         label: 'Enregistrer',
         isLoading: _envoi,
         onPressed: () async {
           if (!RegExp(r'^\d{4,8}$').hasMatch(_code.text)) {
-            return afficherMessage(context, 'Le code fait 4 à 8 chiffres.');
+            return setState(() => _erreurCode = 'Le code fait 4 à 8 chiffres.');
           }
-          if (_code.text != _confirmation.text) return afficherMessage(context, 'Les deux codes diffèrent.');
+          if (_code.text != _confirmation.text) {
+            return setState(() => _erreurConfirmation = 'Les deux codes diffèrent.');
+          }
           setState(() => _envoi = true);
           try {
             await ref.read(espaceServiceProvider).definirCodeSecret(_code.text);
@@ -483,7 +504,7 @@ class _IdentiteState extends ConsumerState<IdentiteScreen> {
       future: _chargement,
       builder: (context, snap) {
         if (snap.hasError) return Ecran(titre: 'Identité', enfants: [Note(messageErreur(snap.error!))]);
-        if (!snap.hasData) return const Ecran(titre: 'Identité', enfants: [LinearProgressIndicator()]);
+        if (!snap.hasData) return const Ecran(titre: 'Identité', enfants: [Squelette()]);
         final dossier = snap.data![0] as Map<String, dynamic>?;
         final consentement = snap.data![1] as Map<String, dynamic>;
         if (niveau == 2 || dossier?['statut'] == 'validee') {
@@ -597,7 +618,7 @@ class _ParrainagesState extends ConsumerState<ParrainagesScreen> {
           'sous le seuil de score si l’organisateur l’accepte et que son parrain en est membre.',
         ),
         ...data.when(
-          loading: () => [const LinearProgressIndicator()],
+          loading: () => [const Squelette()],
           error: (e, _) => [Note(messageErreur(e))],
           data: (d) {
             final recus = (d['commeFilleul'] as List).cast<Map<String, dynamic>>();
@@ -680,7 +701,7 @@ class SommesDuesScreen extends ConsumerWidget {
 
     List<Widget> rangees(List<Map<String, dynamic>> liste) => [
           for (var i = 0; i < liste.length; i++) ...[
-            if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+            if (i > 0) const TraitRangee(),
             _SommeRangee(
               somme: liste[i],
               jeDois: liste[i]['debiteurId'] == s.moi,
@@ -706,7 +727,7 @@ class SommesDuesScreen extends ConsumerWidget {
             child: Note('Frais de place, part de MonDo, remises aux dernières places et remboursements après un départ.'),
           ),
           ...data.when(
-            loading: () => [const LinearProgressIndicator()],
+            loading: () => [const Squelette()],
             error: (e, _) => [Padding(padding: const EdgeInsets.symmetric(horizontal: 20), child: Note(messageErreur(e)))],
             data: (liste) {
               if (liste.isEmpty) {
@@ -761,7 +782,7 @@ class _SommeRangee extends StatelessWidget {
           padding: const EdgeInsets.only(top: 1),
           child: Icon(icone, size: 24, color: aFaire ? AppColors.orange : AppColors.textMuted),
         ),
-        const SizedBox(width: 26),
+        const SizedBox(width: Espace.iconeTexte),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
@@ -778,7 +799,7 @@ class _SommeRangee extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               'Tour ${somme['tour'] ?? '—'} · $etat',
-              style: TextStyle(fontSize: 13.5, color: aFaire ? AppColors.orange : AppColors.textMuted),
+              style: TextStyle(fontSize: 14, color: aFaire ? AppColors.orange : AppColors.textMuted),
             ),
             if (jeDois && statut == 'due')
               _Action('J’ai payé : déclarer', declarer)

@@ -4,6 +4,7 @@ import '../../models/api_models.dart';
 import '../../providers/api_client_provider.dart';
 import '../../providers/litiges_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../widgets/sobre.dart';
 import 'dispute_detail_screen.dart';
 import 'open_dispute_screen.dart';
@@ -76,7 +77,7 @@ class _DisputesState extends ConsumerState<DisputesListScreen> {
               }
               return [
                 for (var i = 0; i < vus.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                  if (i > 0) const TraitRangee(),
                   _Litige(l: vus[i], moi: moi),
                 ],
               ];
@@ -110,7 +111,7 @@ class _Litige extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icone, size: 24, color: couleur)),
-          const SizedBox(width: 26),
+          const SizedBox(width: Espace.iconeTexte),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -120,16 +121,16 @@ class _Litige extends StatelessWidget {
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
-                Text(dateCourte(l.ouvertLe), style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                Text(dateCourte(l.ouvertLe), style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
               ]),
               const SizedBox(height: 2),
-              Text(etat, style: TextStyle(fontSize: 13.5, color: couleur == AppColors.textMuted ? AppColors.textMuted : couleur)),
+              Text(etat, style: TextStyle(fontSize: 14, color: couleur == AppColors.textMuted ? AppColors.textMuted : couleur)),
               const SizedBox(height: 2),
               Text(
                 l.motif,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13.5, height: 1.35, color: AppColors.textMuted),
+                style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
               ),
             ]),
           ),

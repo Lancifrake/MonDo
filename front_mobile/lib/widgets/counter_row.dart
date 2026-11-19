@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import 'app_card.dart';
 
 class CounterRow extends StatelessWidget {
@@ -19,7 +20,7 @@ class CounterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: Espace.base, vertical: Espace.sm),
       child: Row(
         children: [
           Expanded(
@@ -52,24 +53,29 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: AppColors.border),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Icon(
-            icon,
-            size: 18,
-            color: onTap == null
-                ? const Color(0xFFB3B9B5)
-                : AppColors.darkGreen,
+    // Zone tactile de 48 × 48 (minimum Android, au-dessus des 44 d'iOS), touche visible de 44.
+    return SizedBox(
+      width: Toucher.min,
+      height: Toucher.min,
+      child: Center(
+        child: Material(
+          color: Colors.white,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Rayon.sm),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(
+                icon,
+                size: 20,
+                color: onTap == null ? AppColors.disabled : AppColors.darkGreen,
+              ),
+            ),
           ),
         ),
       ),
