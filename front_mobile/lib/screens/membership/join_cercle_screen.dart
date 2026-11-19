@@ -7,6 +7,7 @@ import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
+import '../compte/compte_demo_screen.dart';
 import '../cercles/cercles_catalog_screen.dart' show rythme;
 
 /// Rejoindre une tontine : le membre choisit sa place souhaitée et SIGNE son engagement,
@@ -53,12 +54,13 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
       titre: 'Rejoindre',
       enfants: [
         if (identiteManquante)
-          const Padding(
-            padding: EdgeInsets.only(bottom: 12),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
             child: Bloc(enfants: [
               Ligne(
                 'Cette tontine est ouverte à des inconnus : ton identité doit d’abord être vérifiée (niveau 2). '
-                'Profil, puis « Vérification d’identité » (en démonstration : « Passer au niveau 2 sans pièce »).',
+                'Profil, puis « Vérification d’identité »'
+                '${comptesDemoActifs ? ' (en démonstration : « Passer au niveau 2 sans pièce »)' : ''}.',
                 accent: true,
               ),
             ]),

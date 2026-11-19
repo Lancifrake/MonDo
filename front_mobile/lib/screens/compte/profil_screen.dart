@@ -10,6 +10,7 @@ import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
 import '../score/score_screen.dart';
+import 'compte_demo_screen.dart';
 import '../welcome_screen.dart';
 
 /// Ce qu'il faut afficher sur le profil, lu en une fois.
@@ -152,7 +153,8 @@ class ProfilScreen extends ConsumerWidget {
             accent: sommesAFaire > 0,
             onTap: () => ouvrir(const SommesDuesScreen()),
           ),
-          if (compte?.niveau == 1) ...[
+          // Raccourci de démonstration : seulement dans une version de démo (--dart-define=DEMO_COMPTES=true).
+          if (comptesDemoActifs && compte?.niveau == 1) ...[
             const _Separation(),
             const _Section('Démonstration'),
             _Rangee(

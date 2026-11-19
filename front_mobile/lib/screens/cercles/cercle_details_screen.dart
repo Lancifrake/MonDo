@@ -9,6 +9,7 @@ import '../../theme/app_colors.dart';
 import '../../widgets/sobre.dart';
 import '../membership/join_cercle_screen.dart';
 import 'cercles_catalog_screen.dart' show rythme;
+import '../compte/compte_demo_screen.dart';
 import 'vie_cercle_screens.dart';
 
 /// Fiche d'une tontine : règlement signé, membres, état des cotisations et actions.
@@ -271,23 +272,27 @@ class _ActionsMembre extends ConsumerWidget {
         const SizedBox(height: 20),
         if (organisateur && cercle.statut == 'en_attente') ...[
           ElevatedButton(onPressed: () => _inviter(context, ref), child: const Text('Inviter un membre')),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () => _faire(context, ref, () => service.demoMembresFictifs(cercle.id), 'Tontine complétée avec des membres fictifs.'),
-            child: const Text('Démo : remplir avec des fictifs'),
-          ),
+          if (comptesDemoActifs) ...[
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => _faire(context, ref, () => service.demoMembresFictifs(cercle.id), 'Tontine complétée avec des membres fictifs.'),
+              child: const Text('Démo : remplir avec des fictifs'),
+            ),
+          ],
         ],
         if (enCours) ...[
-          OutlinedButton(
-            onPressed: () => _faire(context, ref, () => service.demoSuite(cercle.id), 'Les membres fictifs ont joué le tour en cours.'),
-            child: const Text('Démo : les autres jouent le tour'),
-          ),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: () => _faire(context, ref, () => espace.demoAvancer(cercle.id, 10), 'Le temps a avancé de 10 jours.'),
-            child: const Text('Démo : avancer de 10 jours'),
-          ),
-          const SizedBox(height: 8),
+          if (comptesDemoActifs) ...[
+            OutlinedButton(
+              onPressed: () => _faire(context, ref, () => service.demoSuite(cercle.id), 'Les membres fictifs ont joué le tour en cours.'),
+              child: const Text('Démo : les autres jouent le tour'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => _faire(context, ref, () => espace.demoAvancer(cercle.id, 10), 'Le temps a avancé de 10 jours.'),
+              child: const Text('Démo : avancer de 10 jours'),
+            ),
+            const SizedBox(height: 8),
+          ],
           TextButton(
             onPressed: () async {
               final ok = await showDialog<bool>(
