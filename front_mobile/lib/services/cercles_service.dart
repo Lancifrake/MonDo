@@ -52,6 +52,8 @@ class CerclesService {
     List<int>? rappelsAvantEcheanceJours,
     bool? parrainageAccepte,
     String? cerclePrecedentId, // cycle suivant d'une tontine terminée
+    // Ordre fixé par l'organisateur (tontine privée) : un identifiant par tour, null à sa propre place.
+    List<String?>? ordreFixe,
   }) async {
     final cle = _apiClient.cryptoService;
     final organisateurId = _apiClient.membreId;
@@ -73,9 +75,11 @@ class CerclesService {
       if (rappelsAvantEcheanceJours != null && rappelsAvantEcheanceJours.isNotEmpty)
         'rappelsAvantEcheanceJours': rappelsAvantEcheanceJours,
       if (parrainageAccepte == true) 'parrainageAccepte': true,
+      if (ordreFixe != null) 'ordreFixe': [for (final id in ordreFixe) id ?? organisateurId],
     };
-    // Par défaut la dernière place : toujours permise, quel que soit le score.
-    final place = placeSouhaitee ?? nombreMembres;
+    // Ordre fixé : l'organisateur signe la place qu'il s'est donnée. Sinon, par défaut la dernière place,
+    // toujours permise, quel que soit le score.
+    final place = ordreFixe != null ? ordreFixe.indexOf(null) + 1 : placeSouhaitee ?? nombreMembres;
     final signature = cle.signMessage(CryptoService.canonique({
       'objet': 'reglement',
       'organisateurId': organisateurId,

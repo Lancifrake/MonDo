@@ -102,4 +102,46 @@ void main() {
     print('OK : score ${score.score}, ${boite.notifications.length} notification(s), '
         '${etat.tours.length} tours, ${pourBello.length} confirmation(s) par Bello');
   }, skip: journal == null, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('tontine privée de nouveaux : l’organisateur fixe l’ordre, chacun le signe', () async {
+    final suffixe = (DateTime.now().millisecondsSinceEpoch % 10000).toString().padLeft(4, '0');
+    final orga = await inscrire('+23763$suffixe' '001', 'Orga Essai');
+    final soeur = await inscrire('+23763$suffixe' '002', 'Soeur Essai');
+    final cousin = await inscrire('+23763$suffixe' '003', 'Cousin Essai');
+    final inconnu = await inscrire('+23763$suffixe' '004', 'Inconnu Essai');
+
+    // L'organisatrice met sa sœur en premier, elle-même en 2, le cousin en 3 (null = sa propre place)
+    final cree = await CerclesService(orga).createCercle(
+      montant: 10000,
+      frequence: 'mensuelle',
+      nombreMembres: 3,
+      ouvert: false,
+      datePremierTour: DateTime.now().add(const Duration(days: 7)),
+      penaliteRetard: 500,
+      delaiGraceJours: 3,
+      ordreFixe: [soeur.membreId, null, cousin.membreId],
+    );
+    expect(cree.reglement.ordreFixe, [soeur.membreId, orga.membreId, cousin.membreId]);
+
+    // Chacun voit sa place avant de signer ; un inconnu avec le lien ne la voit pas et ne peut pas entrer
+    final vueSoeur = await CerclesService(soeur).getCercle(cree.id);
+    expect(vueSoeur.ordreFixeParOrganisateur, isTrue);
+    expect(vueSoeur.placeFixee, 1);
+    final vueInconnu = await CerclesService(inconnu).getCercle(cree.id);
+    expect(vueInconnu.placeFixee, isNull);
+    await expectLater(
+      CerclesService(inconnu).adhererAuCercle(cercle: vueInconnu, placeSouhaitee: 3),
+      throwsA(anything),
+    );
+
+    // Score à 0 pour tous : la sœur prend quand même la place 1, puisque l'ordre est signé par tous
+    await CerclesService(soeur).adhererAuCercle(cercle: vueSoeur, placeSouhaitee: vueSoeur.placeFixee!);
+    final vueCousin = await CerclesService(cousin).getCercle(cree.id);
+    await CerclesService(cousin).adhererAuCercle(cercle: vueCousin, placeSouhaitee: vueCousin.placeFixee!);
+
+    final detail = await CerclesService(orga).getCercle(cree.id);
+    expect(detail.statut, 'complet');
+    expect([for (final p in [...detail.ordre!]..sort((a, b) => a.position.compareTo(b.position))) p.membreId],
+        [soeur.membreId, orga.membreId, cousin.membreId]);
+  }, skip: journal == null, timeout: const Timeout(Duration(minutes: 2)));
 }
