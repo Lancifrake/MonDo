@@ -11,6 +11,7 @@ import '../pin_screen.dart';
 import '../../services/crypto_service.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
+import '../../theme/app_colors.dart';
 
 /// Version du consentement à l'identité en vigueur côté serveur. Le nouveau téléphone
 /// n'est pas encore connecté et ne peut pas la lire (la route est réservée au titulaire).
@@ -183,7 +184,10 @@ class _RecuperationState extends ConsumerState<RecuperationScreen> {
           ),
           Champ(controleur: _identifiant, libelle: 'Identifiant du compte'),
           AppButton(label: 'Ouvrir mon compte', isLoading: _envoi, onPressed: _ouvrirCompte),
-          TextButton(onPressed: _abandonner, child: const Text('Abandonner cette demande sur ce téléphone')),
+          TextButton(
+            onPressed: _abandonner,
+            child: Text('Abandonner cette demande sur ce téléphone', style: TextStyle(color: AppColors.rouge)),
+          ),
           if (d['piecesRequises'] == true) ...[
             const Titre('Pièces à déposer'),
             const Note('Sans contact de confiance, un administrateur vérifie ta carte d’identité et ton selfie.'),

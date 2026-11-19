@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 
 class SelectableCard extends StatelessWidget {
   const SelectableCard({
@@ -20,10 +21,10 @@ class SelectableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: AppColors.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(Rayon.md),
         side: BorderSide(
           color: selected ? AppColors.textDark : AppColors.border,
           width: selected ? 1.5 : 1,
@@ -32,7 +33,7 @@ class SelectableCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(Espace.base),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,7 +51,7 @@ class SelectableCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         height: 1.3,
                         color: AppColors.textMuted,
@@ -60,7 +61,7 @@ class SelectableCard extends StatelessWidget {
                 ),
               ),
               if (showCheck && selected)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Icon(Icons.check, color: AppColors.textDark, size: 20),
                 ),

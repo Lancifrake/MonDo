@@ -28,7 +28,7 @@ class RegistreScreen extends ConsumerWidget {
       future: ref.read(espaceServiceProvider).registre(cercleId),
       builder: (context, snap) {
         if (snap.hasError) return Ecran(titre: 'Registre', enfants: [Note(messageErreur(snap.error!))]);
-        if (!snap.hasData) return const Ecran(titre: 'Registre', enfants: [LinearProgressIndicator()]);
+        if (!snap.hasData) return const Ecran(titre: 'Registre', enfants: [Squelette()]);
         final r = snap.data!;
         final evenements = (r['evenements'] as List).cast<Map<String, dynamic>>();
         final documents = (r['documents'] as List).cast<Map<String, dynamic>>();
@@ -59,7 +59,7 @@ class RegistreScreen extends ConsumerWidget {
               RangeeIcone(
                 marge: 0,
                 icone: d['conforme'] == true ? Icons.verified_outlined : Icons.error_outline,
-                couleurIcone: d['conforme'] == true ? AppColors.green : AppColors.orange,
+                couleurIcone: d['conforme'] == true ? AppColors.green : AppColors.action,
                 titre: objet(d['objet'] as String),
                 detail: d['conforme'] == true ? 'Conforme à ce qui a été signé' : 'Non conforme',
                 accent: d['conforme'] != true,
@@ -131,7 +131,7 @@ class _EchangesState extends ConsumerState<EchangesScreen> {
           future: _liste,
           builder: (context, snap) {
             if (snap.hasError) return Note(messageErreur(snap.error!));
-            if (!snap.hasData) return const LinearProgressIndicator();
+            if (!snap.hasData) return const Squelette();
             final liste = snap.data!;
             if (liste.isEmpty) return const Note('Aucun échange en cours.');
             return Column(children: [
@@ -230,7 +230,7 @@ class _AssistantState extends ConsumerState<AssistantScreen> {
           future: _journal,
           builder: (context, snap) {
             if (snap.hasError) return Note(messageErreur(snap.error!));
-            if (!snap.hasData) return const LinearProgressIndicator();
+            if (!snap.hasData) return const Squelette();
             if (snap.data!.isEmpty) return const Note('Aucune action pour l’instant.');
             return Bloc(enfants: [
               for (final a in snap.data!)
@@ -278,7 +278,7 @@ class DossierPreuveScreen extends ConsumerWidget {
       builder: (context, snap) {
         if (snap.hasError) return Ecran(titre: 'Dossier de preuve', enfants: [Note(messageErreur(snap.error!))]);
         if (snap.connectionState != ConnectionState.done) {
-          return const Ecran(titre: 'Dossier de preuve', enfants: [LinearProgressIndicator()]);
+          return const Ecran(titre: 'Dossier de preuve', enfants: [Squelette()]);
         }
         final d = snap.data;
         if (d == null) {

@@ -33,7 +33,7 @@ class TontineCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: aPayer ? AppColors.orange : AppColors.textMuted,
+                  color: aPayer ? AppColors.action : AppColors.textMuted,
                 ),
               ),
             ],
@@ -46,7 +46,7 @@ class TontineCard extends StatelessWidget {
               if (remplissage < 100) 'rempli à $remplissage %',
               if (t.isTreasurer) 'tu l’organises',
             ].join(' · '),
-            style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35),
+            style: TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.35),
           ),
           const SizedBox(height: 10),
           Text('${formatAmount(t.amount)} FCFA par tour', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),

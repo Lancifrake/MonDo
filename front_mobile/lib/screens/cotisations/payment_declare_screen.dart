@@ -21,6 +21,7 @@ class PaymentDeclareScreen extends ConsumerStatefulWidget {
 class _PaymentDeclareState extends ConsumerState<PaymentDeclareScreen> {
   final _reference = TextEditingController();
   bool _envoi = false;
+  String? _erreur;
 
   @override
   void dispose() {
@@ -29,8 +30,11 @@ class _PaymentDeclareState extends ConsumerState<PaymentDeclareScreen> {
   }
 
   Future<void> _declarer() async {
-    if (_reference.text.trim().isEmpty) return afficherMessage(context, 'Saisis la référence de la transaction.');
-    setState(() => _envoi = true);
+    if (_reference.text.trim().isEmpty) return setState(() => _erreur = 'Saisis la référence reçue par SMS, ou « espèces ».');
+    setState(() {
+      _erreur = null;
+      _envoi = true;
+    });
     try {
       await ref.read(cotisationsServiceProvider).declarerPaiement(
             cotisationId: widget.cotisationId,
@@ -62,9 +66,14 @@ class _PaymentDeclareState extends ConsumerState<PaymentDeclareScreen> {
         const Titre('Référence'),
         const Note(
           'Paie le bénéficiaire par Orange Money, MTN MoMo ou en espèces, puis recopie la référence '
-          'que l’opérateur t’a envoyée par SMS. En espèces, écris par exemple « espèces, remis à Paul ».',
+          'que l’opérateur t’a envoyée par SMS. En espèces, écris par exemple « espèces, remis en main propre ».',
         ),
-        Champ(controleur: _reference, libelle: 'Référence de la transaction', indice: 'MP241118.1532.A12345'),
+        Champ(controleur: _reference, libelle: 'Référence de la transaction', indice: 'MP241118.1532.A12345',
+          erreur: _erreur,
+          onChanged: (_) {
+            if (_erreur != null) setState(() => _erreur = null);
+          },
+        ),
       ],
       bas: AppButton(label: 'Déclarer le paiement', isLoading: _envoi, onPressed: _declarer),
     );

@@ -6,6 +6,7 @@ import '../../providers/cercles_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
+import '../../widgets/cercle_des_tours.dart';
 import '../../widgets/sobre.dart';
 import '../compte/compte_demo_screen.dart';
 import '../cercles/cercles_catalog_screen.dart' show rythme;
@@ -21,6 +22,13 @@ class JoinCercleScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<JoinCercleScreen> createState() => _JoinState();
 }
+
+/// Moment où la place reçoit la cagnotte, dit simplement.
+String _quand(int place, int membres) => switch (place) {
+      1 => 'reçoit en premier',
+      _ when place == membres => 'reçoit en dernier',
+      _ => 'reçoit au tour $place',
+    };
 
 class _JoinState extends ConsumerState<JoinCercleScreen> {
   // Ordre fixé par l'organisateur : la place est écrite dans le règlement, on la signe telle quelle.
@@ -85,23 +93,56 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
           ]),
         ] else if (ordreFixe) ...[
           const Titre('Ma place'),
-          Bloc(enfants: [Ligne('Place fixée par l’organisateur', valeur: '${c.placeFixee} sur ${r.nombreMembres}')]),
+          Center(
+            child: CercleDesTours(
+              membres: r.nombreMembres,
+              maPlace: c.placeFixee,
+              taille: 200,
+              centre: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('Place ${c.placeFixee}', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                Text('fixée par l’organisateur', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+              ]),
+            ),
+          ),
+          const SizedBox(height: 12),
           const Note('Tous les membres signent cet ordre en rejoignant : le score ne le change pas.'),
         ] else ...[
           const Titre('Ma place souhaitée'),
-          Note('Ton score permet les places $premiere à ${r.nombreMembres}. Recevoir tôt coûte des frais, '
-              'les dernières places reçoivent une remise. L’ordre final est fixé quand la tontine est complète.'),
-          const SizedBox(height: 4),
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            for (var p = 1; p <= r.nombreMembres; p++)
-              ChoiceChip(
-                label: Text('$p', style: TextStyle(color: p == _place ? Colors.white : (p < premiere ? AppColors.textMuted : AppColors.textDark))),
-                selected: p == _place,
-                onSelected: p < premiere ? null : (_) => setState(() => _place = p),
+          Note('Touche un point du cercle. Ton score permet les places $premiere à ${r.nombreMembres}. '
+              'Recevoir tôt coûte des frais, les dernières places reçoivent une remise. '
+              'L’ordre final est fixé quand la tontine est complète.'),
+          const SizedBox(height: 12),
+          Center(
+            // Pour les lecteurs d'écran : glisser vers le haut ou le bas change de place.
+            child: Semantics(
+              value: 'place $_place sur ${r.nombreMembres}',
+              onIncrease: _place < r.nombreMembres ? () => setState(() => _place++) : null,
+              onDecrease: _place > premiere ? () => setState(() => _place--) : null,
+              child: CercleDesTours(
+                membres: r.nombreMembres,
+                maPlace: _place,
+                premierePlace: premiere,
+                taille: 248,
+                onPlace: (p) => setState(() => _place = p),
+                centre: Column(mainAxisSize: MainAxisSize.min, children: [
+                  Text('Place $_place', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                  const SizedBox(height: 2),
+                  Text(_quand(_place, r.nombreMembres), style: TextStyle(fontSize: 13, color: AppColors.textMuted)),
+                  // Les frais changent avec la place : on les montre là où l'œil regarde.
+                  if (r.bareme.any((f) => f.place == _place)) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      '+ ${formatAmount(r.bareme.firstWhere((f) => f.place == _place).frais)} FCFA de frais',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.action),
+                    ),
+                  ],
+                ]),
               ),
-          ]),
+            ),
+          ),
+          const SizedBox(height: 12),
         ],
-        if (!nonPrevu && r.bareme.any((f) => f.place == _place))
+        if (ordreFixe && !nonPrevu && r.bareme.any((f) => f.place == _place))
           Note('Frais pour la place $_place : ${formatAmount(r.bareme.firstWhere((f) => f.place == _place).frais)} FCFA.'),
         const Titre('Engagement'),
         CheckboxListTile(

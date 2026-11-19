@@ -30,7 +30,7 @@ class ModelStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
         ],
-        const Text(
+        Text(
           'Le modèle pré-remplit le montant et le rythme : tu pourras tout changer aux étapes suivantes.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
@@ -50,7 +50,7 @@ class _TypeChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: selected ? AppColors.textDark : Colors.white,
+        color: selected ? AppColors.textDark : AppColors.surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -58,7 +58,7 @@ class _TypeChip extends StatelessWidget {
         style: TextStyle(
           fontSize: 12,
           fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          color: selected ? Colors.white : AppColors.textMuted,
+          color: selected ? AppColors.surface : AppColors.textMuted,
         ),
       ),
     );

@@ -9,6 +9,7 @@ import '../../utils/format.dart';
 import '../../widgets/counter_row.dart';
 import '../../widgets/section_label.dart';
 import '../../widgets/selectable_card.dart';
+import '../../widgets/sobre.dart' show Squelette;
 
 /// Étape 3 : le rythme, la première échéance, les pénalités et les frais par place.
 /// Tout ce qui est ici est signé et ne se modifie plus.
@@ -149,7 +150,7 @@ class ReglementStep extends ConsumerWidget {
                 ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) + 1)
                 : null,
           ),
-          const Text(
+          Text(
             'Recevoir tôt dépend de ton score : la dernière place est toujours permise.',
             style: TextStyle(fontSize: 12, color: AppColors.textMuted),
           ),
@@ -157,18 +158,18 @@ class ReglementStep extends ConsumerWidget {
         const SizedBox(height: 24),
         const SectionLabel('Frais par place'),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'Recevoir tôt coûte des frais, à régler avant de recevoir la cagnotte ; les dernières places reçoivent une remise. Calculé par MonDo.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted),
         ),
         const SizedBox(height: 10),
         bareme.when(
-          loading: () => const LinearProgressIndicator(),
-          error: (e, _) => Text('Barème indisponible : $e', style: const TextStyle(color: AppColors.orange)),
+          loading: () => const Squelette(),
+          error: (e, _) => Text('Barème indisponible : $e', style: TextStyle(color: AppColors.rouge)),
           data: (liste) => _Bareme(liste: liste),
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'En créant la tontine, tu signes ce règlement avec la clé de ton téléphone. '
           'Il ne pourra plus être modifié.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
@@ -186,7 +187,7 @@ class _Bareme extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (liste.isEmpty) {
-      return const Text('Aucun frais pour cette tontine.', style: TextStyle(color: AppColors.textMuted));
+      return Text('Aucun frais pour cette tontine.', style: TextStyle(color: AppColors.textMuted));
     }
     return Column(
       children: [
@@ -228,7 +229,7 @@ class _OrdreFixe extends StatelessWidget {
           onPlus: d.maPlaceFixee < d.nombreMembres ? () => _change(() => d.maPlaceFixee++) : null,
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Pour chaque autre place, colle l’identifiant MonDo du membre. Chacun le trouve dans Profil, '
           '« Mon identifiant », et peut te l’envoyer. Seules ces personnes pourront rejoindre.',
           style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
@@ -250,7 +251,7 @@ class _OrdreFixe extends StatelessWidget {
                     decoration: InputDecoration(labelText: 'Place ${i + 1}', hintText: 'Identifiant du membre'),
                   ),
           ),
-        if (probleme != null) Text(probleme, style: const TextStyle(fontSize: 12, color: AppColors.orange)),
+        if (probleme != null) Text(probleme, style: TextStyle(fontSize: 12, color: AppColors.rouge)),
       ],
     );
   }

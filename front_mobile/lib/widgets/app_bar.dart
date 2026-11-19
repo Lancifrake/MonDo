@@ -6,10 +6,8 @@ PreferredSizeWidget buildAppBar(
   VoidCallback? onBack,
 }) {
   return AppBar(
-    leading: IconButton(
-      icon: const Icon(Icons.chevron_left, size: 32),
-      onPressed: onBack ?? () => Navigator.pop(context),
-    ),
+    // L'icône vient du thème (actionIconTheme) : la même sur tous les écrans.
+    leading: BackButton(onPressed: onBack ?? () => Navigator.pop(context)),
     title: Text(title),
     titleSpacing: 0,
   );

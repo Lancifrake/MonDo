@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import '../widgets/logo_mondo.dart';
 import 'main_shell.dart';
 import 'welcome_screen.dart';
+import '../widgets/fond_motif.dart';
 
 /// Le PIN déverrouille l'app sur CE téléphone : il ne part jamais au serveur.
 /// Seule son empreinte est gardée, dans le stockage sécurisé.
@@ -125,7 +126,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Trop de codes incorrects', style: TextStyle(color: AppColors.rouge)),
+        title: Text('Trop de codes incorrects', style: TextStyle(color: AppColors.rouge)),
         content: const Text(
           'Par sécurité, ce téléphone a oublié ton compte. Ton compte et tes tontines ne sont pas perdus : '
           'choisis « J’ai déjà un compte » pour le récupérer.',
@@ -142,35 +143,36 @@ class _PinScreenState extends ConsumerState<PinScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: AppColors.barreSysteme, // icônes système lisibles, même sans barre d'app
+      child: Scaffold(
       backgroundColor: AppColors.background,
       appBar: widget.verifier
           ? null
           : AppBar(
               leading: _premier == null
                   ? null
-                  : IconButton(
-                      icon: const Icon(Icons.arrow_back),
+                  : BackButton(
                       onPressed: () => setState(() {
                         _premier = null;
                         _pin = '';
                       }),
                     ),
             ),
-      body: SafeArea(
+      body: FondMotif(child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
               SizedBox(height: widget.verifier ? 48 : 8),
-              const LogoMonDo(taille: 44, couleur: AppColors.textDark),
+              LogoMonDo(taille: 44, couleur: AppColors.textDark),
               const SizedBox(height: 20),
               Text(_titre, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
               Text(
                 _sousTitre,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.4),
+                style: TextStyle(fontSize: 15, color: AppColors.textMuted, height: 1.4),
               ),
               const SizedBox(height: 32),
               _Points(remplis: _pin.length, erreur: _erreur != null),
@@ -180,7 +182,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                   child: Text(
                     _erreur ?? '',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.rouge, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: TextStyle(color: AppColors.rouge, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -190,7 +192,8 @@ class _PinScreenState extends ConsumerState<PinScreen> {
             ],
           ),
         ),
-      ),
+      )),
+    ),
     );
   }
 }

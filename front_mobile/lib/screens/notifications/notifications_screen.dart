@@ -2,7 +2,9 @@ import 'package:flutter/material.dart' hide Notification;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/notifications_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../widgets/sobre.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Ma boîte de notifications (GET /notifications). Une alerte non lue a son intitulé en gras, sa date en vert
 /// et un point vert ; la toucher la marque comme lue.
@@ -36,7 +38,7 @@ class NotificationsScreen extends ConsumerWidget {
             TextButton(onPressed: () => faire(service.marquerToutesCommeLues), child: const Text('Tout marquer lu')),
         ],
       ),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(meNotificationsRefreshableProvider),
         child: ListView(
           padding: const EdgeInsets.only(bottom: 32),
@@ -46,7 +48,7 @@ class NotificationsScreen extends ConsumerWidget {
             }
             return [
               for (var i = 0; i < liste.length; i++) ...[
-                if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                if (i > 0) const TraitRangee(),
                 _Alerte(
                   texte: liste[i].texte,
                   date: dateCourte(liste[i].creeeLe),
@@ -57,7 +59,7 @@ class NotificationsScreen extends ConsumerWidget {
             ];
           }, reessayer: () => ref.invalidate(meNotificationsRefreshableProvider)),
         ),
-      ),
+      )),
     );
   }
 }
@@ -101,14 +103,14 @@ class _Alerte extends StatelessWidget {
     final c = _categorie(texte);
     final brut = texte.replaceFirst(RegExp(r'^MonDo\s*:\s*'), '');
     final message = brut.isEmpty ? brut : brut[0].toUpperCase() + brut.substring(1);
-    final couleurIcone = c.urgent ? AppColors.orange : (lue ? AppColors.textMuted : AppColors.green);
+    final couleurIcone = c.urgent ? AppColors.action : (lue ? AppColors.textMuted : AppColors.green);
     return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.only(top: 1), child: Icon(c.icone, size: 24, color: couleurIcone)),
-          const SizedBox(width: 26),
+          const SizedBox(width: Espace.iconeTexte),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -118,24 +120,24 @@ class _Alerte extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: lue ? FontWeight.w400 : FontWeight.w600,
-                      color: c.urgent && !lue ? AppColors.orange : AppColors.textDark,
+                      color: c.urgent && !lue ? AppColors.action : AppColors.textDark,
                     ),
                   ),
                 ),
-                Text(date, style: TextStyle(fontSize: 12.5, color: lue ? AppColors.textMuted : AppColors.green)),
+                Text(date, style: TextStyle(fontSize: 12, color: lue ? AppColors.textMuted : AppColors.green)),
                 if (!lue) ...[
                   const SizedBox(width: 8),
                   Container(
                     width: 9,
                     height: 9,
-                    decoration: const BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: AppColors.green, shape: BoxShape.circle),
                   ),
                 ],
               ]),
               const SizedBox(height: 3),
               Text(
                 message,
-                style: const TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
               ),
             ]),
           ),

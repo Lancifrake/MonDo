@@ -8,6 +8,7 @@ import '../widgets/app_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/bottom_bar.dart';
 import 'pin_screen.dart';
+import '../widgets/fond_motif.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   const OtpScreen({super.key, required this.phone, required this.nom});
@@ -86,7 +87,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppBar(context, 'Code de vérification'),
-      body: Column(
+      body: FondMotif(child: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -96,7 +97,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 children: [
                   Text(
                     'Saisis le code envoyé au +237 ${widget.phone}.',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 16,
                       height: 1.4,
@@ -124,7 +125,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     child: _seconds > 0
                         ? Text(
                             'Renvoyer le code dans $_seconds s',
-                            style: const TextStyle(color: AppColors.textMuted),
+                            style: TextStyle(color: AppColors.textMuted),
                           )
                         : TextButton(
                             onPressed: _renvoyer,
@@ -143,7 +144,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

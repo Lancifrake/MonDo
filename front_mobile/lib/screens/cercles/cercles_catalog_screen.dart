@@ -5,6 +5,7 @@ import '../../providers/cercles_provider.dart';
 import '../../utils/format.dart';
 import '../../widgets/sobre.dart';
 import 'cercle_details_screen.dart';
+import '../../widgets/fond_motif.dart';
 
 String rythme(Reglement r) => switch (r.frequence) {
       'hebdomadaire' => 'chaque semaine',
@@ -36,7 +37,7 @@ class _CatalogueState extends ConsumerState<CerclesCatalogScreen> {
     final catalogue = ref.watch(catalogueCerclesProvider(_filtre));
     return Scaffold(
       appBar: AppBar(title: const Text('Trouver une tontine')),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(catalogueCerclesProvider(_filtre)),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
@@ -77,7 +78,7 @@ class _CatalogueState extends ConsumerState<CerclesCatalogScreen> {
             }, reessayer: () => ref.invalidate(catalogueCerclesProvider(_filtre))),
           ],
         ),
-      ),
+      )),
     );
   }
 }

@@ -35,7 +35,7 @@ class SwitchCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     height: 1.3,
                     color: AppColors.textMuted,
@@ -52,7 +52,7 @@ class SwitchCard extends StatelessWidget {
             trackColor: WidgetStateProperty.resolveWith(
               (states) => states.contains(WidgetState.selected)
                   ? AppColors.green
-                  : const Color(0xFFD9DDD6),
+                  : AppColors.switchOff,
             ),
             trackOutlineColor:
                 const WidgetStatePropertyAll(Colors.transparent),

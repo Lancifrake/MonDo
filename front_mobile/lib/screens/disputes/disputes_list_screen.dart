@@ -4,9 +4,11 @@ import '../../models/api_models.dart';
 import '../../providers/api_client_provider.dart';
 import '../../providers/litiges_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_spacing.dart';
 import '../../widgets/sobre.dart';
 import 'dispute_detail_screen.dart';
 import 'open_dispute_screen.dart';
+import '../../widgets/fond_motif.dart';
 
 /// Texte d'une décision de litige.
 String decisionLitige(String? d) => switch (d) {
@@ -50,7 +52,7 @@ class _DisputesState extends ConsumerState<DisputesListScreen> {
           ),
         ],
       ),
-      body: RefreshIndicator(
+      body: FondMotif(child: RefreshIndicator(
         onRefresh: () async => ref.invalidate(mesLitigesRefreshableProvider),
         child: ListView(
           padding: const EdgeInsets.only(top: 4, bottom: 32),
@@ -76,14 +78,14 @@ class _DisputesState extends ConsumerState<DisputesListScreen> {
               }
               return [
                 for (var i = 0; i < vus.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, thickness: 1, indent: 70, color: AppColors.border),
+                  if (i > 0) const TraitRangee(),
                   _Litige(l: vus[i], moi: moi),
                 ],
               ];
-            }, reessayer: () => ref.invalidate(mesLitigesRefreshableProvider)),
+            }, reessayer: () => ref.invalidate(mesLitigesRefreshableProvider), marge: Espace.ecran),
           ],
         ),
-      ),
+      )),
     );
   }
 }
@@ -98,8 +100,8 @@ class _Litige extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (IconData icone, Color couleur, String etat) = switch (l.statut) {
-      'ouvert' => (Icons.hourglass_top, AppColors.orange, 'En examen par MonDo'),
-      'tranche' when l.decision == 'paiement_refuse' => (Icons.cancel_outlined, AppColors.orange, 'Tranché : ${decisionLitige(l.decision)}'),
+      'ouvert' => (Icons.hourglass_top, AppColors.action, 'En examen par MonDo'),
+      'tranche' when l.decision == 'paiement_refuse' => (Icons.cancel_outlined, AppColors.rouge, 'Tranché : ${decisionLitige(l.decision)}'),
       'tranche' => (Icons.check_circle_outline, AppColors.green, 'Tranché : ${decisionLitige(l.decision)}'),
       'clos' => (Icons.task_alt, AppColors.textMuted, 'Clos'),
       final x => (Icons.gavel_outlined, AppColors.textMuted, x),
@@ -110,7 +112,7 @@ class _Litige extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(padding: const EdgeInsets.only(top: 1), child: Icon(icone, size: 24, color: couleur)),
-          const SizedBox(width: 26),
+          const SizedBox(width: Espace.iconeTexte),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
@@ -120,16 +122,16 @@ class _Litige extends StatelessWidget {
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
-                Text(dateCourte(l.ouvertLe), style: const TextStyle(fontSize: 12.5, color: AppColors.textMuted)),
+                Text(dateCourte(l.ouvertLe), style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
               ]),
               const SizedBox(height: 2),
-              Text(etat, style: TextStyle(fontSize: 13.5, color: couleur == AppColors.textMuted ? AppColors.textMuted : couleur)),
+              Text(etat, style: TextStyle(fontSize: 14, color: couleur == AppColors.textMuted ? AppColors.textMuted : couleur)),
               const SizedBox(height: 2),
               Text(
                 l.motif,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13.5, height: 1.35, color: AppColors.textMuted),
+                style: TextStyle(fontSize: 14, height: 1.35, color: AppColors.textMuted),
               ),
             ]),
           ),

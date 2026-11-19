@@ -3,11 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/drapeau_cameroun.dart';
 import '../widgets/app_bar.dart';
 import '../widgets/app_button.dart';
 import '../widgets/bottom_bar.dart';
 import 'otp_screen.dart';
+import '../widgets/fond_motif.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -55,7 +57,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: buildAppBar(context, 'Créer mon compte'),
-      body: Column(
+      body: FondMotif(child: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
@@ -63,7 +65,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text.rich(
+                  Text.rich(
                     TextSpan(
                       style: TextStyle(
                         color: AppColors.textMuted,
@@ -103,8 +105,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         height: 56,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE6ECE6),
-                          borderRadius: BorderRadius.circular(14),
+                          color: AppColors.surfaceNeutre,
+                          borderRadius: BorderRadius.circular(Rayon.md),
                         ),
                         child: const DrapeauCameroun(largeur: 32),
                       ),
@@ -138,7 +140,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   isLoading: _envoi,
                 ),
                 const SizedBox(height: 12),
-                const Text(
+                Text(
                   "En continuant, tu acceptes les conditions d'utilisation\n"
                   'et la politique de confidentialité.',
                   textAlign: TextAlign.center,
@@ -148,7 +150,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
           ),
         ],
-      ),
+      )),
     );
   }
 }

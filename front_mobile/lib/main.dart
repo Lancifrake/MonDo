@@ -6,6 +6,7 @@ import 'screens/main_shell.dart';
 import 'services/recuperation_locale.dart';
 import 'screens/pin_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 import 'widgets/logo_mondo.dart';
 
@@ -22,9 +23,53 @@ class MonDoApp extends StatelessWidget {
       title: 'MonDo',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Suit le réglage du téléphone (clair ou sombre).
+      themeMode: ThemeMode.system,
+      builder: (context, enfant) => _SuiviDuMode(
+        sombre: Theme.of(context).brightness == Brightness.dark,
+        child: enfant!,
+      ),
       home: const _Demarrage(),
     );
   }
+}
+
+/// Règle [AppColors.sombre] avant chaque construction, et redessine tous les écrans ouverts quand
+/// le téléphone passe du clair au sombre : les couleurs de l'app sont lues dans [AppColors],
+/// pas dans le thème, donc un simple changement de thème ne suffirait pas à les mettre à jour.
+class _SuiviDuMode extends StatefulWidget {
+  const _SuiviDuMode({required this.sombre, required this.child});
+
+  final bool sombre;
+  final Widget child;
+
+  @override
+  State<_SuiviDuMode> createState() => _SuiviDuModeState();
+}
+
+class _SuiviDuModeState extends State<_SuiviDuMode> {
+  @override
+  void initState() {
+    super.initState();
+    AppColors.sombre = widget.sombre;
+  }
+
+  @override
+  void didUpdateWidget(_SuiviDuMode ancien) {
+    super.didUpdateWidget(ancien);
+    if (ancien.sombre == widget.sombre) return;
+    AppColors.sombre = widget.sombre;
+    void toutReconstruire(Element e) {
+      e.markNeedsBuild();
+      e.visitChildren(toutReconstruire);
+    }
+
+    (context as Element).visitChildren(toutReconstruire);
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Au lancement : si la clé de l'appareil est déjà là, on entre directement.
