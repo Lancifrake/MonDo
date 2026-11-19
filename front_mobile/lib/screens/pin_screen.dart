@@ -125,7 +125,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
       context: context,
       barrierDismissible: false,
       builder: (ctx) => AlertDialog(
-        title: const Text('Trop de codes incorrects'),
+        title: const Text('Trop de codes incorrects', style: TextStyle(color: AppColors.rouge)),
         content: const Text(
           'Par sécurité, ce téléphone a oublié ton compte. Ton compte et tes tontines ne sont pas perdus : '
           'choisis « J’ai déjà un compte » pour le récupérer.',
@@ -180,7 +180,7 @@ class _PinScreenState extends ConsumerState<PinScreen> {
                   child: Text(
                     _erreur ?? '',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(color: AppColors.orange, fontSize: 14, fontWeight: FontWeight.w600),
+                    style: const TextStyle(color: AppColors.rouge, fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -203,7 +203,7 @@ class _Points extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = erreur ? AppColors.orange : AppColors.textDark;
+    final couleur = erreur ? AppColors.rouge : AppColors.textDark;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -216,7 +216,7 @@ class _Points extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: i < remplis ? couleur : Colors.transparent,
-              border: Border.all(color: i < remplis ? couleur : (erreur ? AppColors.orange : AppColors.textMuted), width: 1.5),
+              border: Border.all(color: i < remplis ? couleur : (erreur ? AppColors.rouge : AppColors.textMuted), width: 1.5),
             ),
           ),
       ],

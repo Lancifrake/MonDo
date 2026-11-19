@@ -73,7 +73,7 @@ class ProfilScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
-            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Retirer le compte')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Retirer le compte', style: TextStyle(color: AppColors.rouge))),
           ],
         ),
       );
@@ -191,7 +191,7 @@ class ProfilScreen extends ConsumerWidget {
           _Rangee(
             icone: Icons.phonelink_erase_outlined,
             titre: 'Retirer mon compte de ce téléphone',
-            couleur: AppColors.orange,
+            couleur: AppColors.rouge,
             onTap: deconnecter,
           ),
         ],
