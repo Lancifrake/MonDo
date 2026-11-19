@@ -23,7 +23,8 @@ class JoinCercleScreen extends ConsumerStatefulWidget {
 }
 
 class _JoinState extends ConsumerState<JoinCercleScreen> {
-  late int _place = widget.cercle.reglement.nombreMembres;
+  // Ordre fixé par l'organisateur : la place est écrite dans le règlement, on la signe telle quelle.
+  late int _place = widget.cercle.placeFixee ?? widget.cercle.reglement.nombreMembres;
   bool _accepte = false;
   bool _envoi = false;
 
@@ -50,6 +51,8 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
     final premiere = c.premierePlaceAutorisee ?? 1;
     final niveau = ref.watch(authStateProvider).compte?.niveau ?? 1;
     final identiteManquante = r.ouvert && niveau < 2;
+    final ordreFixe = c.ordreFixeParOrganisateur == true;
+    final nonPrevu = ordreFixe && c.placeFixee == null;
     return Ecran(
       titre: 'Rejoindre',
       enfants: [
@@ -71,19 +74,34 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
           Ligne('Premier tour', valeur: formatDate(r.datePremierTour)),
           Ligne('Retard', valeur: '${r.delaiGraceJours} j de grâce, puis ${formatAmount(r.penaliteRetard)} FCFA'),
         ]),
-        const Titre('Ma place souhaitée'),
-        Note('Ton score permet les places $premiere à ${r.nombreMembres}. Recevoir tôt coûte des frais, '
-            'les dernières places reçoivent une remise. L’ordre final est fixé quand la tontine est complète.'),
-        const SizedBox(height: 4),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (var p = 1; p <= r.nombreMembres; p++)
-            ChoiceChip(
-              label: Text('$p', style: TextStyle(color: p == _place ? Colors.white : (p < premiere ? AppColors.textMuted : AppColors.textDark))),
-              selected: p == _place,
-              onSelected: p < premiere ? null : (_) => setState(() => _place = p),
+        if (nonPrevu) ...[
+          const Titre('Ma place'),
+          Bloc(enfants: [
+            Ligne(
+              'L’organisateur a fixé l’ordre de passage, et tu n’es pas sur sa liste. '
+              'Demande-lui de t’ajouter : il lui faut ton identifiant (Profil, « Mon identifiant »).',
+              accent: true,
             ),
-        ]),
-        if (r.bareme.any((f) => f.place == _place))
+          ]),
+        ] else if (ordreFixe) ...[
+          const Titre('Ma place'),
+          Bloc(enfants: [Ligne('Place fixée par l’organisateur', valeur: '${c.placeFixee} sur ${r.nombreMembres}')]),
+          const Note('Tous les membres signent cet ordre en rejoignant : le score ne le change pas.'),
+        ] else ...[
+          const Titre('Ma place souhaitée'),
+          Note('Ton score permet les places $premiere à ${r.nombreMembres}. Recevoir tôt coûte des frais, '
+              'les dernières places reçoivent une remise. L’ordre final est fixé quand la tontine est complète.'),
+          const SizedBox(height: 4),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (var p = 1; p <= r.nombreMembres; p++)
+              ChoiceChip(
+                label: Text('$p', style: TextStyle(color: p == _place ? Colors.white : (p < premiere ? AppColors.textMuted : AppColors.textDark))),
+                selected: p == _place,
+                onSelected: p < premiere ? null : (_) => setState(() => _place = p),
+              ),
+          ]),
+        ],
+        if (!nonPrevu && r.bareme.any((f) => f.place == _place))
           Note('Frais pour la place $_place : ${formatAmount(r.bareme.firstWhere((f) => f.place == _place).frais)} FCFA.'),
         const Titre('Engagement'),
         CheckboxListTile(
@@ -100,7 +118,7 @@ class _JoinState extends ConsumerState<JoinCercleScreen> {
       bas: AppButton(
         label: 'Signer et rejoindre',
         isLoading: _envoi,
-        onPressed: _accepte && !identiteManquante ? _rejoindre : null,
+        onPressed: _accepte && !identiteManquante && !nonPrevu ? _rejoindre : null,
       ),
     );
   }

@@ -135,6 +135,8 @@ _$CercleImpl _$$CercleImplFromJson(Map<String, dynamic> json) => _$CercleImpl(
   placesRestantes: (json['placesRestantes'] as num?)?.toInt(),
   premierePlaceAutorisee: (json['premierePlaceAutorisee'] as num?)?.toInt(),
   scoreSuffisant: json['scoreSuffisant'] as bool?,
+  ordreFixeParOrganisateur: json['ordreFixeParOrganisateur'] as bool?,
+  placeFixee: (json['placeFixee'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$$CercleImplToJson(_$CercleImpl instance) =>
@@ -151,6 +153,8 @@ Map<String, dynamic> _$$CercleImplToJson(_$CercleImpl instance) =>
       'placesRestantes': instance.placesRestantes,
       'premierePlaceAutorisee': instance.premierePlaceAutorisee,
       'scoreSuffisant': instance.scoreSuffisant,
+      'ordreFixeParOrganisateur': instance.ordreFixeParOrganisateur,
+      'placeFixee': instance.placeFixee,
     };
 
 _$ResumeCercleImpl _$$ResumeCercleImplFromJson(Map<String, dynamic> json) =>

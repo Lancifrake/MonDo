@@ -115,6 +115,9 @@ class Cercle with _$Cercle {
     int? placesRestantes,
     int? premierePlaceAutorisee,
     bool? scoreSuffisant,
+    // Ordre fixé par l'organisateur (tontine privée) : vu par quelqu'un qui n'est pas encore membre.
+    bool? ordreFixeParOrganisateur,
+    int? placeFixee, // la place prévue pour moi, absente si je ne suis pas sur la liste
   }) = _Cercle;
 
   const Cercle._();

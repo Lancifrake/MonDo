@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/tontine_draft.dart';
 import '../../models/api_models.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/cercles_provider.dart';
 import '../../theme/app_colors.dart';
 import '../../utils/format.dart';
@@ -120,21 +121,39 @@ class ReglementStep extends ConsumerWidget {
             subtitle: const Text('Un filleul peut entrer sous le score minimum si son parrain est membre.'),
           ),
         ],
-        const SizedBox(height: 10),
-        CounterRow(
-          label: 'Ma place souhaitée',
-          value: d.placeSouhaitee ?? d.nombreMembres,
-          onMinus: (d.placeSouhaitee ?? d.nombreMembres) > 1
-              ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) - 1)
-              : null,
-          onPlus: (d.placeSouhaitee ?? d.nombreMembres) < d.nombreMembres
-              ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) + 1)
-              : null,
-        ),
-        const Text(
-          'Recevoir tôt dépend de ton score : la dernière place est toujours permise.',
-          style: TextStyle(fontSize: 12, color: AppColors.textMuted),
-        ),
+        if (d.isPrivate)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: d.ordreFixe,
+            onChanged: (v) => _update(() {
+              d.ordreFixe = v;
+              d.ajusterOrdre();
+            }),
+            title: const Text('Je fixe l’ordre de passage'),
+            subtitle: const Text(
+              'Entre proches : tu décides qui reçoit à quel tour. Chacun signe cet ordre en rejoignant, '
+              'le score ne le change pas.',
+            ),
+          ),
+        if (d.isPrivate && d.ordreFixe)
+          _OrdreFixe(draft: d, monId: ref.watch(authStateProvider).compte?.id, onChanged: onChanged)
+        else ...[
+          const SizedBox(height: 10),
+          CounterRow(
+            label: 'Ma place souhaitée',
+            value: d.placeSouhaitee ?? d.nombreMembres,
+            onMinus: (d.placeSouhaitee ?? d.nombreMembres) > 1
+                ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) - 1)
+                : null,
+            onPlus: (d.placeSouhaitee ?? d.nombreMembres) < d.nombreMembres
+                ? () => _update(() => d.placeSouhaitee = (d.placeSouhaitee ?? d.nombreMembres) + 1)
+                : null,
+          ),
+          const Text(
+            'Recevoir tôt dépend de ton score : la dernière place est toujours permise.',
+            style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+          ),
+        ],
         const SizedBox(height: 24),
         const SectionLabel('Frais par place'),
         const SizedBox(height: 6),
@@ -183,5 +202,61 @@ class _Bareme extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// Ordre fixé par l'organisateur : sa place, puis l'identifiant MonDo du membre de chaque autre place.
+class _OrdreFixe extends StatelessWidget {
+  const _OrdreFixe({required this.draft, required this.monId, required this.onChanged});
+
+  final TontineDraft draft;
+  final String? monId;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = draft..ajusterOrdre();
+    final probleme = d.problemeOrdre(monId);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        CounterRow(
+          label: 'Ma place',
+          value: d.maPlaceFixee,
+          onMinus: d.maPlaceFixee > 1 ? () => _change(() => d.maPlaceFixee--) : null,
+          onPlus: d.maPlaceFixee < d.nombreMembres ? () => _change(() => d.maPlaceFixee++) : null,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Pour chaque autre place, colle l’identifiant MonDo du membre. Chacun le trouve dans Profil, '
+          '« Mon identifiant », et peut te l’envoyer. Seules ces personnes pourront rejoindre.',
+          style: TextStyle(fontSize: 12, color: AppColors.textMuted, height: 1.4),
+        ),
+        const SizedBox(height: 10),
+        for (var i = 0; i < d.nombreMembres; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: i + 1 == d.maPlaceFixee
+                ? InputDecorator(
+                    decoration: InputDecoration(labelText: 'Place ${i + 1}'),
+                    child: const Text('Moi, organisateur', style: TextStyle(fontWeight: FontWeight.w600)),
+                  )
+                : TextFormField(
+                    key: ValueKey('place-${i + 1}-${d.maPlaceFixee}'),
+                    initialValue: d.identifiants[i],
+                    autocorrect: false,
+                    onChanged: (v) => _change(() => d.identifiants[i] = v),
+                    decoration: InputDecoration(labelText: 'Place ${i + 1}', hintText: 'Identifiant du membre'),
+                  ),
+          ),
+        if (probleme != null) Text(probleme, style: const TextStyle(fontSize: 12, color: AppColors.orange)),
+      ],
+    );
+  }
+
+  void _change(VoidCallback change) {
+    change();
+    onChanged();
   }
 }

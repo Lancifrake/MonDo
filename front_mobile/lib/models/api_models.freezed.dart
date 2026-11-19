@@ -1500,7 +1500,10 @@ mixin _$Cercle {
   String? get termineLe => throw _privateConstructorUsedError;
   int? get placesRestantes => throw _privateConstructorUsedError;
   int? get premierePlaceAutorisee => throw _privateConstructorUsedError;
-  bool? get scoreSuffisant => throw _privateConstructorUsedError;
+  bool? get scoreSuffisant =>
+      throw _privateConstructorUsedError; // Ordre fixé par l'organisateur (tontine privée) : vu par quelqu'un qui n'est pas encore membre.
+  bool? get ordreFixeParOrganisateur => throw _privateConstructorUsedError;
+  int? get placeFixee => throw _privateConstructorUsedError;
 
   /// Serializes this Cercle to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -1529,6 +1532,8 @@ abstract class $CercleCopyWith<$Res> {
     int? placesRestantes,
     int? premierePlaceAutorisee,
     bool? scoreSuffisant,
+    bool? ordreFixeParOrganisateur,
+    int? placeFixee,
   });
 
   $ReglementCopyWith<$Res> get reglement;
@@ -1561,6 +1566,8 @@ class _$CercleCopyWithImpl<$Res, $Val extends Cercle>
     Object? placesRestantes = freezed,
     Object? premierePlaceAutorisee = freezed,
     Object? scoreSuffisant = freezed,
+    Object? ordreFixeParOrganisateur = freezed,
+    Object? placeFixee = freezed,
   }) {
     return _then(
       _value.copyWith(
@@ -1612,6 +1619,14 @@ class _$CercleCopyWithImpl<$Res, $Val extends Cercle>
                 ? _value.scoreSuffisant
                 : scoreSuffisant // ignore: cast_nullable_to_non_nullable
                       as bool?,
+            ordreFixeParOrganisateur: freezed == ordreFixeParOrganisateur
+                ? _value.ordreFixeParOrganisateur
+                : ordreFixeParOrganisateur // ignore: cast_nullable_to_non_nullable
+                      as bool?,
+            placeFixee: freezed == placeFixee
+                ? _value.placeFixee
+                : placeFixee // ignore: cast_nullable_to_non_nullable
+                      as int?,
           )
           as $Val,
     );
@@ -1649,6 +1664,8 @@ abstract class _$$CercleImplCopyWith<$Res> implements $CercleCopyWith<$Res> {
     int? placesRestantes,
     int? premierePlaceAutorisee,
     bool? scoreSuffisant,
+    bool? ordreFixeParOrganisateur,
+    int? placeFixee,
   });
 
   @override
@@ -1681,6 +1698,8 @@ class __$$CercleImplCopyWithImpl<$Res>
     Object? placesRestantes = freezed,
     Object? premierePlaceAutorisee = freezed,
     Object? scoreSuffisant = freezed,
+    Object? ordreFixeParOrganisateur = freezed,
+    Object? placeFixee = freezed,
   }) {
     return _then(
       _$CercleImpl(
@@ -1732,6 +1751,14 @@ class __$$CercleImplCopyWithImpl<$Res>
             ? _value.scoreSuffisant
             : scoreSuffisant // ignore: cast_nullable_to_non_nullable
                   as bool?,
+        ordreFixeParOrganisateur: freezed == ordreFixeParOrganisateur
+            ? _value.ordreFixeParOrganisateur
+            : ordreFixeParOrganisateur // ignore: cast_nullable_to_non_nullable
+                  as bool?,
+        placeFixee: freezed == placeFixee
+            ? _value.placeFixee
+            : placeFixee // ignore: cast_nullable_to_non_nullable
+                  as int?,
       ),
     );
   }
@@ -1753,6 +1780,8 @@ class _$CercleImpl extends _Cercle {
     this.placesRestantes,
     this.premierePlaceAutorisee,
     this.scoreSuffisant,
+    this.ordreFixeParOrganisateur,
+    this.placeFixee,
   }) : _membres = membres,
        _partis = partis,
        _ordre = ordre,
@@ -1810,10 +1839,15 @@ class _$CercleImpl extends _Cercle {
   final int? premierePlaceAutorisee;
   @override
   final bool? scoreSuffisant;
+  // Ordre fixé par l'organisateur (tontine privée) : vu par quelqu'un qui n'est pas encore membre.
+  @override
+  final bool? ordreFixeParOrganisateur;
+  @override
+  final int? placeFixee;
 
   @override
   String toString() {
-    return 'Cercle(id: $id, organisateurId: $organisateurId, reglement: $reglement, empreinteReglement: $empreinteReglement, membres: $membres, partis: $partis, statut: $statut, ordre: $ordre, termineLe: $termineLe, placesRestantes: $placesRestantes, premierePlaceAutorisee: $premierePlaceAutorisee, scoreSuffisant: $scoreSuffisant)';
+    return 'Cercle(id: $id, organisateurId: $organisateurId, reglement: $reglement, empreinteReglement: $empreinteReglement, membres: $membres, partis: $partis, statut: $statut, ordre: $ordre, termineLe: $termineLe, placesRestantes: $placesRestantes, premierePlaceAutorisee: $premierePlaceAutorisee, scoreSuffisant: $scoreSuffisant, ordreFixeParOrganisateur: $ordreFixeParOrganisateur, placeFixee: $placeFixee)';
   }
 
   @override
@@ -1839,7 +1873,14 @@ class _$CercleImpl extends _Cercle {
             (identical(other.premierePlaceAutorisee, premierePlaceAutorisee) ||
                 other.premierePlaceAutorisee == premierePlaceAutorisee) &&
             (identical(other.scoreSuffisant, scoreSuffisant) ||
-                other.scoreSuffisant == scoreSuffisant));
+                other.scoreSuffisant == scoreSuffisant) &&
+            (identical(
+                  other.ordreFixeParOrganisateur,
+                  ordreFixeParOrganisateur,
+                ) ||
+                other.ordreFixeParOrganisateur == ordreFixeParOrganisateur) &&
+            (identical(other.placeFixee, placeFixee) ||
+                other.placeFixee == placeFixee));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
@@ -1858,6 +1899,8 @@ class _$CercleImpl extends _Cercle {
     placesRestantes,
     premierePlaceAutorisee,
     scoreSuffisant,
+    ordreFixeParOrganisateur,
+    placeFixee,
   );
 
   /// Create a copy of Cercle
@@ -1888,6 +1931,8 @@ abstract class _Cercle extends Cercle {
     final int? placesRestantes,
     final int? premierePlaceAutorisee,
     final bool? scoreSuffisant,
+    final bool? ordreFixeParOrganisateur,
+    final int? placeFixee,
   }) = _$CercleImpl;
   const _Cercle._() : super._();
 
@@ -1916,7 +1961,11 @@ abstract class _Cercle extends Cercle {
   @override
   int? get premierePlaceAutorisee;
   @override
-  bool? get scoreSuffisant;
+  bool? get scoreSuffisant; // Ordre fixé par l'organisateur (tontine privée) : vu par quelqu'un qui n'est pas encore membre.
+  @override
+  bool? get ordreFixeParOrganisateur;
+  @override
+  int? get placeFixee;
 
   /// Create a copy of Cercle
   /// with the given fields replaced by the non-null parameter values.

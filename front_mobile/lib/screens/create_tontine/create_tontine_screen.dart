@@ -36,6 +36,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
   // Le bouton est grisé tant que l'étape n'est pas valide
   bool get _canContinue {
     if (_step == 1) return _draft.montant > 0;
+    if (_derniere && _draft.problemeOrdre(ref.read(authStateProvider).compte?.id) != null) return false;
     return !_envoi;
   }
 
@@ -57,6 +58,7 @@ class _CreateTontineScreenState extends ConsumerState<CreateTontineScreen> {
             rappelsAvantEcheanceJours: d.rappels ? const [3, 1] : null,
             parrainageAccepte: !d.isPrivate && d.parrainageAccepte,
             placeSouhaitee: d.placeSouhaitee == null ? null : d.placeSouhaitee!.clamp(1, d.nombreMembres),
+            ordreFixe: d.ordreASigner,
           );
       ref.invalidate(mesCerclesRefreshableProvider);
       ref.invalidate(catalogueCerclesProvider);

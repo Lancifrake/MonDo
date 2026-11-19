@@ -68,6 +68,42 @@ class TontineDraft {
   bool parrainageAccepte = false;
   int? placeSouhaitee; // null = dernière place, toujours permise
 
+  // Ordre fixé par l'organisateur (tontine privée seulement) : qui reçoit à quel tour.
+  bool ordreFixe = false;
+  int maPlaceFixee = 1;
+  List<String> identifiants = List.filled(6, ''); // un par tour ; celui de ma place est ignoré
+
+  /// Garde une case par membre quand le nombre de membres change.
+  void ajusterOrdre() {
+    if (identifiants.length != nombreMembres) {
+      identifiants = List.generate(nombreMembres, (i) => i < identifiants.length ? identifiants[i] : '');
+    }
+    if (maPlaceFixee > nombreMembres) maPlaceFixee = nombreMembres;
+  }
+
+  static final _formeIdentifiant =
+      RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', caseSensitive: false);
+
+  /// Ce qui manque pour signer l'ordre fixé, ou null s'il est complet.
+  String? problemeOrdre(String? monId) {
+    if (!isPrivate || !ordreFixe) return null;
+    ajusterOrdre();
+    final vus = <String>{if (monId != null) monId.toLowerCase()};
+    for (var i = 0; i < nombreMembres; i++) {
+      if (i + 1 == maPlaceFixee) continue;
+      final id = identifiants[i].trim().toLowerCase();
+      if (id.isEmpty) return 'Il manque le membre de la place ${i + 1}';
+      if (!_formeIdentifiant.hasMatch(id)) return 'Place ${i + 1} : ce n’est pas un identifiant MonDo';
+      if (!vus.add(id)) return 'Place ${i + 1} : ce membre est déjà dans la liste';
+    }
+    return null;
+  }
+
+  /// L'ordre à signer : un identifiant par tour, null à ma place (le service y met le mien).
+  List<String?>? get ordreASigner => isPrivate && ordreFixe
+      ? [for (var i = 0; i < nombreMembres; i++) i + 1 == maPlaceFixee ? null : identifiants[i].trim().toLowerCase()]
+      : null;
+
   /// Le délai de grâce doit être plus court que la période (règle du serveur).
   int get graceMax => switch (frequence) {
         'hebdomadaire' => 6,
