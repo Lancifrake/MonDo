@@ -12,9 +12,12 @@ sed -i '' "s/^version: .*/version: $VERSION+$BUILD/" pubspec.yaml
 TAG="mobile-v$VERSION+$BUILD"
 echo "Construction de $TAG…"
 # Avec Shorebird configuré : la version doit être une « release » Shorebird pour recevoir ensuite les correctifs.
-if command -v shorebird >/dev/null && [ -f shorebird.yaml ]; then
-  shorebird release android --artifact apk -- --dart-define=API_URL=https://mon-do-console.vercel.app/api --dart-define=DEMO_COMPTES=true
+SHOREBIRD=$(command -v shorebird || ls "$HOME/.shorebird/bin/shorebird" 2>/dev/null || true)
+if [ -n "$SHOREBIRD" ] && [ -f shorebird.yaml ]; then
+  echo "Release Shorebird ($SHOREBIRD)"
+  "$SHOREBIRD" release android --artifact apk -- --dart-define=API_URL=https://mon-do-console.vercel.app/api --dart-define=DEMO_COMPTES=true
 else
+  echo "⚠️  Shorebird introuvable : build Flutter classique, cette version ne recevra PAS de correctifs."
   flutter build apk --release --dart-define=API_URL=https://mon-do-console.vercel.app/api --dart-define=DEMO_COMPTES=true
 fi
 cp build/app/outputs/flutter-apk/app-release.apk "build/MonDo-$VERSION.apk"
