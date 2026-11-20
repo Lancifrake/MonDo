@@ -11,7 +11,6 @@ import '../../utils/format.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/sobre.dart';
 import '../score/score_screen.dart';
-import 'compte_demo_screen.dart';
 import '../pin_screen.dart';
 import '../welcome_screen.dart';
 import '../../widgets/fond_motif.dart';
@@ -172,26 +171,6 @@ class ProfilScreen extends ConsumerWidget {
             danger: true, // dû à traiter : en rouge
             onTap: () => ouvrir(const SommesDuesScreen()),
           ),
-          // Raccourci de démonstration : seulement dans une version de démo (--dart-define=DEMO_COMPTES=true).
-          if (comptesDemoActifs && compte?.niveau == 1) ...[
-            const _Separation(),
-            const _Section('Démonstration'),
-            _Rangee(
-              icone: Icons.science_outlined,
-              titre: 'Passer au niveau 2 sans pièce',
-              chevron: false,
-              onTap: () async {
-                try {
-                  await ref.read(espaceServiceProvider).demoNiveau2();
-                  await ref.read(authStateProvider.notifier).fetchProfil();
-                  ref.invalidate(_profilProvider);
-                  if (context.mounted) afficherMessage(context, 'Compte passé au niveau 2.');
-                } catch (e) {
-                  if (context.mounted) afficherErreur(context, e);
-                }
-              },
-            ),
-          ],
           const _Separation(),
           _Rangee(icone: Icons.lock_outline, titre: 'Verrouiller', chevron: false, onTap: verrouiller),
           _Rangee(

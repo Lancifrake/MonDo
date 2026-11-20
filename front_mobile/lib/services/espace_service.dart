@@ -187,8 +187,6 @@ class EspaceService {
 
   // ------------------------------------------- Démonstration (hors production)
 
-  /// Passe son propre compte au niveau 2, sans pièce d'identité.
-  Future<Map<String, dynamic>> demoNiveau2() => _post('/comptes/$moi/niveau2');
 
   /// Avance l'horloge de la tontine : échéances, retards, défauts, assistant.
   Future<Map<String, dynamic>> demoAvancer(String cercleId, int jours) =>
