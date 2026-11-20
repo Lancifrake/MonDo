@@ -5,7 +5,7 @@ Date : 27/10/2026, mis à jour le 11/11/2026. Statut : **proposition de travail*
 ## Le score
 Entre 0 et 100, visible par tous les membres du cercle. On gagne des points en payant à l'heure, on en perd quand on ne paie pas. La formule de Rota (`complétions×100 + cotisations×10 − défauts×50…`) n'est pas reprise : elle n'a pas de plafond et un utilisateur ne la comprend pas.
 
-| Événement | Points |
+| Événement | Points de base |
 |---|---|
 | Nouveau membre, point de départ | 0 |
 | Cotisation payée avant la date limite | +4 |
@@ -14,7 +14,9 @@ Entre 0 et 100, visible par tous les membres du cercle. On gagne des points en p
 | Cycle terminé sans défaut | +10 |
 | Départ avant la fin du cycle | −15 |
 
-Le score ne descend jamais sous 0 ni ne dépasse 100.
+Le score ne descend jamais sous 0 et n'atteint jamais 100.
+
+**Gains décroissants** (choix de David, 20/11) : un gain est multiplié par le carré de la distance qui reste à 100, soit gain × ((100 − score) / 100)². Plus on est haut, moins chaque cotisation rapporte, et les pertes restent entières : la confiance se construit lentement et se perd vite. Le calcul garde les décimales, on arrondit à l'affichage. Les seuils des places (60 au début, 30 au milieu) ne changent pas, mais ils demandent plus de cycles.
 
 **Parrainage** (cahier des charges ; règles prudentes du 13/11, à valider) : +2 au parrain quand son filleul termine un cycle sans défaut ; rien de retiré au parrain si le filleul fait défaut (pas de caution).
 
@@ -26,7 +28,7 @@ Le score ne descend jamais sous 0 ni ne dépasse 100.
 
 **Moment du bonus de fin de cycle** (décidé par David le 05/11) : quand la fin de grâce du dernier tour est passée, si le membre n'a eu aucun défaut dans ce cercle et que toutes ses cotisations ont été confirmées par leur bénéficiaire. Un paiement déclaré mais pas encore confirmé fait attendre le bonus jusqu'à la confirmation. Un défaut régularisé ensuite prive quand même du bonus.
 
-Exemple pour un cercle hebdomadaire de 10 membres : après un cycle sans retard, 10 × 4 + 10 = 50. Après un deuxième cycle, 100 (plafonné).
+Exemple pour un cercle hebdomadaire de 10 membres, sans retard : 34 après 1 cycle, 51 après 2, 61 après 3 (seuil du début atteint), 67 après 4, 72 après 5, environ 84 après 10. Avec l'ancienne règle (gains fixes), le score était à 100 dès le 2e cycle et ne distinguait plus personne.
 
 ### Conséquence du départ à 0
 - Un nouveau et un membre tombé à 0 après un défaut ont le même score. Le score seul ne les distingue pas. **L'application affiche donc à côté du score le nombre de cycles terminés et le nombre de défauts.**
@@ -54,7 +56,7 @@ Choix de David, 11/11 : après complétion, deux membres peuvent échanger leurs
 
 ## Cas limites
 - **Cercle composé uniquement de nouveaux** : les premiers inscrits obtiennent les places de fin qu'ils ont demandées, les suivants prennent les places restantes dans l'ordre d'inscription (choix de David, 08/11).
-- **Faux compte** : un défaillant qui recrée un compte repart à 0, donc en fin de cycle. Mais avec seulement un numéro de téléphone, il peut revenir sans limite avec une nouvelle carte SIM. La vérification d'identité de niveau 2 (carte d'identité) est exigée pour les cercles d'inconnus et pour recevoir une cagnotte, ce qui rend le retour beaucoup plus difficile.
+- **Faux compte** : un défaillant qui recrée un compte repart à 0, donc en fin de cycle. Mais avec seulement un numéro de téléphone, il peut revenir sans limite avec une nouvelle carte SIM. La vérification d'identité de niveau 2 (carte d'identité) est exigée pour organiser ou rejoindre un cercle ouvert (contrôle à la création depuis le 20/11, il n'existait qu'à l'adhésion), ce qui rend le retour beaucoup plus difficile. Elle n'est pas exigée au moment de recevoir une cagnotte : un cercle privé reste accessible au niveau 1.
 - **Groupe qui gonfle ses scores puis prend une grosse cagnotte** : le seuil qui monte avec la cagnotte limite le risque sans le supprimer. À tester en simulation.
 
 ## À faire

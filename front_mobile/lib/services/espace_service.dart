@@ -170,6 +170,9 @@ class EspaceService {
   Future<Map<String, dynamic>> modeAssistant(String cercleId, String mode) =>
       _post('/assistant/cercles/$cercleId/mode', {'mode': mode});
 
+  Future<String> modeActuelAssistant(String cercleId) async =>
+      ((await _get('/assistant/cercles/$cercleId/mode'))['mode'] as String?) ?? 'manuel';
+
   Future<List<Map<String, dynamic>>> journalAssistant(String cercleId) =>
       _liste('/assistant/cercles/$cercleId/journal');
 
@@ -187,8 +190,6 @@ class EspaceService {
 
   // ------------------------------------------- Démonstration (hors production)
 
-  /// Passe son propre compte au niveau 2, sans pièce d'identité.
-  Future<Map<String, dynamic>> demoNiveau2() => _post('/comptes/$moi/niveau2');
 
   /// Avance l'horloge de la tontine : échéances, retards, défauts, assistant.
   Future<Map<String, dynamic>> demoAvancer(String cercleId, int jours) =>

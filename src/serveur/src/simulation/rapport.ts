@@ -189,7 +189,7 @@ ${scenarios.map((s) => `- **${s.nom}** : ${s.description}, ${s.cycles} cycles, $
 
 ## Ce que montrent les chiffres
 
-- Face à des membres bien établis (deux cycles derrière eux), un nouveau qui veut partir avec la cagnotte n'a rien à gagner avec MonDo : son score le place en dernier, il a tout payé avant de recevoir (S3 : aucune perte, contre 650 000 FCFA sans MonDo). Sans MonDo, l'ordre tiré au sort le met souvent en tête. Dans le scénario mixte (S5), les pertes qui restent viennent du membre au solde insuffisant, pas du défaillant, qui finit par tout payer faute de pouvoir passer devant (d'où son score de 70).
+- Face à des membres bien établis (quatre cycles derrière eux), un nouveau qui veut partir avec la cagnotte n'a rien à gagner avec MonDo : son score le place en dernier, il a tout payé avant de recevoir (S3 : aucune perte, contre 650 000 FCFA sans MonDo). Sans MonDo, l'ordre tiré au sort le met souvent en tête. Dans le scénario mixte (S5), les pertes qui restent viennent du membre au solde insuffisant, pas du défaillant, qui finit par tout payer faute de pouvoir passer devant (d'où son score de 70).
 - Les rappels de l'assistant réduisent les retards ; l'organisateur n'a plus de relance à faire à la main (S2, S5).
 - Après un défaut, le membre n'est plus jamais placé en tête (fermeture des premières places), ce qui limite le second coup.
 

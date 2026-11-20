@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { AppModule } from "./app.module.js";
 import { ComptesService } from "./modules/comptes/comptes.service.js";
 import { creerClient } from "./testing/client.js";
+import { creerCercle, reglementDeTest } from "./testing/cercles.js";
 
 let app: INestApplication;
 let client: Awaited<ReturnType<typeof creerClient>>;
@@ -32,5 +33,16 @@ describe("vérification d'identité (niveau 2) simulée", () => {
     expect(r.status).toBe(403);
     expect(((await r.json()) as { message: string }).message).toMatch(/administrateur/);
     expect((await app.get(ComptesService).trouver(m.id)).niveau).toBe(1);
+  });
+
+  it("organiser un cercle ouvert exige le niveau 2 ; un cercle privé reste libre", async () => {
+    const org = await client.inscrire();
+    const ouvert = reglementDeTest({ ouvert: true });
+    const refus = await creerCercle(client, org, ouvert);
+    expect(refus.status).toBe(403);
+    expect(((await refus.json()) as { message: string }).message).toMatch(/niveau 2/);
+    expect((await creerCercle(client, org, reglementDeTest())).status).toBe(201);
+    await org.niveau2();
+    expect((await creerCercle(client, org, ouvert)).status).toBe(201);
   });
 });

@@ -285,12 +285,12 @@ describe.skipIf(!URL_SERVEUR)("sur un vrai PostgreSQL", () => {
     expect((await client.requete("GET", "/comptes/moi/parrainages", undefined, org)).status).toBe(200);
     // Un parrain fiable (événements de score fictifs) : la proposition plafonnée passe sur un vrai serveur.
     const parrainFiable = await client.inscrire();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 12; i++) {
       await app
         .get<BaseDeDonnees>(BASE_DE_DONNEES)
         .requete(
           "INSERT INTO score.evenements (membre_id, type, cercle_id, date) VALUES ($1, 'cotisation_a_temps', $2, now())",
-          [parrainFiable.id, `00000000-0000-4000-8000-00000000000${i}`],
+          [parrainFiable.id, `00000000-0000-4000-8000-${String(i).padStart(12, "0")}`],
         );
     }
     const proposition = await client.requete(

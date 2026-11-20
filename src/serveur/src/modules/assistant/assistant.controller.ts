@@ -20,6 +20,11 @@ export class AssistantController {
     return mesurerAssistant(n);
   }
 
+  @Get("cercles/:cercleId/mode")
+  mode(@Param("cercleId") cercleId: string, @MembreAuthentifie() membreId: string) {
+    return this.assistant.mode(cercleId, membreId);
+  }
+
   @Post("cercles/:cercleId/mode")
   changerMode(
     @Param("cercleId") cercleId: string,

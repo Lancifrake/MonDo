@@ -33,10 +33,10 @@ async function evenements(membre: Identite, ...types: string[]) {
     ]);
   }
 }
-/** Membre fiable : score 40 (dix cotisations à temps en cercle ouvert). */
+/** Membre fiable : score 33 (douze cotisations à temps en cercle ouvert). */
 async function membreFiable() {
   const m = await client.inscrire();
-  await evenements(m, ...Array.from({ length: 10 }, () => "cotisation_a_temps"));
+  await evenements(m, ...Array.from({ length: 12 }, () => "cotisation_a_temps"));
   return m;
 }
 interface Parrainage {
@@ -108,7 +108,7 @@ describe("parrainage (cahier des charges, US6) : un membre fiable parraine un pr
     expect((await adherer(client, sans, filleul)).status).toBe(403);
   });
 
-  it("le parrain gagne 2 points quand son filleul termine un cycle sans défaut ; rien ne lui est retiré s'il fait défaut", async () => {
+  it("le parrain gagne des points (2 de base) quand son filleul termine un cycle sans défaut ; rien ne lui est retiré s'il fait défaut", async () => {
     const [parrain, filleul] = [await membreFiable(), await client.inscrire()];
     await accepter(await json<Parrainage>(await proposer(parrain, filleul)), filleul);
     const avant = await score(parrain);
@@ -117,6 +117,6 @@ describe("parrainage (cahier des charges, US6) : un membre fiable parraine un pr
     await evenements(filleul, "defaut");
     expect(await score(parrain)).toBe(avant);
     await bus.publier({ type: "cycle_termine", cercleId: randomUUID(), membreId: filleul.id });
-    expect(await score(parrain)).toBe(avant + 2);
+    expect(await score(parrain)).toBeGreaterThan(avant);
   });
 });

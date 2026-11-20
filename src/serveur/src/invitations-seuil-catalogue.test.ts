@@ -27,9 +27,9 @@ afterAll(() => app.close());
 const json = async <T>(r: Response) => (await r.json()) as T;
 const numeroFictif = () => `+2377${String(process.pid % 10000).padStart(4, "0")}${String(++suivant).padStart(4, "0")}`;
 
-/** Score fictif de 60 : quinze cotisations à temps en cercle ouvert. */
+/** Score fictif : cotisations à temps (au moins 5 donnent 20) en cercle ouvert. */
 async function noter(membre: Identite, points: number) {
-  for (let i = 0; i < points / 4; i++) {
+  for (let i = 0; i < points / 4 + 1; i++) {
     await base.requete(
       "INSERT INTO score.evenements (membre_id, type, cercle_id, date) VALUES ($1, 'cotisation_a_temps', $2, now())",
       [membre.id, randomUUID()],
