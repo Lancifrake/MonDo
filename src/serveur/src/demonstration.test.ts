@@ -3,6 +3,7 @@ import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { AppModule } from "./app.module.js";
+import { BASE_DE_DONNEES, type BaseDeDonnees } from "./base/base-de-donnees.js";
 import type { MesuresAssistant } from "./assistant/mesures.js";
 import type { Cercle } from "./modules/cercles/cercles.service.js";
 import { creerClient, type Identite } from "./testing/client.js";
@@ -61,6 +62,18 @@ describe("démonstration : membres fictifs et avance du temps (hors production)"
     expect(await json(r)).toMatchObject({ tour: 1, paiementsDeclares: 2, confirmations: 3 });
     const apres = (await cotisationsDe(client, id, org)).find((c) => c.id === maDue.id)!;
     expect(apres.statut).toBe("confirmee");
+  });
+
+  it("la suite règle les frais de place des fictifs du tour en cours, même si le remplissage ne l'a pas fait", async () => {
+    const { org, id, remplir, suite } = await cercleDeDemo();
+    await remplir(org);
+    // Remplissage interrompu avant les frais : on remet ceux du tour 1 à « dus ».
+    await app
+      .get<BaseDeDonnees>(BASE_DE_DONNEES)
+      .requete("UPDATE cotisations.sommes_dues SET statut = 'due' WHERE cercle_id = $1 AND tour = 1", [id]);
+    const r = await suite(org);
+    expect(r.status).toBe(201);
+    expect(await json(r)).toMatchObject({ tour: 1, paiementsDeclares: 2 });
   });
 
   it("le membre fictif défaillant ne paie plus à partir du tour 2 ; l'avance du temps fait constater son défaut", async () => {
