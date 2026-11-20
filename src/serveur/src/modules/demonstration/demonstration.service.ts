@@ -92,6 +92,13 @@ export class DemonstrationService {
     const ouvertes = parMembre.flat().filter((c) => c.statut === "due" || c.statut === "declaree");
     if (ouvertes.length === 0) return { tour: 0, paiementsDeclares: 0, confirmations: 0, termine: true };
     const tour = Math.min(...ouvertes.map((c) => c.tour));
+    // Frais de place des membres fictifs pour ce tour : réglés ici aussi, au cas où le remplissage a été
+    // interrompu (relais trop lent, double appui) avant de les régler. Sans effet s'ils le sont déjà.
+    await this.sommes.reglerPourDemonstration(
+      cercleId,
+      tour,
+      fictifs.map((m) => m.id),
+    );
     let paiementsDeclares = 0;
     let confirmations = 0;
     for (const m of fictifs) {
