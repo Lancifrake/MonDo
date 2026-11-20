@@ -188,6 +188,15 @@ class _AssistantState extends ConsumerState<AssistantScreen> {
   late Future<List<Map<String, dynamic>>> _journal = ref.read(espaceServiceProvider).journalAssistant(widget.cercle.id);
   String? _mode;
 
+  @override
+  void initState() {
+    super.initState();
+    // Le mode est enregistré sur le serveur : on le relit à chaque ouverture.
+    ref.read(espaceServiceProvider).modeActuelAssistant(widget.cercle.id).then((m) {
+      if (mounted) setState(() => _mode = m);
+    }).catchError((_) {});
+  }
+
   void _recharger() => setState(() => _journal = ref.read(espaceServiceProvider).journalAssistant(widget.cercle.id));
 
   @override

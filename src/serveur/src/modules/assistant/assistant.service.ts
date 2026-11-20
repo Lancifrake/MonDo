@@ -118,6 +118,16 @@ export class AssistantService implements OnModuleInit {
     return { cercleId, mode };
   }
 
+  /** Mode en vigueur du cercle : celui enregistré par l'organisateur, sinon le mode par défaut. */
+  async mode(cercleId: string, demandeurId: string): Promise<{ cercleId: string; mode: Mode }> {
+    await this.verifierOrganisateur(cercleId, demandeurId);
+    const [reglage] = await this.base.requete<{ mode: Mode }>(
+      "SELECT mode FROM assistant.reglages WHERE cercle_id = $1",
+      [cercleId],
+    );
+    return { cercleId, mode: reglage?.mode ?? MODE_PAR_DEFAUT };
+  }
+
   async journal(cercleId: string, demandeurId: string): Promise<ActionJournal[]> {
     await this.verifierOrganisateur(cercleId, demandeurId);
     const lignes = await this.base.requete<LigneAction>(

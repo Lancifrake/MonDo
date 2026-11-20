@@ -92,6 +92,15 @@ describe("mode de l'assistant", () => {
     expect((await changer(org, "magique")).status).toBe(400);
     expect((await changer(org, "autonome")).status).toBe(201);
   });
+
+  it("le mode choisi est conservé et relu : manuel par défaut, puis autonome, réservé à l'organisateur", async () => {
+    const { org, a, cercle } = await cercleComplet();
+    const lire = async (qui: Identite) => client.requete("GET", `/assistant/cercles/${cercle.id}/mode`, undefined, qui);
+    expect(await (await lire(org)).json()).toMatchObject({ mode: "manuel" });
+    await client.requete("POST", `/assistant/cercles/${cercle.id}/mode`, { mode: "autonome" }, org);
+    expect(await (await lire(org)).json()).toMatchObject({ mode: "autonome" });
+    expect((await lire(a)).status).toBe(403);
+  });
 });
 
 describe("assistant branché sur les événements", () => {

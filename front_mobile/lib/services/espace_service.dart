@@ -170,6 +170,9 @@ class EspaceService {
   Future<Map<String, dynamic>> modeAssistant(String cercleId, String mode) =>
       _post('/assistant/cercles/$cercleId/mode', {'mode': mode});
 
+  Future<String> modeActuelAssistant(String cercleId) async =>
+      ((await _get('/assistant/cercles/$cercleId/mode'))['mode'] as String?) ?? 'manuel';
+
   Future<List<Map<String, dynamic>>> journalAssistant(String cercleId) =>
       _liste('/assistant/cercles/$cercleId/journal');
 
